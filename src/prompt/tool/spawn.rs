@@ -1,8 +1,25 @@
-//! Production [`super::ToolExecutor`] — resolves the tool binary,
-//! delegates spawn / capture / cascade to [`super::subprocess`], and
-//! lands the per-tool-call disk record under `<step_dir>/tools/<tool-id>/`.
+//! Production [`super::ToolExecutor`] — answers a tool call and lands the
+//! per-tool-call disk record under `<step_dir>/tools/<tool-id>/`.
 //!
-//! Resolution order, per ARCH §3.3:
+//! **Two backends, and the binding picks one for the whole process**
+//! (bl-a00a). Either the binding installed a **host injection**
+//! ([`super::inject`], ARCH §3.3 *Host-injected tools*), in which case
+//! its router answers every invocation and nothing here resolves a binary
+//! for any name; or it did not, in which case every invocation resolves
+//! and spawns. The choice is made once, at construction, and there is no
+//! per-invocation fall-through between them — that would be two pipelines
+//! with two adjudication stories, and which one an operator hit would
+//! depend on which names a host happened to own (yog `docs/REMOTE.md` §5,
+//! §12 *front door only*).
+//!
+//! Everything *after* the answer is one code path for both: the same
+//! `input.json` / `output.json` record, the same bounded projection, the
+//! same result envelope, the same `is_error` mapping. That is what makes
+//! a routed tool indistinguishable from a spawned one downstream, and it
+//! is landed by the executor rather than by the host, so a host cannot
+//! forget it.
+//!
+//! Resolution order for the spawning backend, per ARCH §3.3:
 //!
 //! 1. `<data_root>/tools/litany-tool-<name>` (installed by `make
 //!    install`).
@@ -16,24 +33,16 @@
 //!    image; under a linked host it is the host's own re-exec target or
 //!    a PATH-resolved `litany` — never the host binary itself, which
 //!    carries no `tool` verb of its own.
-//!
-//! Ahead of all three sits the binding's optional **host injection**
-//! ([`super::inject`], §3.3 *Host-injected tools*): the router is
-//! consulted first, and an invocation it owns never reaches resolution at
-//! all. Everything around the answer is unchanged — the same
-//! `input.json` / `output.json` record, the same bounded projection, the
-//! same result envelope — so a routed tool and a spawned one are one
-//! contract with two backends.
 
 mod batch;
 mod caller;
 pub(super) mod lookup;
 
-use batch::Prepared;
+use batch::{Answered, Prepared};
 
 pub use lookup::{EnvPath, PathLookup};
 
-use super::inject::{InjectedTool, RoutedCapture, ToolInjection};
+use super::inject::{InjectedTool, ToolInjection};
 use super::subprocess::{Captured, SpawnArgs, spawn_and_capture};
 use super::{
     ExecError, IN_PROCESS_SUBCOMMAND, INPUT_FILE, OUTPUT_FILE, ToolCall, ToolExecutor,
@@ -83,9 +92,9 @@ impl<'a> SpawnTool<'a> {
 
     /// Install the binding's tool injection (`cmd::Fx::tool_injection`,
     /// ARCH §3.3 *Host-injected tools*) — the definitions this executor
-    /// declares beyond the pool and the router consulted ahead of
-    /// [`Self::resolve`]. `None` is the exec binding's default and leaves
-    /// every path exactly as it was.
+    /// declares beyond the pool, and the router that then answers **every**
+    /// invocation in place of [`Self::resolve`]. `None` is the exec
+    /// binding's default and leaves the spawning backend whole.
     pub fn with_injection(mut self, injection: Option<&'a dyn ToolInjection>) -> Self {
         self.injection = injection;
         self
@@ -128,11 +137,12 @@ impl<'a> SpawnTool<'a> {
         self
     }
 
-    /// Apply the §3.3 resolution order. Returns `(binary, args)` so
-    /// the caller can spawn it without re-deciding the in-process
-    /// case. Total: the third hop is the injected driver target, so
-    /// there is no unresolvable case — a name no binary answers to is
-    /// declined by the dispatcher behind the front door
+    /// Apply the §3.3 resolution order — the spawning backend only, and
+    /// unreachable while an injection is installed. Returns
+    /// `(binary, args)` so the caller can spawn it without re-deciding
+    /// the in-process case. Total: the third hop is the injected driver
+    /// target, so there is no unresolvable case — a name no binary
+    /// answers to is declined by the dispatcher behind the front door
     /// (`builtin::Error::Unknown`), not by this lookup.
     fn resolve(&self, name: &str) -> (OsString, Vec<OsString>) {
         let external_name = format!("{}{}", super::EXTERNAL_PREFIX, name);
@@ -158,16 +168,13 @@ impl<'a> ToolExecutor for SpawnTool<'a> {
     ) -> Result<ToolOutcome, ExecError> {
         let prepared = self.prepare(call, step_dir)?;
         let started_at = self.clock.now_iso8601();
-        // The host router, ahead of resolution (§3.3): an invocation it
-        // owns is answered here and never spawns.
-        if let Some(routed) = self.route(&prepared, call, stop) {
-            let ended_at = self.clock.now_iso8601();
-            return self.land(&prepared, &routed, output_bound, &started_at, &ended_at);
-        }
-        let captured =
-            spawn_and_capture(&prepared.spawn_args(stop, self.deadline, self.etxtbsy_budget))?;
+        // One backend or the other, never both (this module's docs).
+        let captured = match self.injection {
+            Some(injection) => self.route(injection, &prepared, call, stop),
+            None => self.spawn_one(&prepared, stop)?,
+        };
         let ended_at = self.clock.now_iso8601();
-        self.finish(&prepared, captured, output_bound, &started_at, &ended_at)
+        self.land(&prepared, &captured, output_bound, &started_at, &ended_at)
     }
 
     /// The definitions the binding injected, if any (ARCH §3.3
@@ -177,12 +184,15 @@ impl<'a> ToolExecutor for SpawnTool<'a> {
         self.injection.map(ToolInjection::tools).unwrap_or_default()
     }
 
-    /// The overlapping implementation a `parallel` multi-tool envelope
-    /// reaches (ARCH §3.3). Every call is prepared on this thread, the
-    /// blocking waits run together in one [`std::thread::scope`], and
-    /// every record is landed back on this thread — so the clock, the
-    /// git runner and the PATH lookup never cross a thread boundary
-    /// ([`batch`] says why).
+    /// The implementation a `parallel` multi-tool envelope reaches
+    /// (ARCH §3.3). Every call is prepared on this thread and every
+    /// record is landed back on this thread, so the clock, the git runner
+    /// and the PATH lookup never cross a thread boundary ([`batch`] says
+    /// why). Between those, the installed backend answers the whole fan:
+    /// the spawning one overlaps its blocking waits in a
+    /// [`std::thread::scope`]; a host router runs in list order on this
+    /// thread, because it is the host's code and carries no `Sync`
+    /// (`docs/DESIGN_TOOL_INJECTION.md` §7).
     ///
     /// The window is one pair of clock reads for the whole fan, not
     /// one per tool call: under `parallel` the calls genuinely do start
@@ -200,62 +210,16 @@ impl<'a> ToolExecutor for SpawnTool<'a> {
             .map(|call| self.prepare(*call, step_dir))
             .collect();
         let started_at = self.clock.now_iso8601();
-        // Routed invocations are answered here, in list order, before the
-        // scope opens: the router runs in this thread (it is the host's
-        // code, bound by no `Sync`), and what it owns never spawns. The
-        // fan's concurrency is unaffected for everything it declines.
-        let routed: Vec<Option<RoutedCapture>> = prepared
-            .iter()
-            .zip(calls)
-            .map(|(p, call)| p.as_ref().ok().and_then(|p| self.route(p, *call, stop)))
-            .collect();
-        // Copied out so the scope's closures capture two scalars
-        // instead of `self` — `self` holds the clock, the git runner
-        // and the PATH lookup, none of which are `Sync` and none of
-        // which the blocking phase needs.
-        let (deadline, etxtbsy_budget) = (self.deadline, self.etxtbsy_budget);
-        let captured: Vec<Result<Captured, ExecError>> = std::thread::scope(|scope| {
-            let handles: Vec<_> = prepared
-                .iter()
-                .zip(&routed)
-                .filter_map(|(p, routed)| p.as_ref().ok().filter(|_| routed.is_none()))
-                .map(|p| {
-                    scope.spawn(move || {
-                        spawn_and_capture(&p.spawn_args(stop, deadline, etxtbsy_budget))
-                    })
-                })
-                .collect();
-            handles
-                .into_iter()
-                // A panicking capture is a harness fault, not a tool
-                // failure: re-raise it here so it reads exactly as it
-                // would have from `execute`.
-                .map(|h| h.join().unwrap_or_else(|p| std::panic::resume_unwind(p)))
-                .collect()
-        });
+        let answered: Vec<Answered> = match self.injection {
+            Some(injection) => self.route_fan(prepared, calls, injection, stop),
+            None => self.spawn_fan(prepared, stop),
+        };
         let ended_at = self.clock.now_iso8601();
-        // The routing verdicts ride *with* their calls rather than in a
-        // second iterator, so a failed prepare cannot slip them out of
-        // step; only the captures, which exist for spawned calls alone,
-        // are stepped by hand.
-        let mut captured = captured.into_iter();
-        prepared
+        answered
             .into_iter()
-            .zip(routed)
-            .map(|(prepared, routed)| {
-                let prepared = prepared?;
-                match routed {
-                    Some(routed) => {
-                        self.land(&prepared, &routed, output_bound, &started_at, &ended_at)
-                    }
-                    None => self.finish(
-                        &prepared,
-                        captured.next().expect("one capture per spawned call")?,
-                        output_bound,
-                        &started_at,
-                        &ended_at,
-                    ),
-                }
+            .map(|answered| {
+                let (prepared, captured) = answered?;
+                self.land(&prepared, &captured, output_bound, &started_at, &ended_at)
             })
             .collect()
     }

@@ -3,10 +3,19 @@
 //!
 //! The exec binding needs none of this. A *linked* binding may need two
 //! things the pool cannot give it: to put tool definitions of its own in
-//! front of the model, and to answer some invocations itself rather than
-//! have the executor resolve a binary for them — a client-management
-//! tool, or a tool a remote client advertises across a transport only the
-//! host speaks (yog's client/server split, its `docs/REMOTE.md` §5).
+//! front of the model, and to be the thing that executes — a
+//! client-management tool, or a tool a remote client advertises across a
+//! transport only the host speaks (yog's client/server split, its
+//! `docs/REMOTE.md` §5).
+//!
+//! **An installed injection is the executor's whole backend** (bl-a00a).
+//! [`ToolInjection::route`] is total: it answers *every* invocation the
+//! agent makes while the host is installed, and the §3.3 three-hop binary
+//! resolution stands behind it for no name at all. The binding chooses
+//! one pipeline, once, by installing an injection or not; there is no
+//! per-invocation choice and therefore no second pipeline with its own
+//! adjudication story and its own capture shape (yog `docs/REMOTE.md` §5,
+//! §12 *front door only*).
 //!
 //! Both halves ride **one** object the binding injects at
 //! `cmd::Fx::tool_injection`, and one object is the point: a declaration
@@ -100,8 +109,8 @@ pub struct RoutedCapture {
     pub exit_code: i32,
 }
 
-/// The binding's tool injection: extra definitions, and a router that
-/// answers the invocations it owns.
+/// The binding's tool injection: extra definitions, and the router that
+/// answers every invocation while it is installed.
 ///
 /// **Router obligations**, which litany cannot enforce and therefore
 /// states — [`route`](Self::route) runs *in the executor's own thread*,
@@ -132,17 +141,20 @@ pub trait ToolInjection {
     /// declares nothing; the injection is still installed.
     fn tools(&self) -> Vec<InjectedTool>;
 
-    /// Answer `call`, or decline it. `Some` is this host's answer and
-    /// ends the invocation; `None` falls through to the §3.3 resolution
-    /// order (harness root, `PATH`, the in-process front door) exactly as
-    /// if no injection were installed.
+    /// Answer `call`. **Total** — there is nothing to decline to: while
+    /// this host is installed it is the executor, and the §3.3 three-hop
+    /// binary resolution stands behind it for no name at all.
+    ///
+    /// A name this host does not own is therefore its own refusal to
+    /// render, in this contract's own vocabulary: a non-zero
+    /// [`RoutedCapture`] saying so on `stderr`, exactly what an absent
+    /// binary produces behind the front door. It is a `tool_result` the
+    /// model reads and steps on, never a fall-through and never a hang.
     ///
     /// Nothing checks that the names answered here are the names
-    /// [`tools`](Self::tools) declares. A host *may* route a pool tool's
+    /// [`tools`](Self::tools) declares. A host *may* answer a pool tool's
     /// name — it took that name over in the declaration too (the composer
     /// gives an injected definition precedence, so the model reads the
-    /// schema of the thing that will actually run) — and it may decline a
-    /// name it declared, which lands as an ordinary "no such tool"
-    /// decline behind the front door.
-    fn route(&self, call: RoutedCall<'_>) -> Option<RoutedCapture>;
+    /// schema of the thing that will actually run).
+    fn route(&self, call: RoutedCall<'_>) -> RoutedCapture;
 }

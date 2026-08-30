@@ -49,10 +49,11 @@
 //!
 //! **Injection outranks election, and it is spliced first.** A name can
 //! have only one entry, and when both sources carry it the injected
-//! definition wins — because it also wins at execution (the host router
-//! is consulted ahead of the §3.3 resolution order), so the schema the
-//! model reads is always the schema of the thing that will run. The
-//! ordinary case is disjoint sets and the order is then invisible.
+//! definition wins — because it also wins at execution (an installed
+//! host router answers every invocation, §3.3 binary resolution standing
+//! behind it for no name at all), so the schema the model reads is
+//! always the schema of the thing that will run. The ordinary case is
+//! disjoint sets and the order is then invisible.
 //!
 //! Declaring is not permitting: what a role may *call* is decided at
 //! execution ([`super::tool_step`]), and nothing here widens it.

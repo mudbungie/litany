@@ -17,11 +17,12 @@
 //! binding-injected driver target (`cmd::Fx::driver_target`, §2.11) —
 //! the library resolves no binary path by name.
 //!
-//! Ahead of that resolution sits the optional **host injection**
+//! *In place of* that resolution stands the optional **host injection**
 //! ([`inject`], §3.3 *Host-injected tools*): a linked binding may hand
-//! the executor tool definitions of its own plus a router that answers
-//! the invocations it owns, so a tool can be answered by the host instead
-//! of by a binary. Everything after the answer — the result envelope, the
+//! the executor tool definitions of its own plus the router that then
+//! answers every invocation, so the binding chooses one execution
+//! pipeline for the whole process rather than a name-by-name mix
+//! (bl-a00a). Everything after the answer — the result envelope, the
 //! bounded projection, the disk record ([`record`]) — is identical either
 //! way.
 

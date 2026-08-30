@@ -1,4 +1,4 @@
-# Design: host tool injection at the binding (bl-9001)
+# Design: host tool injection at the binding (bl-9001, inverted bl-a00a)
 
 **Ruling: one optional object on `cmd::Fx`, carrying both halves — extra
 tool definitions and an execution router — and nothing else moves.** A
@@ -8,6 +8,18 @@ envelope, the disk record and the prompt-cache discipline are all
 untouched. This document records the seam, defines its terms, and states
 what it is contained by — in particular why it does not reopen the
 `docs/DESIGN_MCP_BRIDGE.md` refusals.
+
+**Amendment (bl-a00a): the router's scope is total, and only its scope
+changed.** The seam as first landed was consulted *ahead of* the ARCH
+§3.3 three-hop binary resolution and could decline a name, which fell
+through to a local spawn. It no longer can: while an injection is
+installed it answers **every** invocation the agent makes, and nothing
+resolves a binary behind it. The object is the same object, both halves
+are the same halves, and an injected name still outranks an elected one
+(§6) — what is gone is the per-invocation choice of pipeline. The
+downstream authority is yog's `docs/REMOTE.md` §5 (*"the engine's driver
+keeps no local executor"*) under its §12 front-door invariant; the
+priced decision this amendment had to make, and did not assume, is §3.4.
 
 **Section-reference convention.** A bare `§N` in this document names a
 section of *this* document; every cross-document reference names its
@@ -20,9 +32,17 @@ yog's client/server split (its `docs/REMOTE.md` §5) needs two things:
 1. to place extra tool definitions in front of the model at
    prompt-assembly time — a client-management tool, plus the tools a
    connected remote client advertises;
-2. to route designated invocations to its own engine instead of the
-   local spawn path, so a conversation can teleoperate another machine's
-   advertised tools.
+2. **to be the executor** — to have every invocation the agent makes
+   arrive at its own routing leg, so a conversation's tool calls all take
+   one road to whichever machine holds the subject.
+
+The second was originally "to route *designated* invocations instead of
+the local spawn path", and the widening is bl-a00a's whole substance. It
+is not a new capability: a host that wants the old behaviour has it, by
+answering a name it does not own the way an absent binary does (§3.3).
+What it can no longer do is hand a name back for litany to spawn — which
+is what made two pipelines with two containment stories reachable from
+one drive.
 
 It is **not** an ask for dynamic discovery inside litany, a second
 control plane, or a policy exemption. Everything in §4 stays true.
@@ -44,11 +64,14 @@ control plane, or a policy exemption. Everything in §4 stays true.
   `src/bin/litany`, a linked binding is a program that links the crate
   and drives the same verbs. Only a linked binding can carry an
   injection; the exec binding passes `None`.
-- **Router** — the execution half of a host injection: the function
-  consulted for every invocation, which either answers it or declines to
-  own it.
-- **Routed invocation** — one the router answered. Its counterpart is a
-  **spawned invocation**, resolved to a binary by ARCH §3.3's three hops.
+- **Router** — the execution half of a host injection: the function that
+  answers every invocation while the injection is installed. It is
+  **total** — there is no decline (bl-a00a).
+- **Routed invocation** — any invocation under an installed injection.
+  Its counterpart is a **spawned invocation**, resolved to a binary by
+  ARCH §3.3's three hops, which is every invocation under a binding that
+  installed none. Which one an invocation is, is a fact about the
+  **binding**, never about the name.
 
 ## 3. The seam
 
@@ -62,7 +85,7 @@ pub struct Fx<'a> {
 
 pub trait ToolInjection {
     fn tools(&self) -> Vec<InjectedTool>;
-    fn route(&self, call: RoutedCall<'_>) -> Option<RoutedCapture>;
+    fn route(&self, call: RoutedCall<'_>) -> RoutedCapture;
 }
 
 pub struct InjectedTool {
@@ -125,6 +148,24 @@ the public surface and make an audit trail depend on a host remembering
 to write it. Held here it is structural, not disciplinary (PRINCIPLES
 "Structure over discipline"), and the surface stays four types wide.
 
+**bl-a00a re-states this, because deleting a spawn could have taken it
+with it.** Four things the *executor* owns, and which the inversion moved
+by exactly zero inches — they are one implementation
+(`spawn/batch.rs::land`) reached by both backends, not two that agree:
+
+| Fact | Owner | Where |
+| --- | --- | --- |
+| Result envelope (`Exit code: N`, `--- stderr ---`) | executor | `tool/envelope.rs`, via `land` |
+| `is_error` == `exit_code != 0` | executor | `land` |
+| Bounded projection (`tool_output:`), applied *before* the envelope | executor | `tool/bound.rs`, via `land` |
+| `input.json` / `output.json` under `tools/<tool-id>/` | executor | `prepare` and `land` |
+
+`prepare` lands `input.json` and resolves the caller *before* either
+backend is entered, and `land` renders and records after either one
+returns. A host supplies three facts and never a path, a filename or a
+rendering. That is why §3.1 survives the inversion unchanged rather than
+being re-argued for it.
+
 The router *is* consulted before the record's `output.json` exists, so a
 router that hangs forever leaves an `input.json` and no output — the same
 evidence a hung subprocess leaves, and the step's own `response.json`
@@ -145,6 +186,73 @@ so three obligations are stated at the trait and are the host's:
   backend does.
 - **Watch `RoutedCall::stop`**, so a `litany stop` landing inside a
   routed invocation ends it as promptly as SIGTERM ends a subprocess.
+
+A fourth arrives with bl-a00a's total router, and it is the same
+obligation seen from the other side:
+
+- **A name you do not own is a refusal you render**, not a hand-back.
+  Non-zero `exit_code`, the reason on `stderr` — indistinguishable from
+  the "no such tool" an absent binary produces behind the front door
+  (`builtin::Error::Unknown`). A host with nothing to route to therefore
+  refuses everything in band, which is the posture working rather than an
+  error state (yog `docs/REMOTE.md` §12 *ship inert*).
+
+### 3.4 The priced decision: the exec binding keeps its local spawn
+
+bl-a00a required this resolved explicitly rather than drifted into.
+**Ruling: yes — a binding that installs no injection still resolves and
+spawns, exactly as before, and that is not a fallback.**
+
+The distinction the downstream invariant actually draws is between *one
+pipeline* and *two reachable from one drive*. What made two pipelines a
+defect was that a single running agent could hit either, decided by
+whether a name happened to be designated — two adjudication stories, two
+capture shapes, two containment claims, and no way for an operator to
+say which one an invocation took. That is now unrepresentable: the
+backend is chosen **once, at the binding, for the whole process**, the
+choice is total over names, and `route`'s return type has no shape in
+which a call could fall through. Under yog, which installs an injection,
+litany spawns nothing — which is the invariant, discharged.
+
+Deleting the spawn outright was weighed and refused, on three counts:
+
+- **It would delete the engine, not a pipeline.** `litany drive` under
+  the exec binding would then be structurally unable to run any tool:
+  no wire, no registry, no leaf, nothing to install an injection with.
+  The engine is a published crate with its own CLI and its own tool
+  corpus, and yog's four-component ruling makes it a *component*, not the
+  product — a component cannot inherit its composer's deployment
+  invariant.
+- **Nothing would inherit the corpus.** The subprocess stdio contract,
+  the three-hop resolution and the in-process `litany tool <name>` front
+  door are what a thrall would have to re-implement to be a tool host at
+  all. Deleting them from the engine relocates work rather than removing
+  it.
+- **Severability cuts the other way** (PRINCIPLES). Policy belongs in the
+  capability: *which* pipeline exists is the binding's statement, made by
+  installing an object or not. Hard-coding "no local execution" into the
+  engine would be the composer's policy compiled into the component,
+  removable only by editing code. It is also PRINCIPLES *Integrations are
+  external binaries* still standing: a tool is a separate executable with
+  a narrow stdio contract, and a host router is that same contract
+  answered in memory (§3) rather than a repudiation of it.
+
+The alternative shape — make the local spawn itself an implementation of
+`ToolInjection`, so there is literally one backend and the exec binding
+installs the local one — is elegant and was rejected for a concrete
+reason: a spawning backend needs the caller's **cwd and environment**,
+which `RoutedCall` deliberately does not carry (§3, "nothing else,
+because a router that needed more would be reaching for harness state the
+front door does not carry"). Making it fit would widen the public seam
+with fields no host wants, to express an internal implementation. The
+seam stays four types wide and the two backends stay internal, selected
+by one `Option`.
+
+**What holds the ruling honest**: `SpawnTool` reads `self.injection` in
+exactly two places (`execute`, `execute_all`), each a `match` with two
+arms and no third, and `src/prompt/tool/tests/injection_scope.rs` pins
+the sharp case — a tool binary *installed and resolvable* in the harness
+root, called by name, answered by the host anyway.
 
 ## 4. Containment
 
@@ -198,9 +306,11 @@ reaches the executor.
 - `src/prompt/tool/inject.rs` — the trait and its three data types. The
   whole seam; re-exported from `src/cmd/mod.rs` because the halves that
   consume it are below the surface and may not name `crate::cmd`.
-- `src/prompt/tool/spawn.rs` + `spawn/batch.rs` — the router is consulted
-  ahead of the §3.3 resolution order, per invocation, in `execute` and in
-  `execute_all`. `land` is the one landing both backends share.
+- `src/prompt/tool/spawn.rs` + `spawn/batch.rs` — the two backends.
+  `execute` and `execute_all` each `match self.injection` exactly once,
+  choosing `route`/`route_fan` or `spawn_one`/`spawn_fan` for the whole
+  answer; `prepare` runs ahead of both and `land` is the one landing both
+  share.
 - `src/prompt/dispatch/tools.rs` — `injected(role, executor)` is where
   the procedure and host sources meet, and `compose` splices that list
   ahead of election.
@@ -231,15 +341,23 @@ path").
 A host may declare a name the calling role also grants. Two entries for
 one name is a request some providers refuse outright, so the composer
 must choose, and it chooses injection — in *both* halves. The declaration
-carries the injected schema, and the router is consulted before
-resolution, so the schema the model reads is always the schema of the
-thing that will run. The ordinary case is disjoint sets, where the rule
-is invisible.
+carries the injected schema, and under bl-a00a the router answers
+whatever is called, so the schema the model reads is always the schema of
+the thing that will run. The ordinary case is disjoint sets, where the
+rule is invisible.
 
-The inverse — a host that declares a name and then declines to route it —
-is not policed: it lands as an ordinary "no such tool" decline behind the
-front door (the §3.3 third hop), non-zero and in band, which is what an
-absent binary does too.
+**bl-a00a makes the execution half of this trivially true rather than
+merely arranged.** It used to hold because the router was consulted
+*before* resolution and could take a name over; now there is no
+resolution to outrank. What survives is the declaration half, which is
+where the rule was always doing work: it is the composer that must not
+emit two entries for one name.
+
+The inverse — a host that declares a name and then does not implement it
+— is not policed and is now unambiguous: it is a refusal the host itself
+renders (§3.3's fourth obligation), non-zero and in band, which is what
+an absent binary produced behind the front door too. It is no longer a
+`None` that means something else somewhere.
 
 ## 7. What this does not solve
 
@@ -249,16 +367,46 @@ absent binary does too.
   thread — would put a `Sync` bound on the injection and, through it, on
   whatever the host holds behind it; that price buys protection against
   the host's own bug in the host's own process. Declined, and stated.
-- **Parallel fan-out over routed invocations is serial.** Under a
-  `parallel` multi-tool envelope the router answers what it owns in list
-  order on the calling thread, then the spawned remainder overlaps as
-  before. Whether a host's transport is safe to drive concurrently is the
-  host's fact and litany holds none of it. Results still render in list
-  order, so nothing observable changes.
+- **Parallel fan-out under an installed host is now wholly serial, and
+  bl-a00a widened that** (previously only the routed subset was serial
+  and the spawned remainder still overlapped). Under a `parallel`
+  multi-tool envelope the router answers every call in list order on the
+  calling thread, so a `parallel` envelope of N calls costs N round trips
+  end to end. It stays this way because `route` runs on the executor's
+  own thread by construction: overlapping it would put a `Sync` bound on
+  the injection, and whether a host's transport is safe to drive
+  concurrently is the host's fact, which litany holds none of. If it is
+  ever paid for (filed downstream as yog bl-fab6), the shape is a
+  **defaulted** `route_all(&self, calls)`
+  on the trait, mapping over `route` unless a host overrides it — purely
+  additive, so no host is broken by its arrival, and no host is asked for
+  a concurrency guarantee it cannot give. Nothing observable changes
+  today: results still render in list order.
 - **The seam is per-process, not per-agent.** One injection serves every
   agent a driver verb drives. `RoutedCall` carries the workspace and
   agent id so a router can discriminate, but litany will not do it for
   them.
+- **Procedure-injected tools are routed like any other, and that is a
+  live question for the composing host, not a settled one** (bl-a00a;
+  filed downstream as yog bl-dfce, which is where it is adjudicated). The compactor pair (`write_summary` /
+  `mark_for_deletion`, ARCH §2.7) reaches the executor as an ordinary
+  `tool_use` and is therefore answered by an installed router, exactly as
+  every other name now is. But those two are not tools *on a machine*:
+  they write the conversation's own summary and nominate its own files,
+  on the engine's own state — the class yog's `docs/REMOTE.md` §5.4 calls
+  an engine act rather than a thrall's. A host that routes everything
+  must therefore answer them itself, and a host forbidden to execute
+  locally (yog's §12 *front door only*) has no obvious way to. **Which
+  side owns the carve-out is the composer's ruling to make**, and the
+  three candidates are: the host answers the pair itself as engine acts;
+  §2's *procedure injection* is exempted from routing here (which costs a
+  second road decided by litany, not by a host); or compaction's pair
+  stops being executor-shaped at all and becomes part of the compaction
+  act. litany does not pick one unilaterally, because the invariant being
+  amended (`REMOTE.md` §5, *"every tool call the agent makes takes the
+  same road"*) is not litany's to amend. Nothing regresses in litany's
+  own tree — the exec binding installs no injection and compaction is
+  unaffected — and nothing regresses downstream until the pin is bumped.
 - **No stability promise.** Like the linked binding and the mint seam
   (`src/mint.rs`), this is pin-exact 0.x consumption: no semver
   stability.

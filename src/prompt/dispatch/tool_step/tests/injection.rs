@@ -35,7 +35,7 @@ impl ToolInjection for Hosted {
         }]
     }
 
-    fn route(&self, _call: RoutedCall<'_>) -> Option<RoutedCapture> {
+    fn route(&self, _call: RoutedCall<'_>) -> RoutedCapture {
         unreachable!("this stub answers at `execute`, not through a spawn path")
     }
 }

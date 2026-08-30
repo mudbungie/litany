@@ -24,6 +24,9 @@
 //! - [`injection`]: the host injection seam (ARCH §3.3 *Host-injected
 //!   tools*) — a test embedder that declares a tool and routes it,
 //!   asserted to be indistinguishable downstream from a spawned one.
+//! - [`injection_scope`]: that seam's scope after bl-a00a — an installed
+//!   host answers every name, an installed binary's included, and a fan
+//!   with it.
 //! - [`bash_tool`], [`read_file_tool`]: end-to-end through the
 //!   cargo-built `litany` binary (the §3.3 third hop), injected as the
 //!   driver target via [`crate::test_support::litany_binary`].
@@ -37,6 +40,7 @@ mod etxtbsy;
 mod fixtures;
 mod happy;
 mod injection;
+mod injection_scope;
 mod moved_cwd;
 mod read_file_tool;
 mod resolve;

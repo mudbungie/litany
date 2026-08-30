@@ -28,8 +28,8 @@ impl ToolInjection for Host {
         }]
     }
 
-    fn route(&self, _call: RoutedCall<'_>) -> Option<RoutedCapture> {
-        None
+    fn route(&self, _call: RoutedCall<'_>) -> RoutedCapture {
+        unreachable!("this file's subject is the declaration half")
     }
 }
 

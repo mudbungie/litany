@@ -1,33 +1,41 @@
-//! [`SpawnTool`]'s split of one tool call into the part that needs the
-//! executor's own dependencies and the part that only blocks.
+//! [`SpawnTool`]'s three phases, and its two interchangeable middles.
 //!
-//! `execute` is three phases: **prepare** (resolve the caller's
-//! worktree, land the input record, resolve the binary — all of it
-//! reaching `self.git`, `self.path_lookup`, `self.clock`), **run** (one
-//! blocking [`spawn_and_capture`], reaching no `self` at all), and
-//! **finish** (bound the streams, render the envelope, land the output
-//! record — `self` again, via the caller's record path).
+//! One tool call is **prepare** (resolve the caller's worktree, land the
+//! input record, resolve the binary — all of it reaching `self.git`,
+//! `self.path_lookup`, `self.clock`), then **answer**, then **land**
+//! (bound the streams, render the envelope, write the output record —
+//! `self` again, via the caller's record path).
 //!
-//! Splitting them is what lets [`SpawnTool::execute_all`] (ARCH §3.3
-//! *The multi-tool*, `execution: "parallel"`) overlap N calls without
-//! sharing the executor across threads: only the middle phase crosses
-//! into the scope, and it carries nothing but owned bytes, `&Path`, and
-//! the `&AtomicBool` stop flag. The clock, the git runner and the PATH
-//! lookup stay on the calling thread and need no `Sync` bound
-//! (PRINCIPLES, severability).
+//! The middle is whichever backend the binding installed (`super`'s
+//! module docs), and both produce the same [`RoutedCapture`]: a host
+//! router ([`SpawnTool::route`], [`SpawnTool::route_fan`]) or a
+//! subprocess ([`SpawnTool::spawn_one`], [`SpawnTool::spawn_fan`]). Only
+//! the spawning one can overlap, and the split is what lets it: under
+//! [`SpawnTool::execute_all`] (ARCH §3.3 *The multi-tool*, `execution:
+//! "parallel"`) nothing but the blocking wait crosses into the scope,
+//! carrying owned bytes, `&Path` and the `&AtomicBool` stop flag. The
+//! clock, the git runner and the PATH lookup stay on the calling thread
+//! and need no `Sync` bound (PRINCIPLES, severability) — which is also
+//! why a host router, whose `Sync`-ness litany holds nothing about, runs
+//! in list order on that same thread.
 
 use super::caller::Caller;
 use super::{
-    ExecError, INPUT_FILE, OUTPUT_FILE, SpawnArgs, SpawnTool, ToolCall, ToolInputRecord,
+    Captured, ExecError, INPUT_FILE, OUTPUT_FILE, SpawnArgs, SpawnTool, ToolCall, ToolInputRecord,
     ToolOutcome, ToolOutputRecord, atomic_write_json, bound, envelope, killed_by_signal,
-    tool_call_dir,
+    spawn_and_capture, tool_call_dir,
 };
 use crate::config::ToolOutputBound;
-use crate::prompt::tool::inject::{RoutedCall, RoutedCapture};
+use crate::prompt::tool::inject::{RoutedCall, RoutedCapture, ToolInjection};
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
+
+/// One call's answer, paired with the [`Prepared`] that produced it so
+/// the landing phase cannot step them out of alignment — or the
+/// preparation / spawn failure that stands in its place.
+pub(super) type Answered = Result<(Prepared, RoutedCapture), ExecError>;
 
 /// Everything one call needs to spawn, resolved and owned so the
 /// blocking phase borrows nothing from the executor.
@@ -103,48 +111,76 @@ impl<'a> SpawnTool<'a> {
         })
     }
 
-    /// Phase 3 for a spawned call: classify the exit — a signal that was
-    /// not the harness's SIGTERM is a §2.10 harness fault, not a tool
-    /// failure — then land it like any other answer ([`Self::land`]).
-    pub(super) fn finish(
+    /// The spawning backend, one call: block on the subprocess, then
+    /// classify the exit — a signal that was not the harness's SIGTERM is
+    /// a §2.10 harness fault, not a tool failure.
+    pub(super) fn spawn_one(
         &self,
         prepared: &Prepared,
-        captured: super::Captured,
-        output_bound: Option<ToolOutputBound>,
-        started_at: &str,
-        ended_at: &str,
-    ) -> Result<ToolOutcome, ExecError> {
-        let exit_code = match captured.status.code() {
-            Some(code) => code,
-            None => return Err(killed_by_signal(&prepared.name, &captured.status)),
-        };
-        self.land(
-            prepared,
-            &RoutedCapture {
-                stdout: captured.stdout,
-                stderr: captured.stderr,
-                exit_code,
-            },
-            output_bound,
-            started_at,
-            ended_at,
-        )
+        stop: &AtomicBool,
+    ) -> Result<RoutedCapture, ExecError> {
+        let captured =
+            spawn_and_capture(&prepared.spawn_args(stop, self.deadline, self.etxtbsy_budget))?;
+        classify(prepared, captured)
     }
 
-    /// Consult the binding's router ahead of the §3.3 resolution order
-    /// (`super`'s module docs): `Some` is the host's answer and this call
-    /// never spawns, `None` — including "no injection installed" — falls
-    /// through unchanged. The caller identity handed over is the same one
-    /// a subprocess reads from its environment, derived once in
-    /// [`Self::prepare`] so a routed call and a spawned one cannot
-    /// disagree about whose call it is.
+    /// The spawning backend, a whole fan: the blocking waits overlap in
+    /// one [`std::thread::scope`], which the two scalars copied out below
+    /// are what makes possible — the closures capture those instead of
+    /// `self`, which holds the clock, the git runner and the PATH lookup,
+    /// none of them `Sync` and none of them needed to block.
+    pub(super) fn spawn_fan(
+        &self,
+        prepared: Vec<Result<Prepared, ExecError>>,
+        stop: &AtomicBool,
+    ) -> Vec<Answered> {
+        let (deadline, etxtbsy_budget) = (self.deadline, self.etxtbsy_budget);
+        let captured: Vec<Result<Captured, ExecError>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = prepared
+                .iter()
+                .filter_map(|p| p.as_ref().ok())
+                .map(|p| {
+                    scope.spawn(move || {
+                        spawn_and_capture(&p.spawn_args(stop, deadline, etxtbsy_budget))
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                // A panicking capture is a harness fault, not a tool
+                // failure: re-raise it here so it reads exactly as it
+                // would have from `execute`.
+                .map(|h| h.join().unwrap_or_else(|p| std::panic::resume_unwind(p)))
+                .collect()
+        });
+        // Captures exist only for the calls that got as far as a spawn,
+        // so they are stepped by hand against the full prepared list.
+        let mut captured = captured.into_iter();
+        prepared
+            .into_iter()
+            .map(|prepared| {
+                let prepared = prepared?;
+                let captured = captured.next().expect("one capture per spawned call")?;
+                let captured = classify(&prepared, captured)?;
+                Ok((prepared, captured))
+            })
+            .collect()
+    }
+
+    /// The routing backend, one call. The caller identity handed over is
+    /// the same one a subprocess reads from its environment, derived once
+    /// in [`Self::prepare`] so a routed call and a spawned one cannot
+    /// disagree about whose call it is. The host answers every name it is
+    /// given ([`ToolInjection::route`] is total), so there is no verdict
+    /// here and nothing to fall through to.
     pub(super) fn route(
         &self,
+        injection: &dyn ToolInjection,
         prepared: &Prepared,
         call: ToolCall<'_>,
         stop: &AtomicBool,
-    ) -> Option<RoutedCapture> {
-        self.injection?.route(RoutedCall {
+    ) -> RoutedCapture {
+        injection.route(RoutedCall {
             id: call.id,
             name: call.name,
             input: call.input,
@@ -154,14 +190,38 @@ impl<'a> SpawnTool<'a> {
         })
     }
 
-    /// Phase 3 proper, over the three facts a finished tool call has —
-    /// exit code, stdout, stderr — whether a subprocess or a host router
+    /// The routing backend, a whole fan: answered in list order on this
+    /// thread. A call whose preparation failed is never routed — the
+    /// failure is its result, exactly as under the spawning backend.
+    pub(super) fn route_fan(
+        &self,
+        prepared: Vec<Result<Prepared, ExecError>>,
+        calls: &[ToolCall<'_>],
+        injection: &dyn ToolInjection,
+        stop: &AtomicBool,
+    ) -> Vec<Answered> {
+        prepared
+            .into_iter()
+            .zip(calls)
+            .map(|(prepared, call)| {
+                let prepared = prepared?;
+                let captured = self.route(injection, &prepared, *call, stop);
+                Ok((prepared, captured))
+            })
+            .collect()
+    }
+
+    /// Phase 3, over the three facts a finished tool call has — exit
+    /// code, stdout, stderr — whether a subprocess or a host router
     /// produced them: bound the streams (§3.3 *Bounded transcript
     /// projection*, before the envelope is rendered around them, since
     /// the envelope's header is structure and never cappable content),
     /// render the result envelope, and land `output.json` with the full
-    /// bytes. One landing for both backends is what makes a routed tool
-    /// indistinguishable from a local one downstream.
+    /// bytes. **One landing for both backends**, and it belongs to the
+    /// executor rather than to whatever answered: it is what makes a
+    /// routed tool indistinguishable from a spawned one downstream, and
+    /// what a host cannot forget to do (`docs/DESIGN_TOOL_INJECTION.md`
+    /// §3.2).
     pub(super) fn land(
         &self,
         prepared: &Prepared,
@@ -187,5 +247,20 @@ impl<'a> SpawnTool<'a> {
             content,
             is_error: exit_code != 0,
         })
+    }
+}
+
+/// Read a finished subprocess as the same three facts a router answers
+/// in. A signal that was not the harness's SIGTERM has no exit code and
+/// is a §2.10 harness fault rather than a tool failure, so it declines
+/// here instead of becoming a capture.
+fn classify(prepared: &Prepared, captured: Captured) -> Result<RoutedCapture, ExecError> {
+    match captured.status.code() {
+        Some(exit_code) => Ok(RoutedCapture {
+            stdout: captured.stdout,
+            stderr: captured.stderr,
+            exit_code,
+        }),
+        None => Err(killed_by_signal(&prepared.name, &captured.status)),
     }
 }

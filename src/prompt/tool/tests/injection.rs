@@ -4,10 +4,11 @@
 //!
 //! What is asserted is the claim the design makes — that a routed tool
 //! is indistinguishable from a spawned one *downstream*: the same result
-//! envelope, the same `is_error`, the same bounded projection, the same
-//! `input.json` / `output.json` pair under the same directory. The
-//! difference is upstream and total: no binary is resolved and no
-//! process is started.
+//! envelope, `is_error`, bounded projection and `input.json` /
+//! `output.json` pair under the same directory. The difference is
+//! upstream and total: while a host is installed it is the executor, so
+//! nothing resolves or spawns for any name — including one an installed
+//! binary would have answered.
 
 use super::super::inject::{InjectedTool, RoutedCall, RoutedCapture, ToolInjection};
 use super::super::{
@@ -19,18 +20,19 @@ use serde_json::{Value, json};
 use std::cell::RefCell;
 use std::sync::atomic::AtomicBool;
 
-/// A test embedder. It declares one tool, owns exactly the names it was
-/// built with, and records what each routed invocation carried — so the
-/// four wire facts a subprocess reads from stdin and its environment can
-/// be asserted to reach a router unchanged.
-struct Embedder {
+/// A test embedder. It declares one tool, answers **every** invocation
+/// (the trait is total), and records what each one carried — so the four
+/// wire facts a subprocess reads from stdin and its environment can be
+/// asserted to reach a router unchanged. A name it does not own is its
+/// own in-band refusal, exactly as an absent binary is.
+pub(super) struct Embedder {
     owns: &'static str,
     exit_code: i32,
-    seen: RefCell<Vec<(String, String, Value, String)>>,
+    pub(super) seen: RefCell<Vec<(String, String, Value, String)>>,
 }
 
 impl Embedder {
-    fn new(owns: &'static str) -> Self {
+    pub(super) fn new(owns: &'static str) -> Self {
         Self {
             owns,
             exit_code: 0,
@@ -55,10 +57,7 @@ impl ToolInjection for Embedder {
         }]
     }
 
-    fn route(&self, call: RoutedCall<'_>) -> Option<RoutedCapture> {
-        if call.name != self.owns {
-            return None;
-        }
+    fn route(&self, call: RoutedCall<'_>) -> RoutedCapture {
         self.seen.borrow_mut().push((
             call.id.to_string(),
             call.name.to_string(),
@@ -67,7 +66,14 @@ impl ToolInjection for Embedder {
         ));
         assert!(call.workspace.is_dir(), "the router is told a live root");
         assert!(!call.stop.load(std::sync::atomic::Ordering::SeqCst));
-        Some(RoutedCapture {
+        if call.name != self.owns {
+            return RoutedCapture {
+                stdout: Vec::new(),
+                stderr: format!("no such tool: {}", call.name).into_bytes(),
+                exit_code: 127,
+            };
+        }
+        RoutedCapture {
             stdout: b"routed product".to_vec(),
             stderr: if self.exit_code == 0 {
                 Vec::new()
@@ -75,7 +81,7 @@ impl ToolInjection for Embedder {
                 b"endpoint vanished".to_vec()
             },
             exit_code: self.exit_code,
-        })
+        }
     }
 }
 
@@ -157,114 +163,6 @@ fn a_vanished_endpoint_is_an_in_band_error_result() {
         String::from_utf8_lossy(&outcome.content),
         "Exit code: 7\nrouted product\n--- stderr ---\nendpoint vanished",
     );
-}
-
-#[test]
-fn a_declined_name_falls_through_to_the_spawn_path() {
-    // `None` from the router is "not mine": resolution proceeds exactly
-    // as if no injection were installed.
-    let root = HarnessRoot::new();
-    root.install("greet", r#"printf hello"#);
-    let clock = FixedClock::default();
-    let step = StepDir::new();
-    let host = Embedder::new("teleop");
-    let exec = SpawnTool::new(root.path(), &clock, driver_target()).with_injection(Some(&host));
-    let outcome = exec
-        .execute(
-            ToolCall {
-                id: "toolu_local",
-                name: "greet",
-                input: &json!({}),
-            },
-            &step.path,
-            &AtomicBool::new(false),
-            None,
-        )
-        .unwrap();
-    assert_eq!(outcome.content, b"Exit code: 0\nhello");
-    assert!(host.seen.borrow().is_empty(), "the host answered nothing");
-}
-
-#[test]
-fn a_fan_runs_routed_and_spawned_invocations_and_reports_in_list_order() {
-    // `execute_all` (a `parallel` multi-tool envelope, §3.3): the router
-    // answers what it owns on this thread, the rest still overlap in the
-    // scope, and results come back in the order the calls were given.
-    let root = HarnessRoot::new();
-    root.install("greet", r#"printf hello"#);
-    let clock = FixedClock::default();
-    let step = StepDir::new();
-    let host = Embedder::new("teleop");
-    let exec = SpawnTool::new(root.path(), &clock, driver_target()).with_injection(Some(&host));
-    let input = json!({});
-    let results = exec.execute_all(
-        &[
-            ToolCall {
-                id: "f_local",
-                name: "greet",
-                input: &input,
-            },
-            ToolCall {
-                id: "f_routed",
-                name: "teleop",
-                input: &input,
-            },
-        ],
-        &step.path,
-        &AtomicBool::new(false),
-        None,
-    );
-    let rendered: Vec<String> = results
-        .into_iter()
-        .map(|r| String::from_utf8_lossy(&r.unwrap().content).into_owned())
-        .collect();
-    assert_eq!(
-        rendered,
-        vec!["Exit code: 0\nhello", "Exit code: 0\nrouted product"],
-    );
-    // Both landed their own record under their own tool id.
-    for id in ["f_local", "f_routed"] {
-        assert!(
-            step.path
-                .join(STEP_TOOLS_SUBDIR)
-                .join(id)
-                .join(OUTPUT_FILE)
-                .exists(),
-            "{id} landed no output record"
-        );
-    }
-}
-
-#[test]
-fn a_fan_with_a_failed_prepare_keeps_the_routing_verdicts_aligned() {
-    // A step dir the §2.2 shape cannot be read from fails `prepare` for
-    // every call. The routing verdicts must still step in lockstep with
-    // the calls, so the failure surfaces per call rather than shifting
-    // the results by one.
-    let root = HarnessRoot::new();
-    let clock = FixedClock::default();
-    let host = Embedder::new("teleop");
-    let exec = SpawnTool::new(root.path(), &clock, driver_target()).with_injection(Some(&host));
-    let input = json!({});
-    let results = exec.execute_all(
-        &[ToolCall {
-            id: "f_nowhere",
-            name: "teleop",
-            input: &input,
-        }],
-        std::path::Path::new("/nonexistent/steps/agent/001"),
-        &AtomicBool::new(false),
-        None,
-    );
-    assert_eq!(results.len(), 1);
-    assert!(
-        matches!(
-            results.into_iter().next().unwrap(),
-            Err(super::super::ExecError::NoWorktree { .. })
-        ),
-        "an unresolvable caller declines before anything is routed"
-    );
-    assert!(host.seen.borrow().is_empty());
 }
 
 #[test]

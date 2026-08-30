@@ -215,12 +215,12 @@ pub struct Fx<'a> {
     /// [`prelude::install_stop_handler`].
     pub stop: &'a AtomicBool,
     /// The binding's **tool injection** (ARCH §3.3 *Host-injected
-    /// tools*), injected like [`Self::driver_target`]: `None` — the exec
-    /// binding's default — changes nothing, while a host that supplies
-    /// one has its [`ToolInjection::tools`] declared *and* permitted on
-    /// every request, and its [`ToolInjection::route`] consulted ahead of
-    /// §3.3 binary resolution. Obligations and containment:
-    /// [`ToolInjection`], `docs/DESIGN_TOOL_INJECTION.md`.
+    /// tools*), injected like [`Self::driver_target`], and its one choice
+    /// of execution pipeline: `None` (the exec binding) spawns every tool
+    /// through the §3.3 three hops; a host supplying one has its
+    /// [`ToolInjection::tools`] declared *and* permitted on every request
+    /// and its [`ToolInjection::route`] answering *every* invocation, with
+    /// no resolution behind it. [`ToolInjection`], DESIGN_TOOL_INJECTION §3.4.
     pub tool_injection: Option<&'a dyn ToolInjection>,
 }
 
