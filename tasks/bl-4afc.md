@@ -1,7 +1,8 @@
 +++
 title = "promote-changelog is era-blind at the fence: its duplicate guard matches lernie-era headings and its compare URL writes bare v-tags"
 created = 1788059938
-updated = 1788059938
+updated = 1788068014
+claimant = "OrderCutter"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
