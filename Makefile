@@ -1,4 +1,4 @@
-.PHONY: all build release test test-install coverage lint leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog clean
+.PHONY: all build release test test-install coverage lint leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image clean
 
 # Install location for `make install`. Defaults to the XDG-ish user-local
 # convention; override for system-wide installs or packaging:
@@ -329,6 +329,37 @@ promote-changelog:
 	test -n "$$prev" || { echo "no previous litany-era '## [x.y.z]($(COMPARE_URL)/...)' heading in CHANGELOG.md"; exit 1; }; \
 	sed -i 's|^## \[Unreleased\]$$|## [Unreleased]\n\n## [$(VERSION)]($(COMPARE_URL)/$(TAG_PREFIX)'"$$prev"'...$(TAG_PREFIX)$(VERSION)) - '"$$(date +%F)"'|' CHANGELOG.md
 	@echo "promoted [Unreleased] -> [$(VERSION)]"
+
+# The OCI image — the unit of install for a box that takes containers rather
+# than binaries. `Containerfile` is the whole of what it builds and states why
+# each layer is what it is; this target only decides the engine and the tag.
+#
+# The version is READ FROM Cargo.toml and never typed here, for the same reason
+# BRAZEN_PIN above is derived rather than restated: a version typed into a
+# second file is a version that drifts. Both `:<version>` and `:latest` are
+# applied to the same build.
+#
+# Podman or docker, whichever the box has, podman first — it needs no daemon
+# and no group membership, which is the difference between "the operator can
+# build this" and "the operator can build this once an admin says yes".
+# Override with `make image CONTAINER_ENGINE=docker`.
+#
+# IT PUSHES NOTHING, and there is deliberately no `push` target — the same
+# reasoning that keeps `publish` out of this Makefile's hands. Where these
+# images publish is unanswered (yog bl-223f), and a push is not undoable: a tag
+# can move, but the bytes anyone pulled are theirs.
+IMAGE_NAME       ?= litany
+CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
+
+image:
+	@test -n "$(CONTAINER_ENGINE)" || { echo "image: no podman and no docker on PATH" >&2; exit 1; }
+	@version=$$(sed -n '/^\[package\]/,/^\[/{s/^version *= *"\([^"]*\)".*/\1/p;}' Cargo.toml); \
+	test -n "$$version" || { echo "image: no version in Cargo.toml" >&2; exit 1; }; \
+	echo "image: $(notdir $(CONTAINER_ENGINE)) build -> $(IMAGE_NAME):$$version"; \
+	$(CONTAINER_ENGINE) build -f Containerfile \
+	  -t "$(IMAGE_NAME):$$version" -t "$(IMAGE_NAME):latest" . && \
+	$(CONTAINER_ENGINE) image inspect "$(IMAGE_NAME):$$version" \
+	  --format 'image: {{.Id}} {{.Size}} bytes'
 
 clean:
 	cargo clean

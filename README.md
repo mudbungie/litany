@@ -44,16 +44,16 @@ lays down. Every route needs `bz`; only `make install` installs it.
 
 ## Install
 
-There are three routes, and they do not lay down the same things. All
-three need a second binary — the provider adapter `bz` — which only the
-Makefile route installs for you.
+There are four routes, and they do not lay down the same things. All
+four need a second binary — the provider adapter `bz` — which only the
+Makefile and image routes lay down for you.
 
-| | `cargo install litany` | release tarball | `make install` |
-|---|---|---|---|
-| binaries | `litany` | `litany` | `litany`, `agent-eval`, `litany-eval-agent` |
-| installs `bz` | no | no | yes, at the pin |
-| runs `litany prime` | no | no | yes |
-| lands where | cargo's bin dir | wherever you unpack it | `$INSTALL_PREFIX/bin` |
+| | `cargo install litany` | release tarball | `make install` | `make image` |
+|---|---|---|---|---|
+| binaries | `litany` | `litany` | `litany`, `agent-eval`, `litany-eval-agent` | `litany` |
+| installs `bz` | no | no | yes, at the pin | yes, at the pin |
+| runs `litany prime` | no | no | yes | no — it is your first act against the mounted roots |
+| lands where | cargo's bin dir | wherever you unpack it | `$INSTALL_PREFIX/bin` | an OCI image, `$(IMAGE_NAME):<crate version>` |
 
 ### From crates.io
 
@@ -176,6 +176,97 @@ or `litany new`'s side effect.
 harness homes (the config and data roots, holding config and
 workspaces) stay put — clean them up manually if you want a true
 uninstall.
+
+### As a container image
+
+`make image` builds an OCI image from `Containerfile` — a fourth route,
+for a box that takes images rather than binaries. **The image is the
+unit of install and nothing more.** No part of litany uses the container
+filesystem as a feature, and no harness state lives in a layer: the XDG
+roots are the runtime contract and they are mounted in.
+
+```
+make image                        # podman or docker, whichever is on PATH
+make image CONTAINER_ENGINE=docker
+```
+
+It builds under the pinned toolchain (`rust:1.95.0-alpine`, checked
+against `rust-toolchain.toml` during the build so the two pins cannot
+drift), and copies two static-pie musl binaries into an `alpine` runtime
+layer carrying `git`. About 30 MB.
+
+**It ships `bz`, because a route that did not would not be an install
+route.** The section above is explicit that nothing prompts without the
+adapter; the image installs it from crates.io at the pin read out of
+`Cargo.toml`'s `brazen = "="` line — the same one home the Makefile and
+the load-time guard derive from.
+
+**The runtime layer is what the engine execs**, which is why `FROM
+scratch` is wrong here whatever the linking story says. Four programs,
+and the reasoning is in the `Containerfile` beside each: `git` (the
+harness is git-backed and shells to the binary on PATH for every
+workspace act), `sh` (the `bash` built-in tool runs `sh -c`), `bz`, and
+`litany` itself (the built-in tool set and dispatch re-exec it). System
+CA roots ride along for the adapter's HTTPS and for an HTTPS git remote.
+Past that list the layer is bare: a tool the harness is configured to
+run that this layer does not have is a tool this box does not have. Add
+it in a derived image rather than widening the base, so what the base
+promises stays exactly those four.
+
+`make image` **pushes nothing**, and there is no `push` target — the
+same reasoning that keeps an irreversible act out of this Makefile's
+reach. Where these images publish is unanswered (yog bl-223f); a tag can
+move, but the bytes anyone pulled are theirs.
+
+#### What mounts where
+
+`XDG_CONFIG_HOME` is set to `/config` and `XDG_DATA_HOME` to `/state`,
+so the two harness roots named above are `/config/litany` and
+`/state/litany`. The extra level is XDG's and not the image's: both
+variables are parents of per-application roots by definition.
+`LITANY_HOME=<dir>` still collapses both at run time for an operator who
+would rather mount one directory.
+
+```
+podman run --rm \
+  -v ~/litany-config:/config/litany:Z \
+  -v ~/litany-state:/state/litany:Z \
+  -v ~/work:/work:Z \
+  litany:0.0.2 new /work/chat
+```
+
+Workspaces are named by path on the command line and can live anywhere.
+The image asserts no location for them beyond a `/work` working
+directory — whatever path is named has to be a mount if the workspace is
+to outlive the container.
+
+Nothing in the image runs `litany prime`. Seeding the harness root
+writes fifteen files, and writing them into a **layer** would put the one
+state litany owns where a mount cannot replace it and an upgrade cannot
+see it. `prime` is seed-if-absent and stays the operator's first act
+against the mounted roots — or `litany new`'s side effect, as on every
+other route.
+
+#### What the image deliberately does not contain
+
+- **No harness root and no workspaces.** Both are mounts, for the reason
+  just given.
+- **No provider credentials.** Endpoints and auth live in brazen's own
+  config, which litany never reads (ARCH §4.1); mount or inject it, and
+  note that a credential baked into a layer is a credential published to
+  everyone who can pull it.
+- **No git identity.** `litany` commits into the workspaces it drives,
+  and git will refuse with `Please tell me who you are` against an
+  ambient-identity-less container. Supply one — `GIT_AUTHOR_NAME` /
+  `GIT_AUTHOR_EMAIL` / `GIT_COMMITTER_NAME` / `GIT_COMMITTER_EMAIL`, or
+  a mounted `.gitconfig`. It is not baked in because an identity in a
+  layer signs every operator's commits with the same name.
+- **No `cargo`, no compiler, no source tree, no `target/`.** The build
+  stage is discarded whole; only the two binaries cross.
+- **Neither `agent-eval` nor `litany-eval-agent`.** They are repo-side
+  evaluation tooling that reads this tree's `tests/suite/` and has no
+  meaning on a deployed box — the install table above already says the
+  non-Makefile routes do not lay them down either.
 
 ## Configuration schemas
 

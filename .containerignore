@@ -1,0 +1,9 @@
+# What never enters the build context.
+#
+# The Containerfile COPYs by name, so this file is not what keeps the image
+# clean — it is what keeps the CONTEXT from being sent at all. `target/` alone
+# is gigabytes, and the build engine reads the whole context before the first
+# instruction runs.
+target/
+.git/
+experiments/

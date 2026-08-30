@@ -26,6 +26,23 @@ reaching a release.
 
 ## [Unreleased]
 
+- **ship as an OCI image: `Containerfile`, `make image`, and the XDG roots it
+  mounts.** A fourth install route, for a box that takes images rather than
+  binaries. Two stages: the build runs under the toolchain
+  `rust-toolchain.toml` pins — checked against the base image inside the build,
+  so the `FROM` tag cannot drift from the pin — and the runtime layer carries
+  only what the engine execs, which is `git`, `sh`, `bz` and `litany` itself.
+  That list is why `FROM scratch` is wrong here whatever the static-musl
+  linking story says, and the reasoning sits in the file beside each entry.
+  `bz` is installed at the pin read out of `Cargo.toml`'s `brazen = "="` line,
+  because a route that shipped the engine without the adapter would not be an
+  install route. **The image carries no harness state:** it sets the XDG
+  variables and provisions nothing under them, so both roots are mounts, and it
+  deliberately does not run `litany prime` — seeding into a layer puts the one
+  state litany owns where a mount cannot replace it. `make image` autodetects
+  podman or docker and tags from the crate version; it pushes nothing and there
+  is no `push` target. [bl-6467]
+
 ## [0.0.2](https://github.com/mudbungie/litany/compare/litany-v0.0.1...litany-v0.0.2) - 2026-08-29
 
 - **the seam inverts: the router answers every tool invocation, and the
