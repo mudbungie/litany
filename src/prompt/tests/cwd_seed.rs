@@ -1,5 +1,5 @@
 //! The seeded working directory at a root start (ARCH §3.3,
-//! `lernie prompt --cwd`) and the act's one home, [`seed_cwd`]. The
+//! `litany prompt --cwd`) and the act's one home, [`seed_cwd`]. The
 //! child-path twin lives in `child_dispatch::tests::cwd` (parity, same
 //! function); the mark's own storage contract is covered against real
 //! git in `workspace::cwd::tests`.
@@ -76,7 +76,7 @@ fn a_root_start_seeds_the_mark_at_its_own_id_before_the_branch_exists() {
     // The mark is the agent's own (§3.3 — keyed by agent id), and it is
     // written before the branch: `worktree add` comes after it.
     let runs = git.runs.borrow();
-    let mark = format!("refs/lernie/cwd/{branch}");
+    let mark = format!("refs/litany/cwd/{branch}");
     let seeded = runs
         .iter()
         .position(|(_, args)| args[0] == "update-ref" && args.get(1) == Some(&mark))

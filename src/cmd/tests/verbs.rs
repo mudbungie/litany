@@ -2,23 +2,23 @@
 //! [`Fx`](crate::cmd::Fx): `new`, `config`, `prompt`, `dispatch`,
 //! `stop`. Each has a hermetic success path where one exists, plus a
 //! cheap early-error path pinning the one-conversion failure shape
-//! (`lernie <prefix>: …`). Detached launches use `"true"` as the driver
+//! (`litany <prefix>: …`). Detached launches use `"true"` as the driver
 //! target (spawned, harmless). `message`'s pair lives in
 //! [`super::verbs_more`] beside its state-derivation edge case.
 
-use super::{assert_prefixed, noop_editor, with_fx, with_lernie_home, writing_editor};
+use super::{assert_prefixed, noop_editor, with_fx, with_litany_home, writing_editor};
 use crate::cmd::{Outcome, config, dispatch, new, prompt};
 use crate::template::{GitRunner, RealGit};
 use crate::workspace::{fixture, repo_git};
 use std::path::Path;
 use tempfile::TempDir;
 
-/// Run `lernie new <dest>` against a scratch harness root — the verb
+/// Run `litany new <dest>` against a scratch harness root — the verb
 /// founds the root it resolves (§2.2), so every in-process run must
-/// point `LERNIE_HOME` away from the developer's own install.
+/// point `LITANY_HOME` away from the developer's own install.
 fn run_new(home: &Path, dest: &Path) -> Result<Outcome, crate::cmd::Error> {
-    with_lernie_home(home, || {
-        with_fx("lernie", b"", &noop_editor, |fx| {
+    with_litany_home(home, || {
+        with_fx("litany", b"", &noop_editor, |fx| {
             new::run(
                 new::Args {
                     path: Some(dest.to_path_buf()),
@@ -54,7 +54,7 @@ fn new_scaffolds_and_prints_the_destination() {
 
 #[test]
 fn new_founds_an_unseeded_root_so_the_config_commit_carries_descriptions() {
-    // A fresh `LERNIE_HOME` with no `lernie prime` run against it: the
+    // A fresh `LITANY_HOME` with no `litany prime` run against it: the
     // verb founds the pools through prime's own seed-if-absent routine
     // (§2.2), so the first config commit carries the control files *and*
     // a populated `descriptions/**` (§3.3 descriptions-always) instead
@@ -128,7 +128,7 @@ fn new_at_an_existing_plain_file_names_the_rule_not_the_errno() {
     assert_eq!(
         err.to_string(),
         format!(
-            "lernie new: destination {} already exists and is not a directory",
+            "litany new: destination {} already exists and is not a directory",
             dest.display()
         )
     );
@@ -138,7 +138,7 @@ fn new_at_an_existing_plain_file_names_the_rule_not_the_errno() {
 #[test]
 fn config_authors_a_commit() {
     // `config::run` resolves the harness root itself, unmocked — a
-    // scratch `LERNIE_HOME` (§2.2, process-global) keeps it off the real
+    // scratch `LITANY_HOME` (§2.2, process-global) keeps it off the real
     // install and off other tests' own scratch homes.
     let (_h, ws) = fixture::workspace();
     let args = config::Args {
@@ -148,8 +148,8 @@ fn config_authors_a_commit() {
         orphan: false,
     };
     let home = TempDir::new().unwrap();
-    let (r, ..) = with_lernie_home(home.path(), || {
-        with_fx("lernie", b"", &writing_editor, |fx| config::run(args, fx))
+    let (r, ..) = with_litany_home(home.path(), || {
+        with_fx("litany", b"", &writing_editor, |fx| config::run(args, fx))
     });
     assert!(matches!(r.unwrap(), Outcome::Quiet));
 }
@@ -160,7 +160,7 @@ fn config_reports_a_declined_pass_as_a_clean_line() {
     // the §3.3 descriptions refresh, the second changes nothing at all
     // and is declined — a success (no error, no wedged checkout) that
     // names the branch that did not move. Both passes share one scratch
-    // `LERNIE_HOME` (see `config_authors_a_commit`) so the two resolves
+    // `LITANY_HOME` (see `config_authors_a_commit`) so the two resolves
     // see the same data root instead of racing another test's window.
     let (_h, ws) = fixture::workspace();
     let args = || config::Args {
@@ -170,10 +170,10 @@ fn config_reports_a_declined_pass_as_a_clean_line() {
         orphan: false,
     };
     let home = TempDir::new().unwrap();
-    let line = with_lernie_home(home.path(), || {
-        let (first, ..) = with_fx("lernie", b"", &noop_editor, |fx| config::run(args(), fx));
+    let line = with_litany_home(home.path(), || {
+        let (first, ..) = with_fx("litany", b"", &noop_editor, |fx| config::run(args(), fx));
         first.unwrap();
-        let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| config::run(args(), fx));
+        let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| config::run(args(), fx));
         let Outcome::Line(line) = r.unwrap() else {
             panic!("a declined pass reports the branch that did not move")
         };
@@ -186,7 +186,7 @@ fn config_reports_a_declined_pass_as_a_clean_line() {
 #[test]
 fn config_reports_a_non_workspace() {
     let tmp = TempDir::new().unwrap();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         config::run(
             config::Args {
                 workspace: tmp.path().to_path_buf(),
@@ -203,7 +203,7 @@ fn config_reports_a_non_workspace() {
 #[test]
 fn prompt_reports_a_non_workspace() {
     let tmp = TempDir::new().unwrap();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         prompt::run(
             prompt::Args {
                 repo: tmp.path().to_path_buf(),

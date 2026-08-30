@@ -48,7 +48,7 @@ fn missing_conv_repo_env_surfaces_missingenv() {
     let env = StubEnv(m);
     let err = run(&mut stdin, &mut stdout, &env, &StubSpawner::ok("ignored")).unwrap_err();
     match err {
-        Error::MissingEnv(name) => assert_eq!(name, "LERNIE_CONV_REPO"),
+        Error::MissingEnv(name) => assert_eq!(name, "LITANY_CONV_REPO"),
         other => panic!("expected MissingEnv, got {other}"),
     }
 }
@@ -66,7 +66,7 @@ fn missing_conv_branch_env_surfaces_missingenv() {
     let env = StubEnv(m);
     let err = run(&mut stdin, &mut stdout, &env, &StubSpawner::ok("ignored")).unwrap_err();
     match err {
-        Error::MissingEnv(name) => assert_eq!(name, "LERNIE_CONV_BRANCH"),
+        Error::MissingEnv(name) => assert_eq!(name, "LITANY_CONV_BRANCH"),
         other => panic!("expected MissingEnv, got {other}"),
     }
 }
@@ -89,7 +89,7 @@ fn non_utf8_branch_env_surfaces_missingenv() {
     let env = StubEnv(m);
     let err = run(&mut stdin, &mut stdout, &env, &StubSpawner::ok("ignored")).unwrap_err();
     match err {
-        Error::MissingEnv(name) => assert_eq!(name, "LERNIE_CONV_BRANCH"),
+        Error::MissingEnv(name) => assert_eq!(name, "LITANY_CONV_BRANCH"),
         other => panic!("expected MissingEnv, got {other}"),
     }
 }

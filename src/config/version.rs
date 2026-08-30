@@ -44,7 +44,7 @@ impl Version {
                 key: ".".into(),
                 message: format!(
                     "schema version {parsed} is newer than this harness understands \
-                     (supported: {SUPPORTED}); upgrade lernie to read this config"
+                     (supported: {SUPPORTED}); upgrade litany to read this config"
                 ),
             });
         }
@@ -90,7 +90,7 @@ mod tests {
             LoadError::Invalid { path, message, .. } => {
                 assert_eq!(path, origin());
                 assert!(message.contains(&(SUPPORTED + 1).to_string()), "{message}");
-                assert!(message.contains("upgrade lernie"), "{message}");
+                assert!(message.contains("upgrade litany"), "{message}");
             }
             other => panic!("expected Invalid, got {other:?}"),
         }

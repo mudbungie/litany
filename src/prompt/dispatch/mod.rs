@@ -137,7 +137,7 @@ pub(super) fn run_exchange(
 
         // §6 prompt→advance collapse: interpret delivered child results
         // (deliver_result / land_compaction / verifier gate) at the same
-        // boundary `lernie advance` does — empty-inputs no-op for a root.
+        // boundary `litany advance` does — empty-inputs no-op for a root.
         child_result::interpret_pending(repo, &conv_id, &worktree_path, resolved.workflow, deps)?;
 
         let commit_sha = read_branch_tip(&worktree_path, deps)?;
@@ -244,7 +244,7 @@ pub(super) fn run_exchange(
         // step 3); a window the configured control held (§3.3 *Tool
         // control*) parks instead — no terminal, no deposit, the hold
         // mark and the unpaired tail the whole state, the lease released
-        // through the §2.11 release rule for a later `lernie advance` to
+        // through the §2.11 release rule for a later `litany advance` to
         // resume by re-adjudication.
         let window = run_tool_calls(
             repo,
@@ -268,13 +268,13 @@ pub(super) fn run_exchange(
         }
 
         // §6 collapse: the `compaction:` checkpoint clock, same seam as
-        // `lernie advance` (`worker_flush` → dispatch a compactor off C).
+        // `litany advance` (`worker_flush` → dispatch a compactor off C).
         child_result::run_flush(repo, &conv_id, &worktree_path, resolved.workflow, deps)?;
         step_seq += 1;
     }
 
     // The shared §2.11 terminal tail ([`terminal::conclude`] — the same
-    // sequence as the `lernie advance` hop's): finish by epitaph value
+    // sequence as the `litany advance` hop's): finish by epitaph value
     // (a stopped branch deposits its result on the way out; a final
     // response deposited in the loop; an exhausted branch at the boundary
     // check), terminal-lifecycle bindings (§6), release through the

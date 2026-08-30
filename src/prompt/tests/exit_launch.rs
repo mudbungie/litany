@@ -6,7 +6,7 @@
 //! no-authority ordering (the launcher observes a free lock and an
 //! already-landed deposit), and the parentless case (deposit no-ops,
 //! self-launch still fires, nothing is revived). The child-path
-//! revival — a real `lernie advance` child terminal waking a real
+//! revival — a real `litany advance` child terminal waking a real
 //! parent — is [`super::parent_revival`]. The
 //! fire-and-forget swallow, the helper negatives, and the real-git exit
 //! race live in [`super::exit_race`], and the never-launch epitaphs
@@ -127,7 +127,7 @@ fn a_user_prompted_final_response_launches_own_agent_and_revives_nobody() {
 
     plain_run(repo.path(), &deps).unwrap();
     let invocations = launcher.invocations.borrow();
-    // `lernie prompt` deposits the operator's message into the agent's
+    // `litany prompt` deposits the operator's message into the agent's
     // own inbox and the step-1 drain delivers it (§2.11), so the last
     // prompter is `user` — the reply is read in this agent's own
     // conversation and addresses no inbox (§2.6). This id has a

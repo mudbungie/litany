@@ -1,5 +1,5 @@
-//! Integration test: cascade. `lernie prompt` against a stalling
-//! httpmock + `lernie stop` → the group SIGTERM kills `bz` (no handler),
+//! Integration test: cascade. `litany prompt` against a stalling
+//! httpmock + `litany stop` → the group SIGTERM kills `bz` (no handler),
 //! and the executor catches its own copy, deposits its `stopped` result
 //! on the way out, and exits cleanly (ARCH §2.9 step 3 — "Return is not a
 //! verb"). response.json is left closed without a terminal `end` (the
@@ -9,7 +9,7 @@
 //! Idempotence + error-path tests live in `tests/stop_idempotence.rs`.
 
 use super::stop_common::{
-    HAPPY_SSE, amend_config, git_command, lernie_bin, poll_for_conv_branch_with_diag,
+    HAPPY_SSE, amend_config, git_command, litany_bin, poll_for_conv_branch_with_diag,
     poll_for_path, reap, repo_git, scaffold_repo, spawn_prompt, write_brazen_config,
     write_global_models,
 };
@@ -26,7 +26,7 @@ fn stop_cascades_sigterm_and_leaves_response_without_terminal_end() {
     server.mock(|when, then| {
         when.method(POST).path("/v1/messages");
         // Long hold — `bz` blocks on the HTTP response while the
-        // executor holds its inbox-directory lock fd (§2.11). `lernie
+        // executor holds its inbox-directory lock fd (§2.11). `litany
         // stop` discovers the pid by that lock fd (§2.9) and cuts the
         // cord; the open (empty) response.json is left without a
         // terminal `end` as the on-disk stop signature. The hold is
@@ -54,17 +54,17 @@ fn stop_cascades_sigterm_and_leaves_response_without_terminal_end() {
     let step_dir = dest.join("steps").join(&branch).join("001");
     poll_for_path(&dest, &step_dir.join("response.json"));
 
-    let stop_out = Command::new(lernie_bin())
+    let stop_out = Command::new(litany_bin())
         .arg("stop")
         .arg(&dest)
         .arg(&branch)
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
         .output()
-        .expect("spawn lernie stop");
+        .expect("spawn litany stop");
     assert!(
         stop_out.status.success(),
-        "lernie stop: {}",
+        "litany stop: {}",
         String::from_utf8_lossy(&stop_out.stderr)
     );
 
@@ -73,10 +73,10 @@ fn stop_cascades_sigterm_and_leaves_response_without_terminal_end() {
     // is a root conversation, so the deposit is a structural no-op; the
     // clean exit is the observable.) `bz` still died from its own copy of
     // the group SIGTERM, leaving the missing-`end` signature below.
-    let prompt_status = prompt_child.wait().expect("reap lernie prompt");
+    let prompt_status = prompt_child.wait().expect("reap litany prompt");
     assert!(
         prompt_status.success(),
-        "lernie prompt must exit cleanly after depositing on stop, got {prompt_status:?}"
+        "litany prompt must exit cleanly after depositing on stop, got {prompt_status:?}"
     );
 
     // §2.9 on-disk signature: latest response.json closed and either
@@ -108,7 +108,7 @@ fn stop_cascades_sigterm_and_leaves_response_without_terminal_end() {
 /// An Anthropic SSE that resolves to a single `bash` tool call running
 /// `command` — the tool-execution window this test needs. bz normalizes
 /// the `tool_use` content block (`content_block_start` + one
-/// `input_json_delta`) into the canonical stream lernie records.
+/// `input_json_delta`) into the canonical stream litany records.
 fn tool_use_sse(command: &str) -> String {
     let input = serde_json::json!({ "command": command }).to_string();
     let events = [
@@ -140,7 +140,7 @@ fn tool_use_sse(command: &str) -> String {
         .collect()
 }
 
-/// §2.9 / §2.11: `lernie stop` must land during a *tool-execution
+/// §2.9 / §2.11: `litany stop` must land during a *tool-execution
 /// window* — the model call for step 1 has closed its `response.json`
 /// (terminal `end`) and the executor is running a long tool, so the
 /// old `response.json`-fd discovery would find no writer. Discovery via
@@ -161,7 +161,7 @@ fn stop_lands_during_tool_execution_via_inbox_lock_fd() {
     // deterministic "we are in the tool window" signal (no sleep-race).
     let marker = holder.path().join("tool_running");
     // The sleep only has to outlast the marker-anchored work below
-    // (one file read plus one `lernie stop`); it is sized far past
+    // (one file read plus one `litany stop`); it is sized far past
     // that so no scheduling stretch can let the tool exit on its own
     // before the stop lands.
     let command = format!("touch {} && sleep 120", marker.display());
@@ -177,7 +177,7 @@ fn stop_lands_during_tool_execution_via_inbox_lock_fd() {
     let harness = holder.path().join("harness");
     fs::create_dir_all(&harness).unwrap();
     write_global_models(&harness);
-    // Seed the data-root tool pool so `lernie new` snapshots the bash
+    // Seed the data-root tool pool so `litany new` snapshots the bash
     // schema into `descriptions/tools/`, making the tool composable.
     let pool = harness.join("tools");
     fs::create_dir_all(&pool).unwrap();
@@ -229,16 +229,16 @@ fn stop_lands_during_tool_execution_via_inbox_lock_fd() {
         "step-1 response.json must be closed (fd not open) before the stop"
     );
 
-    let stop_out = Command::new(lernie_bin())
+    let stop_out = Command::new(litany_bin())
         .arg("stop")
         .arg(&dest)
         .arg(&branch)
         .stderr(Stdio::piped())
         .output()
-        .expect("spawn lernie stop");
+        .expect("spawn litany stop");
     assert!(
         stop_out.status.success(),
-        "lernie stop: {}",
+        "litany stop: {}",
         String::from_utf8_lossy(&stop_out.stderr)
     );
 

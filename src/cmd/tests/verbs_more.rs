@@ -42,7 +42,7 @@ fn message_advises_on_a_quiescent_branch_whose_latest_call_failed() {
     let note = message::failed_branch_note(agent);
     assert!(note.contains("latest model call failed"), "{note}");
     assert!(note.contains(&format!("steps/{agent}/")), "{note}");
-    assert!(note.contains("lernie scan"), "{note}");
+    assert!(note.contains("litany scan"), "{note}");
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn bundle_writes_an_archive() {
     let (_h, ws) = fixture::workspace();
     fixture::spawn_root(&ws, "20260101-a1");
     let out = TempDir::new().unwrap();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         bundle::run(
             bundle::Args {
                 workspace: ws.clone(),
@@ -93,7 +93,7 @@ fn bundle_writes_an_archive() {
 fn bundle_reports_an_unknown_agent() {
     let (_h, ws) = fixture::workspace();
     let out = TempDir::new().unwrap();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         bundle::run(
             bundle::Args {
                 workspace: ws.clone(),
@@ -109,7 +109,7 @@ fn bundle_reports_an_unknown_agent() {
 #[test]
 fn replay_reports_a_missing_archive() {
     let tmp = TempDir::new().unwrap();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         replay::run(
             replay::Args {
                 archive: tmp.path().join("nope.bundle"),
@@ -124,7 +124,7 @@ fn replay_reports_a_missing_archive() {
 fn advance_on_a_quiescent_agent_is_quiet() {
     let (_h, ws) = fixture::workspace();
     fixture::spawn_root(&ws, "20260101-a1");
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         advance::run(
             advance::Args {
                 workspace: ws.clone(),
@@ -139,7 +139,7 @@ fn advance_on_a_quiescent_agent_is_quiet() {
 #[test]
 fn advance_reports_a_non_workspace() {
     let tmp = TempDir::new().unwrap();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         advance::run(
             advance::Args {
                 workspace: tmp.path().to_path_buf(),
@@ -153,7 +153,7 @@ fn advance_reports_a_non_workspace() {
 
 #[test]
 fn tool_runs_a_builtin_and_returns_its_exit_code() {
-    let (r, out, _e) = with_fx("lernie", br#"{"command":"true"}"#, &noop_editor, |fx| {
+    let (r, out, _e) = with_fx("litany", br#"{"command":"true"}"#, &noop_editor, |fx| {
         tool::run(
             tool::Args {
                 name: "bash".into(),
@@ -168,7 +168,7 @@ fn tool_runs_a_builtin_and_returns_its_exit_code() {
 
 #[test]
 fn tool_reports_an_unknown_builtin_with_its_prefix() {
-    let (r, ..) = with_fx("lernie", b"{}", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"{}", &noop_editor, |fx| {
         tool::run(
             tool::Args {
                 name: "no-such-tool".into(),
@@ -220,7 +220,7 @@ fn delete_prints_the_census_as_its_product() {
     // conditional mood, having removed nothing.
     let (_h, ws) = fixture::workspace();
     fixture::spawn_root(&ws, "20260101-a1");
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         delete::run(
             delete::Args {
                 workspace: ws.clone(),
@@ -248,7 +248,7 @@ fn delete_prints_the_census_as_its_product() {
 fn stop_is_idempotent_with_no_executor() {
     let (_h, ws) = fixture::workspace();
     fixture::spawn_root(&ws, "20260101-a1");
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         stop::run(
             stop::Args {
                 repo: ws.clone(),
@@ -264,7 +264,7 @@ fn stop_is_idempotent_with_no_executor() {
 #[test]
 fn stop_reports_a_non_workspace() {
     let tmp = TempDir::new().unwrap();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         stop::run(
             stop::Args {
                 repo: tmp.path().to_path_buf(),

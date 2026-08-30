@@ -15,8 +15,8 @@
 //! resolve?" by driving brazen's own `run::list_providers` — the engine
 //! behind `bz --list-providers` — with the config root forced to an
 //! empty temp directory. That keeps the source of truth singular (brazen's
-//! table, read through brazen's own code, at lernie's exact pinned
-//! version) rather than a second list hand-copied into lernie that could
+//! table, read through brazen's own code, at litany's exact pinned
+//! version) rather than a second list hand-copied into litany that could
 //! itself drift when the pin moves; forcing the config root empty keeps
 //! the check hermetic — this machine's `~/.config/brazen/config.toml` (an
 //! operator's own file, absent in CI) never widens or narrows the answer.
@@ -94,7 +94,7 @@ fn brazen_builtin_provider_names() -> BTreeSet<String> {
 }
 
 /// The `provider:` value of every role the embedded `template/providers.yaml`
-/// declares — the file `lernie new` authors onto a fresh conversation repo.
+/// declares — the file `litany new` authors onto a fresh conversation repo.
 fn seeded_role_providers() -> Vec<String> {
     let raw = crate::template::TEMPLATE
         .get_file("providers.yaml")

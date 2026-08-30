@@ -28,7 +28,7 @@ fn require_refuses_the_retired_layout_with_an_actionable_error() {
     assert!(matches!(err, LayoutError::OldLayout(_)), "{msg}");
     assert!(msg.contains("retired per-conversation layout"), "{msg}");
     assert!(msg.contains("repo.git"), "{msg}");
-    assert!(msg.contains("lernie new"), "{msg}");
+    assert!(msg.contains("litany new"), "{msg}");
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn require_refuses_a_non_workspace() {
     let holder = TempDir::new().unwrap();
     let err = require(holder.path()).unwrap_err();
     assert!(matches!(err, LayoutError::NotAWorkspace(_)));
-    assert!(err.to_string().contains("lernie new"));
+    assert!(err.to_string().contains("litany new"));
 }
 
 #[test]

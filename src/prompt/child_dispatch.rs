@@ -14,8 +14,8 @@
 //!    compactor (§2.7).
 //! 2. **deposit** the dispatch message into the new agent's inbox
 //!    through the front door (§2.11): `deposit` then `probe_and_launch`,
-//!    exactly what `lernie message` does. The probe finds the fresh
-//!    child quiescent and launches its driver — `lernie advance` (§6),
+//!    exactly what `litany message` does. The probe finds the fresh
+//!    child quiescent and launches its driver — `litany advance` (§6),
 //!    the ordinary driver every agent runs under. There is no
 //!    child-specific loop and no worker path; the step loop never
 //!    branches on parent/child.
@@ -39,7 +39,7 @@
 //! the conversation tree, and a dispatch is the only act that can deepen
 //! it — so the check belongs at the fork, not at the child's first model
 //! call, and there is exactly one fork in the system: [`run`]. Every
-//! caller reaches it — the `dispatch` built-in and `lernie dispatch`
+//! caller reaches it — the `dispatch` built-in and `litany dispatch`
 //! (model-initiated, §3.4), the §6 workflow bindings
 //! `worker_flush → dispatch(compactor)` and the verifier gate
 //! (harness-initiated) — so `max_depth` cannot be enforced against one
@@ -76,7 +76,7 @@ pub use request::ChildDispatchRequest;
 /// the front door. Returns the child's id (`<parent>-<sub-id>`) — its
 /// branch name and its address (§2.3, §2.11). `launcher` is injected so
 /// the post-deposit driver launch is testable without spawning a real
-/// `lernie advance`; production passes [`inbox::AdvanceLauncher`].
+/// `litany advance`; production passes [`inbox::AdvanceLauncher`].
 ///
 /// **The §6 budget gate lives here**, and only here (module docs): the
 /// declared `budgets:` are evaluated against the child's own prospective
@@ -109,7 +109,7 @@ pub fn run(
 
     // The child's governing config commit (§2.2), derived from **the ref
     // it forks off** — where its own ancestry begins, so it is also what
-    // every later `lernie advance` derives from the child's branch (§6),
+    // every later `litany advance` derives from the child's branch (§6),
     // which is what keeps dispatch-time artifacts and step-time
     // resolution one answer instead of two (§4.3: the *same* commit the
     // grant came from). ARCH §2.2: "an agent started by fork-back-in
@@ -207,7 +207,7 @@ pub fn run(
 
     // Front door (§2.11): deposit the dispatch message from the parent,
     // then probe-and-launch. The fresh child is quiescent, so the probe
-    // launches `lernie advance` — its ordinary driver. This is the whole
+    // launches `litany advance` — its ordinary driver. This is the whole
     // of "starting" a child: a deposit and the deposit's own launch.
     inbox::deposit(req.repo, &sub_branch, req.parent_branch, req.goal, clock)?;
     inbox::probe_and_launch(req.repo, &sub_branch, launcher).map_err(|source| {
@@ -244,7 +244,7 @@ pub fn run_procedure(
 ) -> Result<(), Error> {
     match run(req, git, clock, id_gen, launcher, rng) {
         Err(refused @ Error::DispatchRefused { .. }) => {
-            eprintln!("lernie: {refused}");
+            eprintln!("litany: {refused}");
             Ok(())
         }
         other => other.map(drop),

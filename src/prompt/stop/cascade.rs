@@ -1,4 +1,4 @@
-//! SIGTERM-then-SIGKILL signal sequence for `lernie stop`.
+//! SIGTERM-then-SIGKILL signal sequence for `litany stop`.
 //!
 //! Mirrors the same pattern §3.3 (tools) and §4.4 (provider adapters)
 //! pin: send SIGTERM, wait the deadline polling for the process group

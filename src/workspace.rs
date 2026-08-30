@@ -36,32 +36,32 @@ pub const AGENT_REF_PREFIX: &str = "agents/";
 /// Ref-namespace prefix for config branches: `config/<name>` (§2.3).
 pub const CONFIG_REF_PREFIX: &str = "config/";
 /// The config lineage a fresh root agent forks off when the start names
-/// none (§2.3 *Fresh start* — the head of a config branch; `lernie new`
-/// authors this one, and `lernie config` advances it by default). The
+/// none (§2.3 *Fresh start* — the head of a config branch; `litany new`
+/// authors this one, and `litany config` advances it by default). The
 /// bare name is the vocabulary both command lines use; [`config_ref`]
 /// applies the prefix at the git boundary.
 pub const DEFAULT_CONFIG_NAME: &str = "default";
 /// The root every per-agent **mark** ref lives under:
-/// `refs/lernie/<kind>/<agent-id>`. The kinds spell their own prefixes
+/// `refs/litany/<kind>/<agent-id>`. The kinds spell their own prefixes
 /// where they are written (§2.6 `conflicted`, §6 `budget-exhausted`,
 /// `abandoned`, `notify`, §3.3 [`cwd`], §2.2 [`retarget`], §8 `returned`);
 /// this is the namespace they share, so a
 /// consumer that must reach *every* mark of an agent — the retention
 /// delete (§9.2) — enumerates the root instead of keeping a list of
 /// kinds that would go stale the day a fifth one lands.
-pub const MARK_REF_ROOT: &str = "refs/lernie/";
+pub const MARK_REF_ROOT: &str = "refs/litany/";
 /// Ref-namespace prefix for the §2.6 **decline** mark,
-/// `refs/lernie/conflicted/<agent-id>`. One namespace, one home here in
+/// `refs/litany/conflicted/<agent-id>`. One namespace, one home here in
 /// the ref-naming module, written by every operation that must refuse
 /// rather than guess: the declined work-product transfer
 /// (`prompt::dispatch::transfer`) and the declined compaction landing
 /// (`prompt::compactor::land`). The UI renders it as `declined-transfer`
 /// alongside the orthogonal budget-exhausted mark (§3.5, §7.1).
-pub const CONFLICTED_REF_PREFIX: &str = "refs/lernie/conflicted/";
+pub const CONFLICTED_REF_PREFIX: &str = "refs/litany/conflicted/";
 
 /// A config branch ref, `config/<name>` (§2.3). The prefix is the kind
 /// (config vs agent), applied only at the git boundary — the bare name
-/// is what a user names on the `lernie config` command line.
+/// is what a user names on the `litany config` command line.
 pub fn config_ref(name: &str) -> String {
     format!("{CONFIG_REF_PREFIX}{name}")
 }
@@ -94,7 +94,7 @@ pub fn agent_worktree(workspace: &Path, agent_id: &str) -> PathBuf {
 
 /// The agent's branch ref, `agents/<agent-id>` (§2.3). The id — the
 /// full hyphenated descent — is the primary identifier everywhere
-/// (inbox and steps namespaces, worktree dir, `LERNIE_CONV_BRANCH`);
+/// (inbox and steps namespaces, worktree dir, `LITANY_CONV_BRANCH`);
 /// the prefix is applied only at the git boundary.
 pub fn agent_ref(agent_id: &str) -> String {
     format!("{AGENT_REF_PREFIX}{agent_id}")
@@ -129,7 +129,7 @@ pub fn agent_ids(workspace: &Path, git: &dyn GitRunner) -> io::Result<Vec<String
 
 /// Enumerate the workspace's config lineage names: every `config/*` ref,
 /// prefix stripped (§2.3). The bare names are what a user names on the
-/// `lernie config` command line, so this is both the existence query for
+/// `litany config` command line, so this is both the existence query for
 /// a `--from <source>` and the pool a decline names.
 pub fn config_names(workspace: &Path, git: &dyn GitRunner) -> io::Result<Vec<String>> {
     ref_names(workspace, CONFIG_REF_PREFIX, git)

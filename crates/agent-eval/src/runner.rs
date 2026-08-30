@@ -1,7 +1,7 @@
 //! The evaluation orchestrator (ARCH §9.3): experiment × suite × N.
 //!
 //! For each task, for each of N runs, the runner seeds a fresh isolated
-//! workspace (its own `LERNIE_HOME` and working directory under `base`),
+//! workspace (its own `LITANY_HOME` and working directory under `base`),
 //! runs the task `setup` (shell), invokes the agent through the [`Agent`]
 //! seam, then runs the task `check` (shell) — **exit 0 is the sole pass
 //! signal** (§9.1), so success is observable state, never the agent's own
@@ -10,7 +10,7 @@
 //!
 //! Beyond pass/fail, every run records its **outer wall time** — the
 //! runner's own measurement around the driver invocation — and, when the
-//! driver disclosed a workspace through `LERNIE_EVAL_REPORT`, the derived
+//! driver disclosed a workspace through `LITANY_EVAL_REPORT`, the derived
 //! efficiency metrics ([`metrics::collect`], bl-36fa): attempts, tool
 //! invocations, and the four canonical usage counters. No disclosure
 //! means no metrics (`None`), never zeros.
@@ -99,7 +99,7 @@ fn run_once(
     let outcome = agent.dispatch(&Dispatch {
         prompt: &task.prompt,
         workdir: &work,
-        lernie_home: &home,
+        litany_home: &home,
         experiment: &experiment.workflow,
     })?;
     let wall_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);

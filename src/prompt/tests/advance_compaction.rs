@@ -1,4 +1,4 @@
-//! §6 live-compaction / role-aware wiring on the `lernie advance` hop:
+//! §6 live-compaction / role-aware wiring on the `litany advance` hop:
 //! the delivered-child-result interpretation reached through `run`, and
 //! the compactor-role built-in-toolset injection. Split out of
 //! [`super::advance`] so that file stays under the per-file line cap; the

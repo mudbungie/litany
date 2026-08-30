@@ -5,7 +5,7 @@
 //! model-output entry committed (§2.5 — the assistant entry lands
 //! before any tool runs) while some of its `tool_use` blocks have no
 //! committed `tool_result`. Left that way the branch tip is unpaired:
-//! `lernie advance` declines it loudly (`Error::UnpairedToolUse`), so
+//! `litany advance` declines it loudly (`Error::UnpairedToolUse`), so
 //! no deposit could ever revive the agent — a stop would retire the
 //! branch instead of ending the work it had in flight (contradicting
 //! §2.9 "a stop is not a locked door … a message into the stopped

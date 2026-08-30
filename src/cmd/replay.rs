@@ -1,14 +1,14 @@
-//! `lernie replay` — reconstruct a scratch workspace under `LERNIE_HOME`
+//! `litany replay` — reconstruct a scratch workspace under `LITANY_HOME`
 //! from an archive and print its path (ARCH §9.2).
 
 use super::new::path_line;
 use super::{Error, Fx, Outcome};
 use std::path::PathBuf;
 
-/// `lernie replay <archive>`.
+/// `litany replay <archive>`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
-    /// Directory `lernie bundle` wrote the archive into.
+    /// Directory `litany bundle` wrote the archive into.
     pub archive: PathBuf,
 }
 

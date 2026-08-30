@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lernie pre-commit hook.
+# Litany pre-commit hook.
 #
 # Enforces:
 #   1. No direct commits to mainline (main/master). Squash-merges from `bl review`

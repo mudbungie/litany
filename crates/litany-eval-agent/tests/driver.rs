@@ -1,12 +1,12 @@
 //! Coverage for the harness driver (the far side of the ARCH §9.3
 //! agent seam), exercised against a shell stub standing in for the
-//! `lernie` binary — the same no-live-traffic discipline as the
-//! runner's own tests. The stub honours the `lernie` surface the
+//! `litany` binary — the same no-live-traffic discipline as the
+//! runner's own tests. The stub honours the `litany` surface the
 //! driver touches (`new` / `config` / `prompt`), including `config`'s
 //! `exec $EDITOR "$1"` hand-off, so the experiment-application path is
 //! exercised for real. The live-wire proof is `make eval` itself.
 
-use lernie_eval_agent::{Contract, drive, grounded, machine_config_root};
+use litany_eval_agent::{Contract, drive, grounded, machine_config_root};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
@@ -22,7 +22,7 @@ fn spawn_lock() -> MutexGuard<'static, ()> {
 
 /// Write an executable `sh` stub and return its path.
 fn stub(dir: &Path, body: &str) -> PathBuf {
-    let path = dir.join("lernie");
+    let path = dir.join("litany");
     std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
     let mut perm = std::fs::metadata(&path).unwrap().permissions();
     perm.set_mode(0o755);
@@ -33,14 +33,14 @@ fn stub(dir: &Path, body: &str) -> PathBuf {
 /// A stub honouring the full surface the driver drives: `new` prints a
 /// workspace it creates, `config` materializes a checkout with a
 /// default `workflow.yaml` and runs `$EDITOR` on it exactly as
-/// `lernie config` does, `prompt` logs its message and prints an agent
+/// `litany config` does, `prompt` logs its message and prints an agent
 /// id. Every invocation's env lands in `<log>/env.<verb>`.
 fn full_stub(dir: &Path) -> PathBuf {
     let log = dir.display();
     stub(
         dir,
         &format!(
-            r#"printf '%s\n' "$LERNIE_HOME" "$LERNIE_EXPERIMENT" "$GIT_DIR" > "{log}/env.$1"
+            r#"printf '%s\n' "$LITANY_HOME" "$LITANY_EXPERIMENT" "$GIT_DIR" > "{log}/env.$1"
 case "$1" in
   new)
     mkdir -p "{log}/ws/.config-author"
@@ -64,7 +64,7 @@ fn contract(dir: &Path, report: bool) -> Contract {
     std::fs::write(&experiment, "events: {x: [y]}\n").unwrap();
     Contract {
         prompt: "do the thing".into(),
-        lernie_home: home,
+        litany_home: home,
         experiment,
         report: report.then(|| dir.join("report")),
         workdir: work,
@@ -75,10 +75,10 @@ fn contract(dir: &Path, report: bool) -> Contract {
 fn drives_new_config_prompt_and_reports() {
     let _g = spawn_lock();
     let d = tempfile::tempdir().unwrap();
-    let lernie = full_stub(d.path());
+    let litany = full_stub(d.path());
     let c = contract(d.path(), true);
 
-    drive(lernie.as_os_str(), None, &c).unwrap();
+    drive(litany.as_os_str(), None, &c).unwrap();
 
     // The experiment landed as the checkout's workflow.yaml (END 2 of
     // the seam: applied, not just handed off).
@@ -96,11 +96,11 @@ fn drives_new_config_prompt_and_reports() {
         std::fs::read_to_string(d.path().join("report")).unwrap(),
         format!("{}/ws\nagent-a1b2\n", d.path().display()),
     );
-    // Every lernie invocation saw the run env, and no GIT_DIR leak.
+    // Every litany invocation saw the run env, and no GIT_DIR leak.
     for verb in ["new", "config", "prompt"] {
         let env = std::fs::read_to_string(d.path().join(format!("env.{verb}"))).unwrap();
         let lines: Vec<&str> = env.lines().collect();
-        assert_eq!(lines[0], c.lernie_home.to_str().unwrap(), "{verb}");
+        assert_eq!(lines[0], c.litany_home.to_str().unwrap(), "{verb}");
         assert_eq!(lines[1], c.experiment.to_str().unwrap(), "{verb}");
         assert_eq!(lines[2], "", "GIT_DIR must be scrubbed for {verb}");
     }
@@ -110,11 +110,11 @@ fn drives_new_config_prompt_and_reports() {
 fn no_report_requested_writes_none() {
     let _g = spawn_lock();
     let d = tempfile::tempdir().unwrap();
-    let lernie = full_stub(d.path());
+    let litany = full_stub(d.path());
     let c = contract(d.path(), false);
-    // A poisoned GIT_DIR in the driver's own env must not reach lernie.
+    // A poisoned GIT_DIR in the driver's own env must not reach litany.
     unsafe { std::env::set_var("GIT_DIR", "/nowhere/.git") };
-    drive(lernie.as_os_str(), None, &c).unwrap();
+    drive(litany.as_os_str(), None, &c).unwrap();
     unsafe { std::env::remove_var("GIT_DIR") };
     assert!(!d.path().join("report").exists());
 }
@@ -123,7 +123,7 @@ fn no_report_requested_writes_none() {
 fn seeds_run_home_from_machine_config_if_absent() {
     let _g = spawn_lock();
     let d = tempfile::tempdir().unwrap();
-    let lernie = full_stub(d.path());
+    let litany = full_stub(d.path());
     let c = contract(d.path(), false);
 
     let machine = d.path().join("machine");
@@ -132,16 +132,16 @@ fn seeds_run_home_from_machine_config_if_absent() {
     std::fs::write(machine.join("template/providers.yaml"), "roles: {}\n").unwrap();
     std::fs::write(machine.join("template/souls/worker.md"), "w\n").unwrap();
     // Pre-existing run-home material wins (seed-if-absent).
-    std::fs::create_dir_all(c.lernie_home.join("template")).unwrap();
+    std::fs::create_dir_all(c.litany_home.join("template")).unwrap();
     std::fs::write(
-        c.lernie_home.join("template/providers.yaml"),
+        c.litany_home.join("template/providers.yaml"),
         "roles: {kept: 1}\n",
     )
     .unwrap();
 
-    drive(lernie.as_os_str(), Some(&machine), &c).unwrap();
+    drive(litany.as_os_str(), Some(&machine), &c).unwrap();
 
-    let home = &c.lernie_home;
+    let home = &c.litany_home;
     assert_eq!(
         std::fs::read_to_string(home.join("models.yaml")).unwrap(),
         "models: {m: 1}\n"
@@ -161,35 +161,35 @@ fn seeds_run_home_from_machine_config_if_absent() {
 fn absent_machine_config_and_present_home_models_are_fine() {
     let _g = spawn_lock();
     let d = tempfile::tempdir().unwrap();
-    let lernie = full_stub(d.path());
+    let litany = full_stub(d.path());
     let c = contract(d.path(), false);
     // Machine root exists but has neither models.yaml nor template/.
     let machine = d.path().join("machine-empty");
     std::fs::create_dir_all(&machine).unwrap();
     // The run home already carries a models.yaml — it must survive.
-    std::fs::create_dir_all(&c.lernie_home).unwrap();
-    std::fs::write(c.lernie_home.join("models.yaml"), "models: {mine: 1}\n").unwrap();
+    std::fs::create_dir_all(&c.litany_home).unwrap();
+    std::fs::write(c.litany_home.join("models.yaml"), "models: {mine: 1}\n").unwrap();
     std::fs::write(machine.join("models.yaml"), "models: {machine: 1}\n").unwrap();
 
-    drive(lernie.as_os_str(), Some(&machine), &c).unwrap();
+    drive(litany.as_os_str(), Some(&machine), &c).unwrap();
 
     assert_eq!(
-        std::fs::read_to_string(c.lernie_home.join("models.yaml")).unwrap(),
+        std::fs::read_to_string(c.litany_home.join("models.yaml")).unwrap(),
         "models: {mine: 1}\n"
     );
     // A machine root that does not exist at all is nothing to seed.
     let c2 = contract(d.path(), false);
-    drive(lernie.as_os_str(), Some(&d.path().join("no-such")), &c2).unwrap();
+    drive(litany.as_os_str(), Some(&d.path().join("no-such")), &c2).unwrap();
 }
 
 #[test]
 fn a_failing_verb_surfaces_its_stderr() {
     let _g = spawn_lock();
     let d = tempfile::tempdir().unwrap();
-    let lernie = stub(d.path(), "echo 'new: it broke' >&2\nexit 3");
+    let litany = stub(d.path(), "echo 'new: it broke' >&2\nexit 3");
     let c = contract(d.path(), false);
-    let err = drive(lernie.as_os_str(), None, &c).unwrap_err();
-    assert!(err.to_string().contains("lernie new exited"), "{err}");
+    let err = drive(litany.as_os_str(), None, &c).unwrap_err();
+    assert!(err.to_string().contains("litany new exited"), "{err}");
     assert!(err.to_string().contains("it broke"), "{err}");
 }
 
@@ -197,23 +197,23 @@ fn a_failing_verb_surfaces_its_stderr() {
 fn an_empty_product_is_refused() {
     let _g = spawn_lock();
     let d = tempfile::tempdir().unwrap();
-    let lernie = stub(d.path(), "exit 0");
+    let litany = stub(d.path(), "exit 0");
     let c = contract(d.path(), false);
-    let err = drive(lernie.as_os_str(), None, &c).unwrap_err();
+    let err = drive(litany.as_os_str(), None, &c).unwrap_err();
     assert!(
-        err.to_string().contains("lernie new printed no product"),
+        err.to_string().contains("litany new printed no product"),
         "{err}"
     );
 }
 
 #[test]
-fn a_missing_lernie_names_the_program() {
+fn a_missing_litany_names_the_program() {
     let _g = spawn_lock();
     let d = tempfile::tempdir().unwrap();
     let c = contract(d.path(), false);
-    let missing = d.path().join("no-such-lernie");
+    let missing = d.path().join("no-such-litany");
     let err = drive(missing.as_os_str(), None, &c).unwrap_err();
-    assert!(err.to_string().contains("no-such-lernie"), "{err}");
+    assert!(err.to_string().contains("no-such-litany"), "{err}");
 }
 
 #[test]
@@ -245,25 +245,25 @@ fn contract_assembly_names_each_missing_piece() {
         None,
         work.clone(),
     );
-    assert_eq!(e.unwrap_err(), "LERNIE_HOME is not set");
+    assert_eq!(e.unwrap_err(), "LITANY_HOME is not set");
     let e = Contract::assemble(Some("p".into()), Some("/h".into()), None, None, work);
-    assert_eq!(e.unwrap_err(), "LERNIE_EXPERIMENT is not set");
+    assert_eq!(e.unwrap_err(), "LITANY_EXPERIMENT is not set");
 }
 
 #[test]
 fn machine_config_root_prefers_xdg_then_home() {
     assert_eq!(
         machine_config_root(Some("/xdg".as_ref()), Some("/me".as_ref())),
-        Some(PathBuf::from("/xdg/lernie"))
+        Some(PathBuf::from("/xdg/litany"))
     );
     assert_eq!(
         machine_config_root(Some("".as_ref()), Some("/me".as_ref())),
-        Some(PathBuf::from("/me/.config/lernie")),
+        Some(PathBuf::from("/me/.config/litany")),
         "an empty XDG_CONFIG_HOME is unset, per the basedir spec"
     );
     assert_eq!(
         machine_config_root(None, Some("/me".as_ref())),
-        Some(PathBuf::from("/me/.config/lernie"))
+        Some(PathBuf::from("/me/.config/litany"))
     );
     assert_eq!(machine_config_root(None, Some("".as_ref())), None);
     assert_eq!(machine_config_root(None, None), None);
@@ -271,11 +271,11 @@ fn machine_config_root_prefers_xdg_then_home() {
 
 #[test]
 fn version_answer_serves_the_probe_and_nothing_else() {
-    use lernie_eval_agent::version_answer;
+    use litany_eval_agent::version_answer;
     let line = version_answer(Some("--version")).unwrap();
     assert_eq!(
         line,
-        format!("lernie-eval-agent {}", env!("CARGO_PKG_VERSION"))
+        format!("litany-eval-agent {}", env!("CARGO_PKG_VERSION"))
     );
     assert_eq!(version_answer(Some("a real prompt")), None);
     assert_eq!(version_answer(None), None);

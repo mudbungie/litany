@@ -69,11 +69,11 @@ pub struct RoutedCall<'a> {
     pub name: &'a str,
     /// `tool_use.input`, verbatim — a subprocess's stdin.
     pub input: &'a Value,
-    /// The calling agent's workspace root — the `LERNIE_CONV_REPO` a
+    /// The calling agent's workspace root — the `LITANY_CONV_REPO` a
     /// subprocess reads from its environment.
     pub workspace: &'a Path,
     /// The calling agent's id (== branch name / hyphenated descent,
-    /// §2.3) — the `LERNIE_CONV_BRANCH` a subprocess reads.
+    /// §2.3) — the `LITANY_CONV_BRANCH` a subprocess reads.
     pub agent: &'a str,
     /// The §2.9 cancel flag, set when a stop lands mid-invocation. A
     /// router that blocks must watch it: it is the only thing that can
@@ -103,11 +103,11 @@ pub struct RoutedCapture {
 /// The binding's tool injection: extra definitions, and a router that
 /// answers the invocations it owns.
 ///
-/// **Router obligations**, which lernie cannot enforce and therefore
+/// **Router obligations**, which litany cannot enforce and therefore
 /// states — [`route`](Self::route) runs *in the executor's own thread*,
 /// so nothing in the harness can interrupt it:
 ///
-/// - **It carries its own deadline.** lernie imposes no wall-clock limit
+/// - **It carries its own deadline.** litany imposes no wall-clock limit
 ///   on a tool (§3.3), and a subprocess's SIGTERM cascade has no
 ///   in-process analogue. Bound every wait, and render an expired one as
 ///   a non-zero [`RoutedCapture`].
@@ -115,7 +115,7 @@ pub struct RoutedCapture {
 ///   Unreachable, disconnected, protocol garbage: all of them are
 ///   `exit_code != 0` with the reason on `stderr`, which is exactly what
 ///   an external tool that cannot reach its backend does.
-/// - **It watches [`RoutedCall::stop`]** so a `lernie stop` landing in a
+/// - **It watches [`RoutedCall::stop`]** so a `litany stop` landing in a
 ///   routed invocation ends it as promptly as SIGTERM ends a subprocess.
 ///
 /// The per-tool-call disk record (`input.json` / `output.json`, §3.3) is

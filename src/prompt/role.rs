@@ -10,7 +10,7 @@
 //! - a parent naming the lifecycle event of a **returning child** (§6,
 //!   [`crate::prompt::dispatch::child_result`]) reads the child's subject
 //!   at its terminal ref;
-//! - an agent resolving **its own** soul + toolset under `lernie advance`
+//! - an agent resolving **its own** soul + toolset under `litany advance`
 //!   (§6 role-aware resolution, [`crate::prompt::resolve`]) reads its own.
 //!
 //! A *root* agent's dispatch commit subject is `step 001: dispatch [<id>]`
@@ -23,7 +23,7 @@ use crate::template::GitRunner;
 use std::path::Path;
 
 /// Open-set role validity (§4.3) — the one home the dispatch built-in
-/// and the `lernie dispatch` CLI both consult before spawning.
+/// and the `litany dispatch` CLI both consult before spawning.
 pub mod validate;
 
 /// Subject prefix of a child's dispatch commit (§2.5).

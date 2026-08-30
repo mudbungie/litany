@@ -1,11 +1,11 @@
-//! `lernie bundle` — archive an agent subtree as one `git bundle` plus
+//! `litany bundle` — archive an agent subtree as one `git bundle` plus
 //! the `steps/`/`inbox/` slices (ARCH §9.2).
 
 use super::{Error, Fx, Outcome};
 use crate::template::RealGit;
 use std::path::PathBuf;
 
-/// `lernie bundle <workspace> <agent> <out-dir>`.
+/// `litany bundle <workspace> <agent> <out-dir>`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to the workspace (conversation repo) root.

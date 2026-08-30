@@ -11,7 +11,7 @@
 //!
 //! The function is `pub(crate)` because the only legitimate callers are
 //! sibling modules within `prompt::` — the CLI surface for
-//! procedure-to-procedure invocation is `lernie dispatch <role>` per
+//! procedure-to-procedure invocation is `litany dispatch <role>` per
 //! §3.4, never a direct library call.
 
 use super::Error;
@@ -44,7 +44,7 @@ pub(crate) struct SpawnRequest<'a> {
     /// fork point*) — the dispatching branch for an ordinary child
     /// dispatch (§2.5), any other ref when the dispatch named one: a
     /// **verifier** forks off the *worker's terminal ref* (§6 gate) so it
-    /// inherits the work it must judge, `lernie dispatch --from` off
+    /// inherits the work it must judge, `litany dispatch --from` off
     /// whatever the caller named (§7.2). Either way the new branch is
     /// still named a child of its dispatcher, so its id — and so its
     /// return address — stays `<parent>-<sub>` (§2.6).

@@ -1,4 +1,4 @@
-//! `lernie stop` — SIGTERM a conversation branch's executor pgid (ARCH
+//! `litany stop` — SIGTERM a conversation branch's executor pgid (ARCH
 //! §2.9). Idempotent for already-stopped branches; `--stop-children`
 //! walks the id namespace to reach descendants.
 
@@ -6,7 +6,7 @@ use super::{Error, Fx, Outcome};
 use crate::prompt::stop;
 use std::path::PathBuf;
 
-/// `lernie stop <repo> <branch> [--stop-children]`.
+/// `litany stop <repo> <branch> [--stop-children]`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to the workspace (conversation repo) root.

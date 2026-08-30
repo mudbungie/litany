@@ -1,4 +1,4 @@
-//! The §2.11 release rule at the `lernie advance` hop (bl-9c8f): the
+//! The §2.11 release rule at the `litany advance` hop (bl-9c8f): the
 //! lost-wakeup race made deterministic *inside* `dispatch::advance::run`.
 //! The injected resolve is the seat: it runs strictly after the drain's
 //! inbox enumeration (the hop's last read) and strictly before the

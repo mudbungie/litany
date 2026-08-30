@@ -5,7 +5,7 @@
 //! provider wire protocol directly: every model call crosses the `bz`
 //! subprocess boundary (§3.4). The canonical request/event *types* are
 //! the linked `brazen` crate's (`CanonicalRequest`, `Content`, `Event`,
-//! `CanonicalError`); lernie carries no bespoke wire types.
+//! `CanonicalError`); litany carries no bespoke wire types.
 //!
 //! [`segment`] classifies a closed `response.json`'s last attempt
 //! segment (§4.4) over brazen's `v=1` event vocabulary — the single

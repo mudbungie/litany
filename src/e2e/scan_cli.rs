@@ -1,14 +1,14 @@
-//! End-to-end subprocess tests for the operator verb `lernie scan`
+//! End-to-end subprocess tests for the operator verb `litany scan`
 //! (ARCH §2.11 *Crashes are a failure class*, §8) and for its removal
-//! from the driver hot paths: `lernie prompt` and `lernie dispatch`
+//! from the driver hot paths: `litany prompt` and `litany dispatch`
 //! never run the workspace-wide sweep.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
 
-fn lernie_bin() -> std::path::PathBuf {
-    crate::test_support::lernie_binary()
+fn litany_bin() -> std::path::PathBuf {
+    crate::test_support::litany_binary()
 }
 
 const INHERITED_GIT_ENV: &[&str] = &[
@@ -96,14 +96,14 @@ fn scan_verb_heals_a_crash_stranded_child() {
     let _held = crate::prompt::inbox::try_acquire(&parent_inbox)
         .unwrap()
         .expect("free");
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("scan")
         .arg(ws.path())
         .output()
-        .expect("spawn lernie scan");
+        .expect("spawn litany scan");
     assert!(
         out.status.success(),
-        "lernie scan: {}",
+        "litany scan: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     // The operator summary on stdout.
@@ -121,13 +121,13 @@ fn scan_verb_surfaces_a_broken_workspace_loudly() {
     // Not a workspace (no repo.git) → the §2.2 layout guard refuses →
     // non-zero exit (an operator verb is loud, §2.11).
     let ws = TempDir::new().unwrap();
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("scan")
         .arg(ws.path())
         .output()
-        .expect("spawn lernie scan");
+        .expect("spawn litany scan");
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("lernie scan"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("litany scan"));
 }
 
 #[test]
@@ -153,14 +153,14 @@ fn scan_names_a_root_whose_model_call_failed() {
         "{\"type\":\"error\",\"kind\":\"parse_input\",\"message\":\"user accepts only text content\"}\n{\"type\":\"end\"}\n",
     )
     .unwrap();
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("scan")
         .arg(ws.path())
         .output()
-        .expect("spawn lernie scan");
+        .expect("spawn litany scan");
     assert!(
         out.status.success(),
-        "lernie scan: {}",
+        "litany scan: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
@@ -177,38 +177,38 @@ fn scan_names_a_root_whose_model_call_failed() {
 #[test]
 fn prompt_hot_path_runs_no_workspace_scan() {
     // The same crashed-child workspace, touched by a driver instead of
-    // the operator verb. `lernie prompt` fails fast here (LERNIE_HOME has
+    // the operator verb. `litany prompt` fails fast here (LITANY_HOME has
     // no models.yaml), but the point is what it must NOT have done first:
     // before bl-5846 the startup scan ran ahead of config load and would
     // have deposited the died epitaph; now no deposit may appear.
     let ws = workspace_with_crashed_child();
     let harness = TempDir::new().unwrap();
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("prompt")
         .arg(ws.path())
         .arg("hi")
-        .env("LERNIE_HOME", harness.path())
+        .env("LITANY_HOME", harness.path())
         .output()
-        .expect("spawn lernie prompt");
+        .expect("spawn litany prompt");
     assert!(!out.status.success(), "prompt fails on the empty harness");
     assert!(
         !died_deposit(ws.path()).exists(),
-        "lernie prompt must not sweep the workspace (§2.11)"
+        "litany prompt must not sweep the workspace (§2.11)"
     );
 }
 
 #[test]
 fn dispatch_hot_path_runs_no_workspace_scan() {
     let ws = workspace_with_crashed_child();
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .args(["dispatch", "no-such-role"])
         .arg(ws.path())
         .arg(PARENT)
         .output()
-        .expect("spawn lernie dispatch");
+        .expect("spawn litany dispatch");
     assert!(!out.status.success(), "a config-undefined role is refused");
     assert!(
         !died_deposit(ws.path()).exists(),
-        "lernie dispatch must not sweep the workspace (§2.11)"
+        "litany dispatch must not sweep the workspace (§2.11)"
     );
 }

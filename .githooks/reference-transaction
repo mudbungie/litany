@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lernie auto-push hook: every advance of local `main` reaches `origin`.
+# Litany auto-push hook: every advance of local `main` reaches `origin`.
 #
 # Why `reference-transaction` and not `post-commit`/`post-merge`: nothing
 # lands on this repo's `main` through `git commit`. `bl close` delivers by

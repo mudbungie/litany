@@ -3,7 +3,7 @@
 //!
 //! One derivation off the executor's `step_dir` feeds both halves of the
 //! §3.3 subprocess contract, the environment and the working directory,
-//! so the cwd a tool runs in and the worktree its `LERNIE_CONV_*` vars
+//! so the cwd a tool runs in and the worktree its `LITANY_CONV_*` vars
 //! name cannot disagree.
 
 use crate::prompt::step::STEPS_DIR;
@@ -16,15 +16,15 @@ use std::path::{Path, PathBuf};
 /// `<workspace>/steps/<agent-id>/<NNN>` (ARCH §2.2). One derivation
 /// feeds both halves of the §3.3 subprocess contract, the environment
 /// and the working directory, so the cwd a tool runs in and the
-/// worktree its `LERNIE_CONV_*` vars name cannot disagree. No caller
+/// worktree its `LITANY_CONV_*` vars name cannot disagree. No caller
 /// hands these in: the executor is the single source of truth for what
 /// a tool call is on behalf of.
 pub(super) struct Caller {
-    /// `<workspace>` — `LERNIE_CONV_REPO`, and the same fact a host
+    /// `<workspace>` — `LITANY_CONV_REPO`, and the same fact a host
     /// router reads as `RoutedCall::workspace` (§3.3).
     pub(super) workspace: PathBuf,
     /// The agent id (== full hyphenated descent, §2.3) —
-    /// `LERNIE_CONV_BRANCH`, and `RoutedCall::agent`.
+    /// `LITANY_CONV_BRANCH`, and `RoutedCall::agent`.
     pub(super) agent_id: String,
     /// The cwd of every subprocess this call spawns (§3.3 *Working
     /// directory*): `<workspace>/agents/<agent-id>` by default, or

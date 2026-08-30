@@ -67,13 +67,13 @@ fn refuse_and_hold_carry_their_reasons() {
 fn the_control_reads_the_invocation_and_caller_from_stdin_and_env() {
     // The fixture dumps its stdin and environment into its cwd and
     // passes — proving the whole handoff: the request JSON on stdin,
-    // the `LERNIE_CONV_*` pair, and cwd = the workspace root (never the
+    // the `LITANY_CONV_*` pair, and cwd = the workspace root (never the
     // agent's own directory).
     let ws = TempDir::new().unwrap();
     let control = script(
         ws.path(),
         "cat > seen-stdin.json\n\
-         printf '%s %s' \"$LERNIE_CONV_BRANCH\" \"$LERNIE_CONV_REPO\" > seen-env\n\
+         printf '%s %s' \"$LITANY_CONV_BRANCH\" \"$LITANY_CONV_REPO\" > seen-env\n\
          echo '{\"verdict\":\"pass\"}'",
     );
     let input = json!({"command": "rm -rf /"});

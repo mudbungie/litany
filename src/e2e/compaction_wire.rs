@@ -30,8 +30,8 @@ use super::prompt_end_to_end::{
     HAPPY_SSE, scaffold_repo, write_brazen_config, write_global_models,
 };
 
-fn lernie_bin() -> std::path::PathBuf {
-    crate::test_support::lernie_binary()
+fn litany_bin() -> std::path::PathBuf {
+    crate::test_support::litany_binary()
 }
 
 /// Bodies the fixture provider row received, in arrival order.
@@ -185,7 +185,7 @@ struct Ctx {
 }
 
 impl Ctx {
-    /// Run one `lernie advance` in the **foreground**, then pause.
+    /// Run one `litany advance` in the **foreground**, then pause.
     ///
     /// The front-door dispatch already detach-launched a driver (§2.11),
     /// and normally that one does the work. Driving it here as well costs
@@ -194,11 +194,11 @@ impl Ctx {
     /// exactly one driver, so whichever wins, the branch steps — a lost
     /// acquire is a clean no-op, not a contention failure.
     fn advance(&self) {
-        let _ = Command::new(lernie_bin())
+        let _ = Command::new(litany_bin())
             .arg("advance")
             .arg(&self.repo)
             .arg(&self.agent)
-            .env("LERNIE_HOME", &self.harness)
+            .env("LITANY_HOME", &self.harness)
             .env("BRAZEN_CONFIG", &self.brazen_config)
             .output();
         std::thread::sleep(Duration::from_millis(100));
@@ -233,18 +233,18 @@ fn a_compactor_over_a_tool_using_transcript_reaches_the_wire() {
     fabricate_parent_that_used_bash(&repo);
 
     // Dispatch the compactor the way the checkpoint does (§2.7): an
-    // ordinary child, whose front-door launch drives `lernie advance`.
-    let out = Command::new(lernie_bin())
+    // ordinary child, whose front-door launch drives `litany advance`.
+    let out = Command::new(litany_bin())
         .args(["dispatch", "compactor"])
         .arg(&repo)
         .arg(PARENT)
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .env("BRAZEN_CONFIG", &brazen_config)
         .output()
-        .expect("spawn lernie dispatch compactor");
+        .expect("spawn litany dispatch compactor");
     assert!(
         out.status.success(),
-        "lernie dispatch compactor: {}",
+        "litany dispatch compactor: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     let child = String::from_utf8(out.stdout).unwrap().trim().to_string();

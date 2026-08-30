@@ -150,7 +150,7 @@ fn cli_run_surfaces_a_scan_error_loudly() {
 fn crash_stranding_is_healed_by_an_explicit_scan() {
     // A hard-crashed child (real branches, no live executor, no result
     // anywhere) strands its parked parent — until an operator runs
-    // `lernie scan` (§2.11 "Crashes are a failure class"): the sweep
+    // `litany scan` (§2.11 "Crashes are a failure class"): the sweep
     // deposits the `died` result on the child's behalf and the flush
     // reports the parent's inbox as launchable. Production wiring
     // (`cli_run`: real git, real clock, the launcher stub).

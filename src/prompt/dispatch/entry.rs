@@ -16,7 +16,7 @@
 //! blocks live* ([`blocks`]) — and absence of `usage` is the general path
 //! with empty inputs, never an error (`docs/PRINCIPLES.md`).
 //!
-//! **Usage is the provider's report, never lernie's arithmetic.** A
+//! **Usage is the provider's report, never litany's arithmetic.** A
 //! provider may state one report in installments — Anthropic's
 //! `message_start` carries the input side, its terminal `message_delta`
 //! the output side — so [`UsageReport`] records each counter *as the
@@ -94,7 +94,7 @@ pub(super) fn blocks(bytes: &[u8]) -> Vec<Content> {
 
 /// The two lawful entry shapes (above). Tried in order, so the object
 /// shape claims an object and the bare array an array; `usage` and any other
-/// sibling is ignored here — no lernie reader consumes it, and the
+/// sibling is ignored here — no litany reader consumes it, and the
 /// committed bytes are its home for the readers that do.
 #[derive(Deserialize)]
 #[serde(untagged)]

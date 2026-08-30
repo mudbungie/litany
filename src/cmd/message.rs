@@ -1,6 +1,6 @@
-//! `lernie message` — deposit into an agent's inbox and probe the
+//! `litany message` — deposit into an agent's inbox and probe the
 //! executor lock (ARCH §2.11, §3.4). The sender is resolved from
-//! `LERNIE_CONV_BRANCH` inside [`crate::prompt::inbox::cli_run`].
+//! `LITANY_CONV_BRANCH` inside [`crate::prompt::inbox::cli_run`].
 //!
 //! **The recipient is addressed by id or by unique name (§2.11).** This
 //! is the one verb that resolves a display name
@@ -31,7 +31,7 @@ use crate::prompt::step::latest_step_outcome;
 use crate::provider::segment;
 use std::path::{Path, PathBuf};
 
-/// `lernie message <workspace> <agent> <content>`.
+/// `litany message <workspace> <agent> <content>`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to the workspace (conversation repo) root.
@@ -80,11 +80,11 @@ pub(super) fn branch_failed(workspace: &Path, agent: &str) -> bool {
 /// The stderr advisory for a deposit into a quiescent branch whose
 /// latest model call failed (§2.10): queued and driven, never declined —
 /// but named, so a branch that went quiet is discoverable from the verb
-/// that touches it, not only from `lernie scan`.
+/// that touches it, not only from `litany scan`.
 pub(super) fn failed_branch_note(agent: &str) -> String {
     format!(
-        "lernie: {agent}: latest model call failed (ARCH §2.10) — message queued and a driver \
+        "litany: {agent}: latest model call failed (ARCH §2.10) — message queued and a driver \
          launched, but if the cause persists the branch will not advance; \
-         see steps/{agent}/ or run `lernie scan`"
+         see steps/{agent}/ or run `litany scan`"
     )
 }

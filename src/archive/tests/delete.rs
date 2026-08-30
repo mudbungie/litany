@@ -32,7 +32,7 @@ fn tree() -> (tempfile::TempDir, PathBuf) {
                 &repo_git(&ws),
                 &[
                     "update-ref",
-                    &format!("refs/lernie/notify/{id}"),
+                    &format!("refs/litany/notify/{id}"),
                     &format!("refs/heads/{}", agent_ref(id)),
                 ],
             )
@@ -48,7 +48,7 @@ fn gone(ws: &Path, id: &str) -> bool {
     let marks = git
         .run_capture(
             &repo_git(ws),
-            &["for-each-ref", "--format=%(refname)", "refs/lernie/"],
+            &["for-each-ref", "--format=%(refname)", "refs/litany/"],
         )
         .unwrap();
     !workspace::agent_exists(ws, id, &git)
@@ -235,7 +235,7 @@ fn git_failures_surface_with_the_op_that_failed() {
     )
     .unwrap_err();
     assert!(
-        matches!(err, delete::DeleteError::Git { op, .. } if op == "for-each-ref refs/lernie/"),
+        matches!(err, delete::DeleteError::Git { op, .. } if op == "for-each-ref refs/litany/"),
         "{err:?}"
     );
     // The subtree enumeration is the second: a stub that answers

@@ -149,7 +149,7 @@ fn a_result_deposit_writes_the_durable_returned_mark() {
             "tipsha".to_string(),
         ]]
     );
-    assert_eq!(returned_ref("x-y"), "refs/lernie/returned/x-y");
+    assert_eq!(returned_ref("x-y"), "refs/litany/returned/x-y");
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn a_failed_mark_write_surfaces_after_the_file_landed() {
     .unwrap_err();
     assert!(
         err.to_string()
-            .contains("mark refs/lernie/returned/parent-child"),
+            .contains("mark refs/litany/returned/parent-child"),
         "unexpected error: {err}"
     );
     assert!(

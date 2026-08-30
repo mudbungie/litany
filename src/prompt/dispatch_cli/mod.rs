@@ -1,4 +1,4 @@
-//! CLI handler for `lernie dispatch <role>` (ARCH §3.4) — the shared id
+//! CLI handler for `litany dispatch <role>` (ARCH §3.4) — the shared id
 //! guard, the fork-point guard, the front door's role-validity
 //! pre-flight, the per-role `--goal` rule, and the hand-off into the
 //! child-dispatch primitive.
@@ -15,7 +15,7 @@
 //! What *does* follow the fork point is the child's **governing config
 //! commit**, and it must: §2.2 says an agent started by fork-back-in
 //! inherits its source's config the same way, and the child's own
-//! ancestry begins at that ref — so every later `lernie advance`
+//! ancestry begins at that ref — so every later `litany advance`
 //! resolves control from it (§6). Soul, `tools:` grant, `descriptions/**`,
 //! budgets and the role-validity pre-flight below are therefore read
 //! from that one commit, never from the fork point's *tree* (§3.3,
@@ -58,7 +58,7 @@ use std::path::Path;
 const ROLE_COMPACTOR: &str = COMPACTOR_ROLE;
 
 /// Dispatch CLI failures, joined with [`Error`] under one `Display` for a
-/// uniform `lernie dispatch <role>:` failure line.
+/// uniform `litany dispatch <role>:` failure line.
 #[derive(Debug)]
 pub enum DispatchCliError {
     /// The workspace-layout guard declined the path — the shared
@@ -104,7 +104,7 @@ impl From<Error> for DispatchCliError {
     }
 }
 
-/// Run `lernie dispatch <role> <repo> <branch> [--goal <text>]
+/// Run `litany dispatch <role> <repo> <branch> [--goal <text>]
 /// [--name <name>] [--cwd <path>]`
 /// (ARCH §3.4). Role-validity and per-role `--goal` violations surface as
 /// `Err` for the bin's uniform non-zero exit. Any valid role is dispatched
@@ -127,7 +127,7 @@ pub fn run(
     cwd: Option<&Path>,
     driver_target: &Path,
 ) -> Result<(), DispatchCliError> {
-    // The production launcher detach-spawns `lernie advance` (§2.11) at
+    // The production launcher detach-spawns `litany advance` (§2.11) at
     // `driver_target` — the running-binary path the exec binding injects
     // (`cmd::Fx::driver_target`, §3.4); the library resolves none itself.
     // The launch decision is tested through [`run_with`] against an
@@ -139,7 +139,7 @@ pub fn run(
 /// [`run`] with the driver launcher injected — the same
 /// launcher-as-parameter discipline as `inbox::probe_and_launch`, so the
 /// fork + front-door deposit is exercisable without spawning a real
-/// `lernie advance`.
+/// `litany advance`.
 #[allow(clippy::too_many_arguments)]
 fn run_with(
     role: &str,

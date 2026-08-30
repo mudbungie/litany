@@ -11,17 +11,17 @@
 //! matters to a release commit.
 //!
 //! The switch is a file OUTSIDE the repo:
-//! `$XDG_CONFIG_HOME/lernie/enforce-commit-identity` (default
-//! `~/.config/lernie/enforce-commit-identity`). Absent — the default
+//! `$XDG_CONFIG_HOME/litany/enforce-commit-identity` (default
+//! `~/.config/litany/enforce-commit-identity`). Absent — the default
 //! everywhere but here — the test passes without asserting anything. Present,
 //! it walks the whole of `refs/heads/main` and asserts the invariants below.
 //! The policy lives in the marker, not in this file: `rm` it and the guard is
 //! off, with no code edit and no flag.
 //!
-//! `LERNIE_HOME` is deliberately NOT consulted, though it collapses the
+//! `LITANY_HOME` is deliberately NOT consulted, though it collapses the
 //! harness roots everywhere else (ARCH §2.2, `src/harness_root.rs`): those
 //! roots are per-installation state that tests and wrappers relocate freely
-//! (`tests/install.rs` aims `LERNIE_HOME` at a tempdir), so a guard that
+//! (`tests/install.rs` aims `LITANY_HOME` at a tempdir), so a guard that
 //! followed them could be disarmed by an inherited env var without anyone
 //! noticing. This marker is per-machine operator policy, so it has exactly
 //! one path.
@@ -84,7 +84,7 @@ fn marker() -> PathBuf {
         .unwrap_or_else(|| {
             PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config")
         });
-    config_home.join("lernie").join("enforce-commit-identity")
+    config_home.join("litany").join("enforce-commit-identity")
 }
 
 /// Every commit on `main` as NUL-separated records of unit-separator-

@@ -207,7 +207,7 @@ fn an_illegible_deposit_body_launches_rather_than_classifies() {
 fn an_unreadable_inbox_reread_is_swallowed() {
     // Accepted crash class (§2.11): the lease is already gone, so a
     // failed re-read may only log — the stranding is late, never lost,
-    // and the next touch (`lernie scan`, a reprompt) heals it.
+    // and the next touch (`litany scan`, a reprompt) heals it.
     let ws = TempDir::new().unwrap();
     std::fs::create_dir_all(ws.path().join("inbox")).unwrap();
     std::fs::write(inbox_dir(ws.path(), AGENT), b"not a dir").unwrap();

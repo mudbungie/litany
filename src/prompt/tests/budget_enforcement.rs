@@ -1,7 +1,7 @@
 //! Budget enforcement at the model-call boundary (ARCH §6, v0.7): a
 //! conversation that exhausts `max_total_tokens` is stopped before the
 //! next adapter invocation and gets the
-//! `refs/lernie/budget-exhausted/<branch>` marker; an unbounded workflow
+//! `refs/litany/budget-exhausted/<branch>` marker; an unbounded workflow
 //! never triggers a stop.
 
 use super::fixtures::*;
@@ -80,7 +80,7 @@ fn exhausted_conversation_stops_before_next_model_call_and_marks_the_ref() {
         runs.iter().any(|(_, args)| args
             == &vec![
                 "update-ref".to_string(),
-                "refs/lernie/budget-exhausted/ct-1-deadbeef".to_string(),
+                "refs/litany/budget-exhausted/ct-1-deadbeef".to_string(),
                 "HEAD".to_string(),
             ]),
         "expected budget-exhausted update-ref; got {runs:?}"
@@ -131,7 +131,7 @@ fn unbounded_workflow_never_triggers_a_budget_stop() {
     assert!(
         !runs.iter().any(|(_, args)| {
             args.iter()
-                .any(|a| a.starts_with("refs/lernie/budget-exhausted/"))
+                .any(|a| a.starts_with("refs/litany/budget-exhausted/"))
         }),
         "no budget-exhausted ref expected under an unbounded workflow"
     );

@@ -1,5 +1,5 @@
 //! The seeded working directory at the dispatch fork (ARCH §3.3,
-//! `lernie dispatch --cwd`): the child's own mark is written before the
+//! `litany dispatch --cwd`): the child's own mark is written before the
 //! fork, and nothing is inherited from the dispatcher. Split from
 //! `tests.rs` for the 300-line repo cap.
 

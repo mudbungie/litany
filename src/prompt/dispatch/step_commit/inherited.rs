@@ -14,7 +14,7 @@
 //! tree (§5.1) and the transcript composes unconditionally (§5.2), so
 //! the parent's dialog — including user-role instructions addressed to
 //! the *parent* — opened every child's first model call. The reproduced
-//! runaway (lernie bl-5a36, from yog bl-d023): a user told an agent
+//! runaway (litany bl-5a36, from yog bl-d023): a user told an agent
 //! "spawn a subagent to analyze …"; the dispatched child inherited that
 //! instruction as an apparently unanswered user message — the unsettled
 //! prune ([`super::unsettled`]) had deleted the parent's `dispatch`
@@ -27,7 +27,7 @@
 //! **Two principled exceptions, one axis: whose conversation is it?**
 //!
 //! - **A fork-back-in root keeps the dialog — it *is* its
-//!   conversation.** `lernie prompt --from <ref>` re-enters a recorded
+//!   conversation.** `litany prompt --from <ref>` re-enters a recorded
 //!   conversation at any commit (§7.2): the inherited transcript is the
 //!   very thing being resumed. That is why this prune is a part of the
 //!   child spawn, not of [`super::trim_to_context`] — the root's

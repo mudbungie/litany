@@ -33,7 +33,7 @@ struct Input {
 }
 
 /// Every way [`run`] can fail. Each variant produces a distinct
-/// stderr message — the operator running `lernie tool read_file`
+/// stderr message — the operator running `litany tool read_file`
 /// directly sees these on the terminal, and the model sees them
 /// concatenated into `tool_result.content` when the executor builds
 /// the next step's request (§3.3).
@@ -85,7 +85,7 @@ pub enum Error {
 
 /// Read the input from `stdin`, open the named file, and write its
 /// bytes to `stdout`. Pure over [`Read`]/[`Write`] so unit tests drive
-/// it with `Cursor`/`Vec`; the `lernie tool read_file` shim wires it
+/// it with `Cursor`/`Vec`; the `litany tool read_file` shim wires it
 /// to the live process stdio.
 pub fn run<R: Read, W: Write>(stdin: &mut R, stdout: &mut W) -> Result<(), Error> {
     let mut buf = Vec::new();

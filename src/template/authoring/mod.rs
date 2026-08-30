@@ -1,4 +1,4 @@
-//! Config-commit authoring beyond `lernie new` (ARCH §2.2, §2.3).
+//! Config-commit authoring beyond `litany new` (ARCH §2.2, §2.3).
 //!
 //! [`super::scaffold`] authors a workspace's *first* config commit — an
 //! orphan root on `config/default`. This module is the general
@@ -17,7 +17,7 @@
 //! freeze", §2.2).
 //!
 //! The [`author`] core is non-interactive: the `edit` closure is the
-//! seam the `lernie config` bin fills with a `$EDITOR` hand-off and tests
+//! seam the `litany config` bin fills with a `$EDITOR` hand-off and tests
 //! fill with direct writes, so the machinery stays fully covered while
 //! the untestable interactive sliver lives at the bin (ARCH §3.4).
 
@@ -95,7 +95,7 @@ pub enum Error {
     NoSuchLineage(#[from] workspace::UnknownLineage),
 }
 
-/// Resolve the [`Origin`] from `lernie config`'s flags and run [`author`]
+/// Resolve the [`Origin`] from `litany config`'s flags and run [`author`]
 /// — the testable body of the verb (ARCH §3.4). `--from` forks,
 /// `--orphan` starts fresh, neither advances; both together is
 /// [`Error::Conflict`]. `name` defaults to `default`. The bin supplies
@@ -175,7 +175,7 @@ pub fn author<G: GitRunner>(
 /// reason: a well-formed name that names nothing is the *product's*
 /// decline, naming the pool it was not found in
 /// ([`workspace::require_lineage`], the one home this shares with
-/// `lernie prompt --config`), not git's report of an invalid reference.
+/// `litany prompt --config`), not git's report of an invalid reference.
 /// Advance and orphan name no source, so they pass through.
 fn require_source<G: GitRunner>(workspace: &Path, origin: &Origin, git: &G) -> Result<(), Error> {
     let Origin::Fork { source } = origin else {

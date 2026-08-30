@@ -17,7 +17,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// The `tool_output:` block. Both fields are byte counts — lernie has
+/// The `tool_output:` block. Both fields are byte counts — litany has
 /// no tokenizer, so bytes are the only honest unit (§3.3). `Copy`
 /// because it is two words of policy handed down the executor path by
 /// value.

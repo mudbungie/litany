@@ -9,7 +9,7 @@
 //!
 //! Each is the ordinary §3.3 stdio built-in: stdin is the `tool_use.input`
 //! JSON, stdout the JSON result, and the calling agent's workspace +
-//! branch arrive via `LERNIE_CONV_REPO` / `LERNIE_CONV_BRANCH`
+//! branch arrive via `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH`
 //! (harness-derived, §3.3). Both act on the compactor's own worktree; the
 //! harness commits the worktree side effect with the tool result under the
 //! commit-per-side-effect discipline (§2.3, §3.3 — `git add -A`), so a
@@ -115,8 +115,8 @@ fn read_input<R: Read, T: for<'de> Deserialize<'de>>(stdin: &mut R) -> Result<T,
     serde_json::from_slice(&buf).map_err(Error::InvalidJson)
 }
 
-/// The calling agent's worktree, from `LERNIE_CONV_REPO` (workspace) +
-/// `LERNIE_CONV_BRANCH` (agent id), harness-derived (§3.3).
+/// The calling agent's worktree, from `LITANY_CONV_REPO` (workspace) +
+/// `LITANY_CONV_BRANCH` (agent id), harness-derived (§3.3).
 fn resolve_worktree(env: &dyn EnvLookup) -> Result<std::path::PathBuf, Error> {
     let repo = env
         .get(ENV_CONV_REPO)

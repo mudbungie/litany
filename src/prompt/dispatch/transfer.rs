@@ -23,7 +23,7 @@
 //! harness defect, not a normal arm. A diff that fails to apply is
 //! **declined loudly** (§2.6): the result message still delivers (the
 //! terminal ref preserves every byte on the child's branch), and the
-//! failure is marked git-natively at `refs/lernie/conflicted/<agent-id>`
+//! failure is marked git-natively at `refs/litany/conflicted/<agent-id>`
 //! for operator attention — the same marking pattern as budget
 //! exhaustion (§6). The decline is not an error the delivery propagates;
 //! it is a recorded outcome.
@@ -87,7 +87,7 @@ pub(super) fn terminal_ref_of(body: &str) -> Option<String> {
 /// no ref name needs passing. Lands the filtered diff as one commit
 /// (§2.6); a clean empty diff commits nothing (the general path with
 /// empty inputs), and an apply failure is declined by marking
-/// `refs/lernie/conflicted/<child_id>` and returning `Ok` — the
+/// `refs/litany/conflicted/<child_id>` and returning `Ok` — the
 /// delivery still proceeds.
 pub(super) fn apply(
     worktree: &Path,
@@ -139,7 +139,7 @@ fn patch_path(child_id: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    std::env::temp_dir().join(format!("lernie-transfer-{child_id}-{nanos}.patch"))
+    std::env::temp_dir().join(format!("litany-transfer-{child_id}-{nanos}.patch"))
 }
 
 /// Commit the applied (already index-staged) work-product diff as one
@@ -153,7 +153,7 @@ fn commit_transfer(worktree: &Path, child_id: &str, git: &dyn GitRunner) -> Resu
         })
 }
 
-/// Decline the transfer (§2.6): mark `refs/lernie/conflicted/<child_id>`
+/// Decline the transfer (§2.6): mark `refs/litany/conflicted/<child_id>`
 /// at the child's terminal sha (preserving every byte of its work) for
 /// operator attention. The result message still delivers.
 fn decline(

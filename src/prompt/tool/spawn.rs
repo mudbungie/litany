@@ -4,17 +4,17 @@
 //!
 //! Resolution order, per ARCH §3.3:
 //!
-//! 1. `<data_root>/tools/lernie-tool-<name>` (installed by `make
+//! 1. `<data_root>/tools/litany-tool-<name>` (installed by `make
 //!    install`).
-//! 2. `lernie-tool-<name>` on `PATH` (mirroring §4.4 adapter discovery).
+//! 2. `litany-tool-<name>` on `PATH` (mirroring §4.4 adapter discovery).
 //! 3. In-process fallback: `<driver target> tool <name>` — re-entry
 //!    into the same dispatcher, matching PRINCIPLES "Everyone uses the
 //!    front door". The target is the one the binding injected
 //!    (`cmd::Fx::driver_target`), never a name this module resolves:
 //!    ARCH §2.11, "the driver target is injected at the binding, not
-//!    resolved by name". Under the exec binding that is the `lernie`
+//!    resolved by name". Under the exec binding that is the `litany`
 //!    image; under a linked host it is the host's own re-exec target or
-//!    a PATH-resolved `lernie` — never the host binary itself, which
+//!    a PATH-resolved `litany` — never the host binary itself, which
 //!    carries no `tool` verb of its own.
 //!
 //! Ahead of all three sits the binding's optional **host injection**

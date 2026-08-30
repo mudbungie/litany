@@ -18,7 +18,7 @@ const PARENT: &str = "20260101T000000Z-aaaaaaaa";
 
 /// Dispatch a worker child off `PARENT`, optionally named. The driver
 /// target is `true`, so the front-door launch spawns a harmless no-op
-/// instead of a real `lernie advance` (the surface tests' convention).
+/// instead of a real `litany advance` (the surface tests' convention).
 fn dispatch_child(ws: &Path, name: Option<&str>) -> Result<Outcome, super::Error> {
     with_fx("true", b"", &noop_editor, |fx| {
         dispatch::run(

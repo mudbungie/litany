@@ -171,8 +171,8 @@ pub fn replay(
     Ok(scratch)
 }
 
-/// `lernie replay` wiring (§3.4/§9.2): resolve the scratch base under the
-/// data root (`replays/`, isolated by `LERNIE_HOME`) and replay with
+/// `litany replay` wiring (§3.4/§9.2): resolve the scratch base under the
+/// data root (`replays/`, isolated by `LITANY_HOME`) and replay with
 /// production git. Kept in the lib so the bin stays thin, the same
 /// discipline as `prompt::inbox::cli_run`.
 pub fn replay_cli(archive: &Path) -> Result<PathBuf, ArchiveError> {

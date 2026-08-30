@@ -25,7 +25,7 @@
 //!
 //! **Exhaustion is an ordinary terminal state.** On exhaustion the
 //! harness ceases the branch's step loop and writes
-//! `refs/lernie/budget-exhausted/<branch>` ([`mark_exhausted`]) — the
+//! `refs/litany/budget-exhausted/<branch>` ([`mark_exhausted`]) — the
 //! same git-native marking pattern as the §2.6-step-6 conflicted ref.
 //! No new event type, no `response.json` marker — a ref plus a stop,
 //! which deposits an obituary into the dispatcher's inbox (§2.6) like any
@@ -47,11 +47,11 @@ use crate::template::GitRunner;
 use std::path::Path;
 
 /// Git-native marker ref for an exhausted conversation
-/// (`refs/lernie/budget-exhausted/<branch>`, ARCH §6 — mirrors the
+/// (`refs/litany/budget-exhausted/<branch>`, ARCH §6 — mirrors the
 /// §2.6-step-6 conflicted ref). The single home of the prefix; the
 /// terminal budget-exhausted state it marks is surfaced as a result
 /// deposit into the dispatcher's inbox (§2.6 obituary, §2.11) like any other.
-pub const BUDGET_EXHAUSTED_REF_PREFIX: &str = "refs/lernie/budget-exhausted/";
+pub const BUDGET_EXHAUSTED_REF_PREFIX: &str = "refs/litany/budget-exhausted/";
 
 /// Which declared limit a conversation crossed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -150,7 +150,7 @@ fn root_of(branch: &str) -> &str {
 }
 
 /// Write the budget-exhausted marker ref for the agent id `branch` at
-/// its tip (`git update-ref refs/lernie/budget-exhausted/<agent-id>
+/// its tip (`git update-ref refs/litany/budget-exhausted/<agent-id>
 /// HEAD`), run inside `worktree` — whose checked-out branch *is*
 /// `agents/<agent-id>` (§2.3), so `HEAD` is the tip with no ref-name
 /// round trip. State lives in git, not a sidecar file (PRINCIPLES SSOT)

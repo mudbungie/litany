@@ -1,6 +1,6 @@
 //! The command surface (ARCH §3.4 "One command surface, two bindings").
 //!
-//! This module is the one authoritative definition of what `lernie` can
+//! This module is the one authoritative definition of what `litany` can
 //! do: the [`Cli`]/[`Command`] clap surface, one entry per verb
 //! ([`Command::run`] → `<verb>::run`), and the binding seam — [`Fx`] (the
 //! injections a binding supplies), [`Outcome`] (a verb's product), and
@@ -11,7 +11,7 @@
 //! process-global or terminal effect: the running-binary path, the
 //! `$EDITOR` spawn, the locked stdio, and the SIGTERM flag all arrive
 //! through [`Fx`]; process-group leadership and stop-flag installation
-//! are the [`prelude`] the binding runs. `src/bin/lernie` is the exec
+//! are the [`prelude`] the binding runs. `src/bin/litany` is the exec
 //! binding; an embedding consumer is the other. Both parse the *same*
 //! [`Cli`] and drive the *same* [`Command::run`].
 //!
@@ -47,19 +47,19 @@ pub mod tool;
 #[cfg(test)]
 mod tests;
 
-/// The `lernie` command-line surface (ARCH §3.4). Behaviourally identical
+/// The `litany` command-line surface (ARCH §3.4). Behaviourally identical
 /// across both bindings — the argv shape here is the single source of
 /// truth for the CLI, pinned by the `tests/*_cli.rs` end-to-end tests.
 #[derive(clap::Parser, Debug)]
-#[command(name = "lernie", about = "Git-backed agent harness", version = cli_version())]
+#[command(name = "litany", about = "Git-backed agent harness", version = cli_version())]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 }
 
-/// `lernie --version`'s product: lernie's own package version paired with
+/// `litany --version`'s product: litany's own package version paired with
 /// the exact brazen pin it links, e.g. `0.0.1 (brazen 0.0.5)` — printed by
-/// clap as `lernie 0.0.1 (brazen 0.0.5)`. The pin's one home is the
+/// clap as `litany 0.0.1 (brazen 0.0.5)`. The pin's one home is the
 /// `brazen = "=<version>"` line in `Cargo.toml`; [`crate::prompt::brazen_pin`]
 /// is the sole reader of it (the same fact the load-time version guard,
 /// `crate::prompt::resolve::check_bz_version`, ARCH §4.4, compares a live
@@ -87,7 +87,7 @@ pub enum Command {
     /// first config commit on `config/default`. No argument creates
     /// `<data-root>/workspaces/<auto-id>/`; a path creates there.
     New(new::Args),
-    /// Author a config commit beyond `lernie new` (ARCH §2.2, §2.3): the
+    /// Author a config commit beyond `litany new` (ARCH §2.2, §2.3): the
     /// only act that advances a config branch. Materializes a checkout of
     /// the target lineage, refreshes `descriptions/**` from the data-root
     /// pools (§3.3), opens it in `$EDITOR`, and commits. `<name>` defaults
@@ -111,7 +111,7 @@ pub enum Command {
     Dispatch(dispatch::Args),
     /// Move a running agent onto another config commit (ARCH §2.2) — the
     /// one exit from the config freeze. Writes the mark
-    /// `refs/lernie/retarget/<agent>` at `config/<name>`'s head
+    /// `refs/litany/retarget/<agent>` at `config/<name>`'s head
     /// (`--config`, default `default`); the agent's own executor lands the
     /// re-fork at its next step. A target already governing the agent is a
     /// clean no-op.
@@ -121,7 +121,7 @@ pub enum Command {
     /// (`<branch>-*`, §2.3) — the opt-in agent→agent cascade.
     Stop(stop::Args),
     /// Deposit a message into an agent's inbox and probe the executor
-    /// lock (ARCH §2.11, §3.4). Sender from `LERNIE_CONV_BRANCH`. `agent`
+    /// lock (ARCH §2.11, §3.4). Sender from `LITANY_CONV_BRANCH`. `agent`
     /// is the recipient id (== branch name / hyphenated descent).
     Message(message::Args),
     /// Operator verb: one workspace-wide silent-death sweep + inbox flush
@@ -132,24 +132,24 @@ pub enum Command {
     /// `<out-dir>`.
     Bundle(bundle::Args),
     /// Remove an agent (ARCH §9.2 retention): its `agents/<id>` ref,
-    /// worktree, `steps/`/`inbox/` slices and `refs/lernie/*` marks.
+    /// worktree, `steps/`/`inbox/` slices and `refs/litany/*` marks.
     /// Declines a subtree the bare form did not ask for and a live
     /// driver's agent (§2.11); `--children` takes the whole subtree,
     /// `--dry-run` prints the same census and removes nothing. Archive
     /// first with `bundle` if you want it kept.
     Delete(delete::Args),
     /// Replay an archive (ARCH §9.2) into a scratch workspace under
-    /// `LERNIE_HOME`'s data root (`replays/<agent>/`); prints its path
+    /// `LITANY_HOME`'s data root (`replays/<agent>/`); prints its path
     /// for the ordinary frontend (§3.5).
     Replay(replay::Args),
     /// Drive one agent's branch forward (ARCH §6): take the lease (adopt
-    /// LERNIE_LOCK_FD or acquire), deliver pending mail, run the next
+    /// LITANY_LOCK_FD or acquire), deliver pending mail, run the next
     /// step, and exec the successor hop. The target every launch seam
     /// spawns; also an operator verb.
     Advance(advance::Args),
     /// In-process built-in tool entry (ARCH §3.3): `tool_use.input` JSON
     /// on stdin, bytes on stdout, exit 0/non-zero. Third resolver hop
-    /// (`<data-root>/tools/lernie-tool-<name>` → PATH → `<lernie> tool …`).
+    /// (`<data-root>/tools/litany-tool-<name>` → PATH → `<litany> tool …`).
     Tool(tool::Args),
     /// Found the installation substrate (ARCH §2.2): resolve the harness
     /// root and seed the default `models.yaml`, the pools, and the
@@ -183,13 +183,13 @@ pub enum Outcome {
 /// its own.
 pub struct Fx<'a> {
     /// The re-entry path for **every** seam that goes back through the
-    /// front door: the detached `lernie advance` launch and the §6
+    /// front door: the detached `litany advance` launch and the §6
     /// successor `execve` (§2.11), the §3.3 tool resolver's third hop
     /// (`<driver_target> tool <name>`), and the `dispatch` / `message`
     /// built-ins' own re-entry. ARCH §2.11: "the driver target is
     /// injected at the binding, not resolved by name" — the exec binding
     /// resolves it once via `std::env::current_exe`, a linked host names
-    /// its own re-exec target or a PATH-resolved `lernie`. The library
+    /// its own re-exec target or a PATH-resolved `litany`. The library
     /// resolves none of its own.
     pub driver_target: PathBuf,
     /// The provider-adapter target (ARCH §4.4), injected the same way as
@@ -201,14 +201,14 @@ pub struct Fx<'a> {
     /// a named target skips the load-time version guard and the in-band
     /// `MessageStart.v` handshake governs (§4.4).
     pub adapter_target: Option<PathBuf>,
-    /// The `lernie config` `$EDITOR` hand-off (§2.2) — the interactive
+    /// The `litany config` `$EDITOR` hand-off (§2.2) — the interactive
     /// spawn the exec binding supplies as `cli::edit_in_editor`.
     pub editor: &'a dyn Fn(&Path) -> std::io::Result<()>,
-    /// The `lernie tool` stdin (§3.3 `tool_use.input` JSON).
+    /// The `litany tool` stdin (§3.3 `tool_use.input` JSON).
     pub tool_stdin: &'a mut dyn std::io::Read,
-    /// The `lernie tool` stdout (§3.3 raw result bytes).
+    /// The `litany tool` stdout (§3.3 raw result bytes).
     pub tool_stdout: &'a mut dyn std::io::Write,
-    /// The `lernie tool` stderr (§3.3 stderr-concat contract).
+    /// The `litany tool` stderr (§3.3 stderr-concat contract).
     pub tool_stderr: &'a mut dyn std::io::Write,
     /// The executor's SIGTERM flag (§2.9 step 3), the driver verbs'
     /// `Deps::stop`. The exec binding wires [`prelude::stop_flag`] after
@@ -225,7 +225,7 @@ pub struct Fx<'a> {
 }
 
 /// A verb's uniform failure. `Display` renders exactly today's stderr
-/// shape `lernie <verb-prefix>: <error>` (dispatch's prefix is `dispatch
+/// shape `litany <verb-prefix>: <error>` (dispatch's prefix is `dispatch
 /// <role>`; tool's is `tool <name>`), which the binding prints before a
 /// non-zero exit.
 #[derive(Debug)]
@@ -236,7 +236,7 @@ pub struct Error {
 
 impl Error {
     /// Build a failure carrying `prefix` (the verb prefix, without the
-    /// leading `lernie `) and the `Display` of the underlying error.
+    /// leading `litany `) and the `Display` of the underlying error.
     pub fn new(prefix: impl Into<String>, source: impl std::fmt::Display) -> Self {
         Self {
             prefix: prefix.into(),
@@ -247,7 +247,7 @@ impl Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "lernie {}: {}", self.prefix, self.message)
+        write!(f, "litany {}: {}", self.prefix, self.message)
     }
 }
 

@@ -18,9 +18,9 @@
 //! it was.
 //!
 //! **The new directory is stored as the agent's working-directory mark**
-//! ([`crate::workspace::cwd`], `refs/lernie/cwd/<agent-id>`), read back
+//! ([`crate::workspace::cwd`], `refs/litany/cwd/<agent-id>`), read back
 //! by the executor at every later spawn. The calling agent's workspace +
-//! branch arrive via `LERNIE_CONV_REPO` / `LERNIE_CONV_BRANCH` (§3.3,
+//! branch arrive via `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH` (§3.3,
 //! harness-derived) — never from model input, so an agent can move only
 //! itself.
 //!
@@ -83,7 +83,7 @@ pub enum Error {
     Write(#[source] io::Error),
 }
 
-/// Production entry point invoked by `lernie tool cd`. The mark is
+/// Production entry point invoked by `litany tool cd`. The mark is
 /// written through the real git, injected for tests by [`run_with`].
 pub fn run<R: Read, W: Write>(
     stdin: &mut R,

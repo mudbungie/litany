@@ -9,7 +9,7 @@ fn a_content_conflict_is_declined_and_marked_never_landed() {
     // THE PIN (§2.6 decline): the live branch authored the same
     // `summary/001.md` the compactor wrote — both sides carry content, so
     // git would write markers. The landing aborts: HEAD stands, the live
-    // file is marker-free, and `refs/lernie/conflicted/p1-cmp` names the
+    // file is marker-free, and `refs/litany/conflicted/p1-cmp` names the
     // compactor's work.
     let dir = repo(&[("messages/001-user.md", "hi\n")]);
     let wt = dir.path();
@@ -26,7 +26,7 @@ fn a_content_conflict_is_declined_and_marked_never_landed() {
     assert_eq!(live, "compactor A\n");
     assert!(!live.contains("<<<<<<<"), "no conflict markers: {live}");
     assert_eq!(
-        g().run_capture(wt, &["rev-parse", "refs/lernie/conflicted/p1-cmp"])
+        g().run_capture(wt, &["rev-parse", "refs/litany/conflicted/p1-cmp"])
             .unwrap(),
         g().run_capture(wt, &["rev-parse", "agents/p1-cmp"])
             .unwrap()
@@ -103,7 +103,7 @@ fn a_pass_overtaken_by_a_landing_is_superseded() {
     );
     assert_eq!(head(wt), before);
     assert!(
-        g().run_capture(wt, &["rev-parse", "refs/lernie/conflicted/p1-cmp"])
+        g().run_capture(wt, &["rev-parse", "refs/litany/conflicted/p1-cmp"])
             .is_err(),
         "an overtaken pass is not a defect — nothing is marked"
     );

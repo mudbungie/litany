@@ -1,4 +1,4 @@
-//! `lernie prompt` — drive one root conversation (ARCH §2.3). The §2.9
+//! `litany prompt` — drive one root conversation (ARCH §2.3). The §2.9
 //! preludes (`become_pgid_leader` + `install_stop_handler`) are the
 //! binding's, run before [`run`] (ARCH §3.4 binding-preludes seam,
 //! [`super::prelude`]); this entry only builds the deps and drives.
@@ -11,7 +11,7 @@ use crate::template::RealGit;
 use crate::workspace;
 use std::path::PathBuf;
 
-/// `lernie prompt <repo> <message> [--from <ref>] [--config <name>]
+/// `litany prompt <repo> <message> [--from <ref>] [--config <name>]
 /// [--name <name>] [--pin <dest>=<src>]... [--cwd <path>]`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
@@ -29,7 +29,7 @@ pub struct Args {
     pub config: Option<String>,
     /// Display name for the new agent (ARCH §2.3): one unbroken word,
     /// unique among the workspace's living agents, set here and never
-    /// rewritten. `lernie message` accepts it in place of the agent id.
+    /// rewritten. `litany message` accepts it in place of the agent id.
     /// Omitted, it is minted as two PascalCase words (`PeachHollow`).
     #[arg(long)]
     pub name: Option<String>,

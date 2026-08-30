@@ -9,7 +9,7 @@
 //! surface-layer wiring.
 
 use super::*;
-use crate::test_support::with_lernie_home;
+use crate::test_support::with_litany_home;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 
@@ -29,15 +29,15 @@ fn noop_editor(_: &Path) -> std::io::Result<()> {
 }
 
 /// An `$EDITOR` hand-off that writes a distinct `providers.yaml` so the
-/// authoring pass (`lernie config`) has a non-empty commit to land.
+/// authoring pass (`litany config`) has a non-empty commit to land.
 fn writing_editor(dir: &Path) -> std::io::Result<()> {
     std::fs::write(dir.join("providers.yaml"), "roles: {}\n")
 }
 
-/// Assert a verb failure renders the uniform `lernie <prefix>: …` shape.
+/// Assert a verb failure renders the uniform `litany <prefix>: …` shape.
 fn assert_prefixed(err: Error, prefix: &str) {
     let s = err.to_string();
-    assert!(s.starts_with(&format!("lernie {prefix}: ")), "{s}");
+    assert!(s.starts_with(&format!("litany {prefix}: ")), "{s}");
 }
 
 /// Build an [`Fx`] around scratch stdio plus `editor`, run `f`, and hand

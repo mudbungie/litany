@@ -16,7 +16,7 @@ use crate::entries::VERBS;
 use crate::graph;
 use crate::items::is_pub;
 use clap::{Arg, ArgAction, CommandFactory};
-use lernie::cmd::Cli;
+use litany::cmd::Cli;
 use std::collections::{BTreeMap, BTreeSet};
 use syn::punctuated::Punctuated;
 use syn::{Fields, FieldsNamed, Item, Meta, Token};

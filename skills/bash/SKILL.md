@@ -1,6 +1,6 @@
 ---
 name: bash
-description: "Run one shell command on this machine and read back what it printed. The shell is local: lernie is a command-line program the user runs, and your command executes on that same machine — their filesystem, their network, their user account. There is no server, container, or remote sandbox between you and it, so a question about this host (its IP, its disk, its toolchain) is answerable by just running the command. It is not an interactive terminal and there is no prompt waiting for you: each tool call runs exactly one `sh -c '<command>'` with stdin closed and no TTY, waits for it to exit, and hands back its output. Shell state does not carry over — a `cd`, an `export`, or a shell function is gone by the next tool call, so chain what must share state into one command string (`cd sub && make`) or use the `cd` tool to move for real — but files the command writes stay. Every command starts in your current working directory, which is your worktree unless you moved it with the `cd` tool; what you write in your worktree is committed onto your branch, what you write outside it is not. The result always opens with a literal `Exit code: N` line — read it, since 1 (ran and failed), 127 (no such command) and 143 (cancelled) call for different next moves — followed by stdout, followed by stderr under a `--- stderr ---` marker whenever the command wrote any, on success as well as failure; no `2>&1` needed to see warnings from a command that succeeded. Use it for filesystem inspection (`ls`, `find`, `head`), text processing (`grep`, `sed`, `awk`), version-control queries (`git log`), builds and tests, and anything else a dedicated tool does not cover."
+description: "Run one shell command on this machine and read back what it printed. The shell is local: litany is a command-line program the user runs, and your command executes on that same machine — their filesystem, their network, their user account. There is no server, container, or remote sandbox between you and it, so a question about this host (its IP, its disk, its toolchain) is answerable by just running the command. It is not an interactive terminal and there is no prompt waiting for you: each tool call runs exactly one `sh -c '<command>'` with stdin closed and no TTY, waits for it to exit, and hands back its output. Shell state does not carry over — a `cd`, an `export`, or a shell function is gone by the next tool call, so chain what must share state into one command string (`cd sub && make`) or use the `cd` tool to move for real — but files the command writes stay. Every command starts in your current working directory, which is your worktree unless you moved it with the `cd` tool; what you write in your worktree is committed onto your branch, what you write outside it is not. The result always opens with a literal `Exit code: N` line — read it, since 1 (ran and failed), 127 (no such command) and 143 (cancelled) call for different next moves — followed by stdout, followed by stderr under a `--- stderr ---` marker whenever the command wrote any, on success as well as failure; no `2>&1` needed to see warnings from a command that succeeded. Use it for filesystem inspection (`ls`, `find`, `head`), text processing (`grep`, `sed`, `awk`), version-control queries (`git log`), builds and tests, and anything else a dedicated tool does not cover."
 ---
 
 # bash
@@ -20,7 +20,7 @@ pipes, and redirection are the shell's responsibility.
 
 ## Where it runs
 
-**On this machine.** lernie is a command-line program someone runs; the
+**On this machine.** litany is a command-line program someone runs; the
 shell it spawns is a child of that process — same host, same user
 account, same filesystem, same network route. It is not a hosted
 service, not a container image, not a sandbox you were handed. `curl
@@ -130,7 +130,7 @@ as the authoritative fact — it survives every provider's wire format.
   the envelope's first line, stderr under its marker.
 - Malformed input JSON (missing `command`, wrong type, extra fields)
   → `is_error: true` with the message on stderr.
-- SIGTERM cascade — when the *harness* is cancelled (`lernie stop`,
+- SIGTERM cascade — when the *harness* is cancelled (`litany stop`,
   ARCH §2.9), SIGTERM is forwarded to the entire process group spawned
   by `sh`, then SIGKILL after the grace period. That is a
   cancellation, not a timeout: nothing kills a command for merely

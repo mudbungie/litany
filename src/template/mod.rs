@@ -1,7 +1,7 @@
 //! Workspace creation and first config-commit authoring (ARCH §2.2).
 //!
 //! Embeds the [`template/`] directory at build time via `include_dir`,
-//! so the `lernie` binary is self-contained — no runtime template
+//! so the `litany` binary is self-contained — no runtime template
 //! lookup. [`scaffold`] creates the bare workspace repository at
 //! `<dest>/repo.git` and authors the workspace's **first config
 //! commit** — an orphan root on `config/default` (§2.2) — as the
@@ -33,7 +33,7 @@ pub static TEMPLATE: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/template");
 /// Config-root subdir overriding the embedded [`TEMPLATE`] (ARCH §2.2):
 /// the seed set is the union of the embedded files with any same-named
 /// file under `<config-root>/template/` winning, extra files included.
-/// Absent dir = the embedded template alone. `lernie prime` never seeds
+/// Absent dir = the embedded template alone. `litany prime` never seeds
 /// it — absence is the default (policy lives in config, not code).
 pub const TEMPLATE_OVERRIDE_DIR: &str = "template";
 

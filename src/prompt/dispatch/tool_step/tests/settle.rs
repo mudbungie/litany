@@ -1,5 +1,5 @@
 //! The stopped exit settles its own tool window (ARCH §2.9 step 3,
-//! [`super::super::settle`]): a `lernie stop` landing mid-window leaves
+//! [`super::super::settle`]): a `litany stop` landing mid-window leaves
 //! a tail an ordinary deposit can revive, never the §6 unpaired
 //! decline.
 

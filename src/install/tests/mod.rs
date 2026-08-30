@@ -15,8 +15,8 @@ mod brazen_providers;
 /// manifest entries a fresh install carries — split out for the same reason.
 mod shipped_template;
 
-/// `LERNIE_HOME`-style collapsed roots: config and data are one directory
-/// (ARCH §2.2) — the shape yog drives via `LERNIE_HOME=<dir> lernie prime`.
+/// `LITANY_HOME`-style collapsed roots: config and data are one directory
+/// (ARCH §2.2) — the shape yog drives via `LITANY_HOME=<dir> litany prime`.
 fn collapsed(dir: &Path) -> Roots {
     Roots {
         config: dir.to_path_buf(),
@@ -149,7 +149,7 @@ fn does_not_clobber_pool_entries_and_keeps_extras() {
 
 #[test]
 fn split_roots_place_config_and_data_apart() {
-    // Under XDG (no LERNIE_HOME) the roots diverge; prime must route the
+    // Under XDG (no LITANY_HOME) the roots diverge; prime must route the
     // config artifacts to `config` and the pools to `data` (§2.2).
     let cfg = TempDir::new().unwrap();
     let data = TempDir::new().unwrap();
@@ -217,12 +217,12 @@ fn prime_surfaces_a_pool_seed_error() {
     assert!(matches!(err, Error::Io { .. }), "got {err:?}");
 }
 
-/// `lernie prime` validates what it seeds: the embedded pools it ships —
+/// `litany prime` validates what it seeds: the embedded pools it ships —
 /// `schemas/tools/**` and `skills/**` — must parse with the same parsers
 /// [`crate::template::descriptions::snapshot`] now runs at snapshot time
 /// (bl-e3f5). This is the cheap insurance ARCH §2.2 asks for: a shipped
-/// asset that fails to parse would refuse *every* `lernie new` and
-/// `lernie config` on a fresh install, so it must never reach a release.
+/// asset that fails to parse would refuse *every* `litany new` and
+/// `litany config` on a fresh install, so it must never reach a release.
 #[test]
 fn shipped_skill_pool_frontmatter_parses() {
     for sub in SKILLS.dirs() {

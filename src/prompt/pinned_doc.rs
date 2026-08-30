@@ -1,11 +1,11 @@
 //! Caller-supplied pinned documents (ARCH §2.5 "whatever documents the
 //! dispatcher chose to pin", §2.3 step 2).
 //!
-//! `lernie prompt --pin <dest>=<src>` and `lernie dispatch --pin
+//! `litany prompt --pin <dest>=<src>` and `litany dispatch --pin
 //! <dest>=<src>` freeze exact caller-named bytes into the agent's
 //! dispatch commit, beside `goal.md` and `soul.md` — standing context a
 //! caller (a frontend, an operator) pins without rewriting the goal or
-//! authoring a config commit. The mechanism is generic: lernie owns
+//! authoring a config commit. The mechanism is generic: litany owns
 //! only the pinning — validation, snapshot, commit — and carries **no
 //! filename policy**; which files count as project instructions,
 //! their precedence and their size are the caller's concerns.

@@ -1,6 +1,6 @@
 //! Where a terminal response goes when the dispatcher is not the one who
 //! prompted it (ARCH §2.6 — *a reply answers the last prompter*), end to
-//! end on the real child path: `lernie advance` at a dispatched child,
+//! end on the real child path: `litany advance` at a dispatched child,
 //! with the deposit and the wake-up both observed on disk.
 //!
 //! [`super::parent_revival`] covers the same seam when the dispatcher

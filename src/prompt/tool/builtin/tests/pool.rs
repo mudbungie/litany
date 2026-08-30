@@ -1,5 +1,5 @@
 //! The advertised built-in pool (ARCH §3.3): the one list behind both
-//! the unknown-tool decline and `lernie tool --help`, and the decline's
+//! the unknown-tool decline and `litany tool --help`, and the decline's
 //! rendering of it.
 
 use super::super::{NAMES, pool};

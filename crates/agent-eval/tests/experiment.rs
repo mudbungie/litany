@@ -11,7 +11,7 @@ fn resolves_present_experiment() {
 
     let exp = experiment::resolve("baseline", d.path()).unwrap();
     assert_eq!(exp.name, "baseline");
-    // Canonicalized: the path rides to the driver as LERNIE_EXPERIMENT,
+    // Canonicalized: the path rides to the driver as LITANY_EXPERIMENT,
     // whose cwd is the per-run workdir — it must be absolute.
     assert_eq!(
         exp.workflow,

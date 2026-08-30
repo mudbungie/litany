@@ -17,7 +17,7 @@ use tempfile::TempDir;
 
 /// A `git` invocation scrubbed of the ambient repository: a run under the
 /// pre-commit gate inherits `GIT_DIR`/`GIT_INDEX_FILE` from the hook that
-/// spawned it, which would aim these commands at the lernie repo itself.
+/// spawned it, which would aim these commands at the litany repo itself.
 fn git(dir: &Path) -> Command {
     let mut cmd = Command::new("git");
     cmd.current_dir(dir)
@@ -25,9 +25,9 @@ fn git(dir: &Path) -> Command {
         .env_remove("GIT_WORK_TREE")
         .env_remove("GIT_INDEX_FILE")
         .env_remove("GIT_OBJECT_DIRECTORY")
-        .env("GIT_AUTHOR_NAME", "lernie-test")
+        .env("GIT_AUTHOR_NAME", "litany-test")
         .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
-        .env("GIT_COMMITTER_NAME", "lernie-test")
+        .env("GIT_COMMITTER_NAME", "litany-test")
         .env("GIT_COMMITTER_EMAIL", "test@example.invalid");
     // No `core.hooksPath` override here, deliberately: this suite's
     // whole subject is a hook, and the fixture arms it by pointing

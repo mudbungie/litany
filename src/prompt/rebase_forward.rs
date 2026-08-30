@@ -26,7 +26,7 @@
 //! - **anything else** — stage 2 present (both sides carry content — git
 //!   wrote `<<<<<<<` markers) or a shape the construction does not admit:
 //!   the landing is **declined loudly**. `git rebase --abort` restores
-//!   the branch bit-for-bit, `refs/lernie/conflicted/<mark-id>` is marked
+//!   the branch bit-for-bit, `refs/litany/conflicted/<mark-id>` is marked
 //!   at the ref the caller names, and nothing lands (§2.6 decline — the
 //!   same escape hatch as the work-product transfer).
 
@@ -46,7 +46,7 @@ pub(crate) enum Replayed {
     /// resolved live-branch-wins (module docs).
     Landed,
     /// Git had to write conflict markers: the rebase is aborted, the
-    /// branch restored, and `refs/lernie/conflicted/<mark-id>` marked.
+    /// branch restored, and `refs/litany/conflicted/<mark-id>` marked.
     /// Carries the offending paths for the operator-facing line.
     Conflicted(Vec<String>),
 }
@@ -62,7 +62,7 @@ pub(crate) struct Replay<'a> {
     pub(crate) point: &'a str,
     /// The freshly minted base the tail lands on.
     pub(crate) base: &'a str,
-    /// Mark name for a decline — `refs/lernie/conflicted/<mark_id>`. The
+    /// Mark name for a decline — `refs/litany/conflicted/<mark_id>`. The
     /// compaction landing marks the *compactor*, whose branch holds the
     /// work at risk; the retarget landing marks the agent itself.
     pub(crate) mark_id: &'a str,
@@ -178,7 +178,7 @@ fn unmerged_stages(
 
 /// Refuse the landing loudly (§2.6 decline): abort the rebase so the
 /// branch and its worktree are exactly as they were, mark
-/// `refs/lernie/conflicted/<mark-id>` at the ref the caller named — every
+/// `refs/litany/conflicted/<mark-id>` at the ref the caller named — every
 /// byte of the work preserved for the operator — and land nothing.
 fn decline(
     worktree: &Path,

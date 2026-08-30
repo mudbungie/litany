@@ -52,7 +52,7 @@ pub enum Error {
     /// The adapter binary is not there. `NotFound` at the spawn is the
     /// one launch failure the user can act on, and the first real
     /// command of every binary-install user hits it — neither `cargo
-    /// install lernie` nor the release tarball lays down `bz`. So it
+    /// install litany` nor the release tarball lays down `bz`. So it
     /// gets the version guard's voice rather than a bare errno: the
     /// binary, the fact, the section, and the literal fix-it command
     /// carrying the linked pin ([`brazen_pin`], the number's one home).
@@ -97,10 +97,10 @@ pub enum Error {
     #[error("adapter emitted malformed v=1 event JSON: {0}")]
     AdapterJson(#[source] serde_json::Error),
     /// A provider failure brazen spoke in band (§4.4), carrying the
-    /// **provider row** the model call was routed to. The row is lernie's own
+    /// **provider row** the model call was routed to. The row is litany's own
     /// fact — a role's `provider:` in the config commit's
     /// `providers.yaml` (§4.3) — and brazen, which owns endpoints and
-    /// auth, never learns which name lernie knows it by, so naming it is
+    /// auth, never learns which name litany knows it by, so naming it is
     /// this side's job: a workspace binds several rows, and a decline
     /// that names none of them says nothing about where to look.
     #[error("provider error ({kind}) on provider row {row:?}: {message}")]
@@ -181,7 +181,7 @@ pub enum Error {
         source: std::io::Error,
     },
     #[error(
-        "adopt LERNIE_LOCK_FD lease for {agent}: {detail} — a bad fd means a defective \
+        "adopt LITANY_LOCK_FD lease for {agent}: {detail} — a bad fd means a defective \
          launcher; declined, never silently reacquired (ARCH §6)"
     )]
     LeaseAdopt { agent: String, detail: String },

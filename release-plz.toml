@@ -47,6 +47,11 @@
 [workspace]
 semver_check = false
 changelog_update = false
+# The engine restarted its numbering at the bl-2f58 fence (litany 0.0.1), and
+# the bare v0.0.1..v0.0.11 tags are already taken by the lernie-era releases
+# in this same history — a crate-prefixed tag keeps the two eras' tags
+# distinct, and tests/changelog_completeness.rs lists both patterns.
+git_tag_name = "litany-v{{ version }}"
 custom_minor_increment_regex = '(^|\s)\[minor\](\s|$)'
 custom_major_increment_regex = '(^|\s)\[major\](\s|$)'
 
@@ -68,13 +73,13 @@ name = "agent-eval"
 release = false
 publish = false
 
-# lernie-eval-agent is internal-only for the same reason (`publish = false`
-# in crates/lernie-eval-agent/Cargo.toml) — the eval harness driver, the
+# litany-eval-agent is internal-only for the same reason (`publish = false`
+# in crates/litany-eval-agent/Cargo.toml) — the eval harness driver, the
 # agent-eval runner's counterpart (README "Run the suite"). Both keys, for
 # the reason spelled out above: `release = false` alone still leaves
 # release-plz's publishability validator disagreeing with Cargo.toml, which
 # aborts `release-plz release` for every crate.
 [[package]]
-name = "lernie-eval-agent"
+name = "litany-eval-agent"
 release = false
 publish = false

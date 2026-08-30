@@ -14,7 +14,7 @@ use crate::workspace::fixture;
 #[test]
 fn prompt_declines_a_cwd_that_names_nothing_in_its_own_voice() {
     let (_h, ws) = fixture::workspace();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         prompt::run(
             prompt::Args {
                 repo: ws.clone(),
@@ -44,7 +44,7 @@ fn dispatch_declines_a_cwd_that_is_not_a_directory_in_its_own_voice() {
     fixture::spawn_root(&ws, "20260101-p1");
     let file = ws.join("not-a-dir");
     std::fs::write(&file, b"x").unwrap();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         dispatch::run(
             dispatch::Args {
                 role: "worker".into(),

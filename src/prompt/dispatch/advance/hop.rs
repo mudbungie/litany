@@ -1,4 +1,4 @@
-//! One warranted step of a `lernie advance` hop (§6 hop step 4).
+//! One warranted step of a `litany advance` hop (§6 hop step 4).
 //!
 //! The same §2.3 step-loop body [`super::super::run_exchange`] drives,
 //! re-rooted on disk instead of loop locals: the step sequence is

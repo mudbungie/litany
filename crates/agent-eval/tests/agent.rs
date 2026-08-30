@@ -1,7 +1,7 @@
 //! Coverage for the agent / bundler seams (ARCH §9.3, §9.2).
 //!
 //! `CommandAgent` and `CommandBundler` are exercised against shell stubs
-//! standing in for the harness driver and `lernie bundle` — no live model
+//! standing in for the harness driver and `litany bundle` — no live model
 //! traffic, exactly as the runner's testability requires (§9.3).
 
 use agent_eval::agent::{Agent, BundleTarget, Bundler, CommandAgent, CommandBundler, Dispatch};
@@ -40,8 +40,8 @@ fn dispatch_with(report_body: &str) -> Option<BundleTarget> {
     let d = tempfile::tempdir().unwrap();
     let body = match report_body {
         "<none>" => "exit 0".to_string(),
-        "<empty>" => ": > \"$LERNIE_EVAL_REPORT\"".to_string(),
-        other => format!("printf '{other}' > \"$LERNIE_EVAL_REPORT\""),
+        "<empty>" => ": > \"$LITANY_EVAL_REPORT\"".to_string(),
+        other => format!("printf '{other}' > \"$LITANY_EVAL_REPORT\""),
     };
     let prog = stub(d.path(), "agent.sh", &body);
     let home = d.path().join("home");
@@ -53,7 +53,7 @@ fn dispatch_with(report_body: &str) -> Option<BundleTarget> {
         .dispatch(&Dispatch {
             prompt: "do the thing",
             workdir: &work,
-            lernie_home: &home,
+            litany_home: &home,
             experiment: Path::new("/x/workflow.yaml"),
         })
         .unwrap()
@@ -87,7 +87,7 @@ fn agent_exit_code_is_ignored() {
     let prog = stub(
         d.path(),
         "agent.sh",
-        "printf 'ws\\nid\\n' > \"$LERNIE_EVAL_REPORT\"; exit 3",
+        "printf 'ws\\nid\\n' > \"$LITANY_EVAL_REPORT\"; exit 3",
     );
     let home = d.path().join("home");
     let work = d.path().join("work");
@@ -98,7 +98,7 @@ fn agent_exit_code_is_ignored() {
         .dispatch(&Dispatch {
             prompt: "p",
             workdir: &work,
-            lernie_home: &home,
+            litany_home: &home,
             experiment: Path::new("/x"),
         })
         .unwrap();
@@ -116,7 +116,7 @@ fn agent_spawn_failure_is_an_error() {
         .dispatch(&Dispatch {
             prompt: "p",
             workdir: d.path(),
-            lernie_home: d.path(),
+            litany_home: d.path(),
             experiment: Path::new("/x"),
         })
         .unwrap_err();
@@ -144,7 +144,7 @@ fn bundler_success_and_failure() {
         .bundle(&target, &dest)
         .expect("bundle ok");
     let argv = std::fs::read_to_string(d.path().join("argv")).unwrap();
-    // lernie bundle <workspace> <agent> <dest>
+    // litany bundle <workspace> <agent> <dest>
     assert!(argv.contains("bundle"));
     assert!(argv.contains("a1"));
 
@@ -153,5 +153,5 @@ fn bundler_success_and_failure() {
     let err = CommandBundler::new(&bad)
         .bundle(&target, &dest)
         .unwrap_err();
-    assert!(err.to_string().contains("lernie bundle exited"));
+    assert!(err.to_string().contains("litany bundle exited"));
 }

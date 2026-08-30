@@ -1,4 +1,4 @@
-//! `lernie delete` — remove an agent and every slice of it (ARCH §9.2
+//! `litany delete` — remove an agent and every slice of it (ARCH §9.2
 //! *Retention and GC*). `bundle` composes in front: bundle-then-delete
 //! is the archive path, and this verb archives nothing itself.
 
@@ -6,7 +6,7 @@ use super::{Error, Fx, Outcome};
 use crate::template::RealGit;
 use std::path::PathBuf;
 
-/// `lernie delete <workspace> <agent> [--children] [--dry-run]`.
+/// `litany delete <workspace> <agent> [--children] [--dry-run]`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to the workspace (conversation repo) root.

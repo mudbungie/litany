@@ -81,7 +81,7 @@ fn a_declined_pre_flight_leaves_no_mark_and_renders_the_uniform_failure() {
 fn a_mark_that_cannot_be_written_surfaces_the_uniform_failure() {
     // The pre-flights pass against the workspace, then the write is
     // aimed at one that has no repo: the `update-ref` failure arrives
-    // as the verb's own `lernie retarget: …` line.
+    // as the verb's own `litany retarget: …` line.
     let (_h, ws) = fixture::workspace();
     fixture::spawn_root(&ws, "20260101-a1");
     fixture::amend_config(&ws, &[("souls/worker.md", "an amended soul\n")]);

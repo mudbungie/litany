@@ -119,7 +119,8 @@ fn every_delivery_since_the_last_release_has_a_changelog_bullet() {
     );
 }
 
-/// The last release reachable from `main`: every `v*` tag that is an
+/// The last release reachable from `main`: every `v*` or `litany-v*` tag
+/// (the two tag eras either side of the bl-2f58 rename fence) that is an
 /// ancestor, keeping the one nearest by `rev-list --count` — the same
 /// counting the guard's own range uses. Not `git describe --abbrev=0`,
 /// which walks candidates in committer-date order and answers wrongly
@@ -129,7 +130,7 @@ fn every_delivery_since_the_last_release_has_a_changelog_bullet() {
 /// three releases back and failing the guard on a delivery nobody in
 /// the current window touched (bl-d11e).
 fn last_release_tag(root: &Path) -> Option<String> {
-    let tags = git(root, &["tag", "--list", "v*"])?;
+    let tags = git(root, &["tag", "--list", "v*", "litany-v*"])?;
     tags.split_whitespace()
         .filter(|tag| {
             git(

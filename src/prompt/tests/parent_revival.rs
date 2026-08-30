@@ -1,16 +1,16 @@
 //! Revival-on-deposit at the **parent** (ARCH §2.11, §2.5): a child's
 //! terminal result deposit must start a driver at the parent, so a quiescent
-//! parent wakes, delivers, and steps with no `lernie scan` in the path.
+//! parent wakes, delivers, and steps with no `litany scan` in the path.
 //!
-//! The launch rides the writer's post-deposit probe — the seam `lernie
+//! The launch rides the writer's post-deposit probe — the seam `litany
 //! message` runs ([`crate::prompt::inbox::probe_and_launch`]) — so a
 //! parent whose lease is held gets nothing (its own executor drains at
 //! its next boundary), and §2.11 pin 2's epitaph decision governs it as
 //! it governs the self-directed launch: a `stopped` or `budget-exhausted`
 //! child deposits and wakes nobody. [`super::exit_launch`] covers the same
 //! rules on the root step loop's terminal seam; this file drives the real
-//! child path — `lernie advance` at a dispatched child, whose launcher runs
-//! the parent's hop in-process exactly as the detached `lernie advance` would.
+//! child path — `litany advance` at a dispatched child, whose launcher runs
+//! the parent's hop in-process exactly as the detached `litany advance` would.
 
 use super::advance::{RecLauncher, worker_config};
 use super::fixtures::*;
@@ -39,7 +39,7 @@ impl Clock for DescentClock {
 
 /// A launcher that *is* the launched driver: it records every launch
 /// and, the first time it is asked to launch the agent under test, runs
-/// that agent's `lernie advance` hop in-process — what the detached
+/// that agent's `litany advance` hop in-process — what the detached
 /// spawn does, minus the process. That nested hop is handed the inert
 /// launcher, so its own exit protocol stops the in-process recursion
 /// (the real chain terminates on pin 1's no-op driver instead).
@@ -175,7 +175,7 @@ fn a_child_final_response_revives_the_parent_which_delivers_and_steps() {
         0
     );
     // Stepped: the parent's own step record landed — the parent reacted
-    // without any `lernie scan` in the path.
+    // without any `litany scan` in the path.
     assert!(
         ws.join(format!("steps/{parent}/001/response.json"))
             .exists()

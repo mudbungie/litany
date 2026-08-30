@@ -61,7 +61,7 @@ quiescent recipient (ARCH §2.11).
 ## Notes
 
 - The sender recorded on the message is your own agent id, taken by the
-  harness from `LERNIE_CONV_BRANCH` — you cannot forge it, and the
+  harness from `LITANY_CONV_BRANCH` — you cannot forge it, and the
   recipient treats every sender uniformly (ARCH §2.11).
 - Delivery is deferred to a step boundary, never mid-step: a message
   cannot interrupt in-flight work (stopping is a separate user action).

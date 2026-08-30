@@ -2,7 +2,7 @@
 name = "agent-eval"
 version = "0.1.0"
 edition = "2024"
-description = "Experiment × suite × N evaluation runner for the lernie agent harness (ARCH §9.3)"
+description = "Experiment × suite × N evaluation runner for the litany agent harness (ARCH §9.3)"
 license = "MIT"
 publish = false
 

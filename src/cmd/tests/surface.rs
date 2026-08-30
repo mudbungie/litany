@@ -13,8 +13,8 @@ fn parse(args: &[&str]) -> Command {
 
 #[test]
 fn new_parses_optional_path() {
-    assert!(matches!(parse(&["lernie", "new"]), Command::New(a) if a.path.is_none()));
-    let Command::New(a) = parse(&["lernie", "new", "/w"]) else {
+    assert!(matches!(parse(&["litany", "new"]), Command::New(a) if a.path.is_none()));
+    let Command::New(a) = parse(&["litany", "new", "/w"]) else {
         panic!()
     };
     assert_eq!(a.path.unwrap(), PathBuf::from("/w"));
@@ -23,7 +23,7 @@ fn new_parses_optional_path() {
 #[test]
 fn config_parses_name_and_flags() {
     let Command::Config(a) = parse(&[
-        "lernie", "config", "/ws", "strict", "--from", "src", "--orphan",
+        "litany", "config", "/ws", "strict", "--from", "src", "--orphan",
     ]) else {
         panic!()
     };
@@ -32,7 +32,7 @@ fn config_parses_name_and_flags() {
     assert_eq!(a.from.unwrap(), "src");
     assert!(a.orphan);
     // Minimal form: bare workspace, defaults elsewhere.
-    let Command::Config(b) = parse(&["lernie", "config", "/ws"]) else {
+    let Command::Config(b) = parse(&["litany", "config", "/ws"]) else {
         panic!()
     };
     assert!(b.name.is_none() && b.from.is_none() && !b.orphan);
@@ -40,7 +40,7 @@ fn config_parses_name_and_flags() {
 
 #[test]
 fn prompt_parses_repo_and_message() {
-    let Command::Prompt(a) = parse(&["lernie", "prompt", "/r", "hello there"]) else {
+    let Command::Prompt(a) = parse(&["litany", "prompt", "/r", "hello there"]) else {
         panic!()
     };
     assert_eq!(a.repo, PathBuf::from("/r"));
@@ -50,13 +50,13 @@ fn prompt_parses_repo_and_message() {
 #[test]
 fn dispatch_parses_positional_and_goal() {
     let Command::Dispatch(a) = parse(&[
-        "lernie", "dispatch", "worker", "/r", "br", "--goal", "do it",
+        "litany", "dispatch", "worker", "/r", "br", "--goal", "do it",
     ]) else {
         panic!()
     };
     assert_eq!((a.role.as_str(), a.branch.as_str()), ("worker", "br"));
     assert_eq!(a.goal.unwrap(), "do it");
-    let Command::Dispatch(b) = parse(&["lernie", "dispatch", "compactor", "/r", "br"]) else {
+    let Command::Dispatch(b) = parse(&["litany", "dispatch", "compactor", "/r", "br"]) else {
         panic!()
     };
     assert!(b.goal.is_none());
@@ -64,11 +64,11 @@ fn dispatch_parses_positional_and_goal() {
 
 #[test]
 fn stop_parses_stop_children_flag() {
-    let Command::Stop(a) = parse(&["lernie", "stop", "/r", "br", "--stop-children"]) else {
+    let Command::Stop(a) = parse(&["litany", "stop", "/r", "br", "--stop-children"]) else {
         panic!()
     };
     assert!(a.stop_children);
-    let Command::Stop(b) = parse(&["lernie", "stop", "/r", "br"]) else {
+    let Command::Stop(b) = parse(&["litany", "stop", "/r", "br"]) else {
         panic!()
     };
     assert!(!b.stop_children);
@@ -76,23 +76,23 @@ fn stop_parses_stop_children_flag() {
 
 #[test]
 fn message_scan_bundle_replay_advance_parse() {
-    let Command::Message(m) = parse(&["lernie", "message", "/ws", "ag", "hi"]) else {
+    let Command::Message(m) = parse(&["litany", "message", "/ws", "ag", "hi"]) else {
         panic!()
     };
     assert_eq!((m.agent.as_str(), m.content.as_str()), ("ag", "hi"));
-    let Command::Scan(s) = parse(&["lernie", "scan", "/ws"]) else {
+    let Command::Scan(s) = parse(&["litany", "scan", "/ws"]) else {
         panic!()
     };
     assert_eq!(s.workspace, PathBuf::from("/ws"));
-    let Command::Bundle(b) = parse(&["lernie", "bundle", "/ws", "ag", "/out"]) else {
+    let Command::Bundle(b) = parse(&["litany", "bundle", "/ws", "ag", "/out"]) else {
         panic!()
     };
     assert_eq!(b.out_dir, PathBuf::from("/out"));
-    let Command::Replay(rep) = parse(&["lernie", "replay", "/a"]) else {
+    let Command::Replay(rep) = parse(&["litany", "replay", "/a"]) else {
         panic!()
     };
     assert_eq!(rep.archive, PathBuf::from("/a"));
-    let Command::Advance(v) = parse(&["lernie", "advance", "/ws", "ag"]) else {
+    let Command::Advance(v) = parse(&["litany", "advance", "/ws", "ag"]) else {
         panic!()
     };
     assert_eq!(
@@ -103,20 +103,20 @@ fn message_scan_bundle_replay_advance_parse() {
 
 #[test]
 fn tool_and_prime_parse() {
-    assert!(matches!(parse(&["lernie", "tool", "bash"]), Command::Tool(t) if t.name == "bash"));
-    assert!(matches!(parse(&["lernie", "prime"]), Command::Prime(_)));
+    assert!(matches!(parse(&["litany", "tool", "bash"]), Command::Tool(t) if t.name == "bash"));
+    assert!(matches!(parse(&["litany", "prime"]), Command::Prime(_)));
 }
 
 #[test]
 fn error_display_is_the_prefixed_stderr_shape() {
-    assert_eq!(Error::new("new", "boom").to_string(), "lernie new: boom");
+    assert_eq!(Error::new("new", "boom").to_string(), "litany new: boom");
     assert_eq!(
         Error::new(format!("dispatch {}", "worker"), "bad role").to_string(),
-        "lernie dispatch worker: bad role"
+        "litany dispatch worker: bad role"
     );
     assert_eq!(
         Error::new(format!("tool {}", "bash"), "no such").to_string(),
-        "lernie tool bash: no such"
+        "litany tool bash: no such"
     );
     // Debug is derivable; exercise it so the derive is covered.
     assert!(format!("{:?}", Error::new("scan", "x")).contains("scan"));
@@ -150,13 +150,13 @@ fn prelude_reexports_the_binding_mechanisms() {
     let _ = flag.load(std::sync::atomic::Ordering::SeqCst);
 }
 
-/// `lernie --version` (ARCH §4.4 "Version skew is guarded") prints both
-/// lernie's own version and the linked brazen pin, and the two readers of
+/// `litany --version` (ARCH §4.4 "Version skew is guarded") prints both
+/// litany's own version and the linked brazen pin, and the two readers of
 /// that one pin — `cli_version` here and the load-time guard's
 /// [`crate::prompt::brazen_pin`] — must agree by construction: a
 /// bijection, not a second hard-coded string.
 #[test]
-fn cli_version_pairs_lernie_and_the_brazen_pin() {
+fn cli_version_pairs_litany_and_the_brazen_pin() {
     let v = crate::cmd::cli_version();
     assert!(v.starts_with(env!("CARGO_PKG_VERSION")), "{v}");
     let brazen = v
@@ -190,7 +190,7 @@ fn every_positional_argument_documents_itself() {
     }
 }
 
-/// `lernie tool --help` names the built-in pool, and names it from the
+/// `litany tool --help` names the built-in pool, and names it from the
 /// same [`builtin::NAMES`] the unknown-tool decline renders — one list,
 /// two surfaces (PRINCIPLES single source of truth). The compactor pair
 /// (§2.7) is routed but unadvertised: it is injected for the compactor
@@ -224,8 +224,8 @@ fn preludes_are_named_per_verb_by_the_surface() {
 
     // Driver verbs own a step loop: process group + stopped-deposit handler.
     for argv in [
-        &["lernie", "prompt", "/w", "hi"][..],
-        &["lernie", "advance", "/w", "20260101-a1"][..],
+        &["litany", "prompt", "/w", "hi"][..],
+        &["litany", "advance", "/w", "20260101-a1"][..],
     ] {
         assert_eq!(want(parse(argv)), vec![leader, handler], "{argv:?}");
     }
@@ -233,22 +233,22 @@ fn preludes_are_named_per_verb_by_the_surface() {
     // nothing, so no handler.
     assert_eq!(
         want(parse(&[
-            "lernie", "dispatch", "worker", "/w", "b", "--goal", "g"
+            "litany", "dispatch", "worker", "/w", "b", "--goal", "g"
         ])),
         vec![leader],
     );
     // Every other verb needs neither.
     for argv in [
-        &["lernie", "new"][..],
-        &["lernie", "config", "/w"][..],
-        &["lernie", "retarget", "/w", "20260101-a1"][..],
-        &["lernie", "stop", "/w", "20260101-a1"][..],
-        &["lernie", "message", "/w", "20260101-a1", "c"][..],
-        &["lernie", "scan", "/w"][..],
-        &["lernie", "bundle", "/w", "20260101-a1", "/out"][..],
-        &["lernie", "replay", "/b.bundle"][..],
-        &["lernie", "tool", "bash"][..],
-        &["lernie", "prime"][..],
+        &["litany", "new"][..],
+        &["litany", "config", "/w"][..],
+        &["litany", "retarget", "/w", "20260101-a1"][..],
+        &["litany", "stop", "/w", "20260101-a1"][..],
+        &["litany", "message", "/w", "20260101-a1", "c"][..],
+        &["litany", "scan", "/w"][..],
+        &["litany", "bundle", "/w", "20260101-a1", "/out"][..],
+        &["litany", "replay", "/b.bundle"][..],
+        &["litany", "tool", "bash"][..],
+        &["litany", "prime"][..],
     ] {
         assert!(parse(argv).preludes().is_empty(), "{argv:?}");
     }

@@ -1,7 +1,7 @@
 //! Per-run efficiency metrics (bl-36fa, ARCH §9.3): model attempts, tool
 //! invocations, and the four canonical usage counters, derived from the
-//! workspace a driver disclosed through `LERNIE_EVAL_REPORT` (the same
-//! two-line report `lernie bundle` consumes, §9.2). The source is the
+//! workspace a driver disclosed through `LITANY_EVAL_REPORT` (the same
+//! two-line report `litany bundle` consumes, §9.2). The source is the
 //! workspace's `steps/` slice — the same tree the harness's own budget
 //! derivation reads (ARCH §6, §8) — parsed with brazen's `v=1` event
 //! vocabulary, so the runner and the harness cannot disagree about what
@@ -55,9 +55,9 @@ pub struct RunMetrics {
 /// Derive one run's metrics from the disclosed `workspace` — walking
 /// `steps/<agent_id>/` and every `steps/<agent_id>-*/` hyphen-descendant
 /// (ARCH §2.2 descent, the same walk as the harness budget derivation)
-/// — and resolve providers through `<lernie_home>/models.yaml`. A
+/// — and resolve providers through `<litany_home>/models.yaml`. A
 /// missing or partial tree contributes nothing; it never errors.
-pub fn collect(workspace: &Path, agent_id: &str, lernie_home: &Path) -> RunMetrics {
+pub fn collect(workspace: &Path, agent_id: &str, litany_home: &Path) -> RunMetrics {
     let mut m = RunMetrics::default();
     let mut models = BTreeSet::new();
     let prefix_dash = format!("{agent_id}-");
@@ -71,7 +71,7 @@ pub fn collect(workspace: &Path, agent_id: &str, lernie_home: &Path) -> RunMetri
         }
     }
     m.models = models.into_iter().collect();
-    m.providers = providers_for(&m.models, &lernie_home.join("models.yaml"));
+    m.providers = providers_for(&m.models, &litany_home.join("models.yaml"));
     m
 }
 

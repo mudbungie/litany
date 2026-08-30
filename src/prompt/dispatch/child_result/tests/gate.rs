@@ -136,7 +136,7 @@ fn a_conflicting_compaction_landing_is_declined_and_lands_nothing() {
     // the replay hits an add/add both sides carry content for. The landing
     // is refused — the rebase aborts, HEAD stands, the live summary is
     // untouched and marker-free, the compactor is marked at
-    // `refs/lernie/conflicted/<id>` — and the trigger message is still
+    // `refs/litany/conflicted/<id>` — and the trigger message is still
     // consumed. This is the corrupted-summary half of bl-a9eb.
     let (_h, ws) = fixture::workspace();
     let parent = "20260101-g8";
@@ -171,7 +171,7 @@ fn a_conflicting_compaction_landing_is_declined_and_lands_nothing() {
         fx.git
             .run_capture(
                 &wt,
-                &["rev-parse", &format!("refs/lernie/conflicted/{child}")]
+                &["rev-parse", &format!("refs/litany/conflicted/{child}")]
             )
             .unwrap(),
         fx.git

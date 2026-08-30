@@ -1,4 +1,4 @@
-//! `lernie tool <name>` — in-process built-in tool entry (ARCH §3.3):
+//! `litany tool <name>` — in-process built-in tool entry (ARCH §3.3):
 //! `tool_use.input` JSON on stdin, bytes on stdout, exit 0/non-zero. The
 //! stdio arrives through [`Fx`](super::Fx) (locked by the binding), as
 //! does the driver target the `dispatch` / `message` built-ins re-enter
@@ -8,7 +8,7 @@
 use super::{Error, Fx, Outcome};
 use crate::prompt::tool::builtin;
 
-/// `lernie tool <name>`.
+/// `litany tool <name>`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     // The help text is rendered from [`builtin::NAMES`], the same list the

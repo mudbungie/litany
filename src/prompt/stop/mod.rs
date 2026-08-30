@@ -1,6 +1,6 @@
-//! `lernie stop <repo> <branch> [--stop-children]` — SIGTERM per ARCH §2.9.
+//! `litany stop <repo> <branch> [--stop-children]` — SIGTERM per ARCH §2.9.
 //!
-//! **Default: stop the one agent.** A bare `lernie stop` signals the
+//! **Default: stop the one agent.** A bare `litany stop` signals the
 //! process group of the single executor driving `<branch>` — its
 //! provider adapter (`bz`) and cooperating tool subprocesses die with
 //! it (§2.9 steps 1-2), in-flight HTTP dropped — with a 5-second flush
@@ -75,7 +75,7 @@ pub const STOP_DEADLINE: Duration = Duration::from_secs(5);
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 /// Every way [`run`] can fail. Idempotent paths (no lock holder found,
-/// already-stopped) are `Ok(())`, not errors — `lernie stop` is a
+/// already-stopped) are `Ok(())`, not errors — `litany stop` is a
 /// fire-and-forget operation, not a transactional one.
 #[derive(Debug, Error)]
 pub enum Error {
@@ -93,7 +93,7 @@ pub enum Error {
     Proc(#[source] io::Error),
     #[error(
         "refusing to signal process group {pgid}: it is this process's own group, \
-         so the SIGTERM would fell whatever launched `lernie stop` — an operator's \
+         so the SIGTERM would fell whatever launched `litany stop` — an operator's \
          shell job, or a test runner — rather than an executor (ARCH §2.9). \
          Discovery resolved a pgid that no detached executor can legitimately own; \
          nothing was signalled."
@@ -160,7 +160,7 @@ pub fn run(
     Ok(())
 }
 
-/// This process's own process group. `lernie stop` never makes itself a
+/// This process's own process group. `litany stop` never makes itself a
 /// group leader, so this is whatever launched it: an operator's shell
 /// job, or the test runner under `make check`.
 // SAFETY: `getpgrp` takes no arguments, reads only the caller's own
@@ -188,7 +188,7 @@ fn vet_targets(pgids: &[i32], own: i32) -> Result<(), Error> {
     }
 }
 
-/// CLI entry point for `lernie stop` (ARCH §3.4 — kept in the lib so
+/// CLI entry point for `litany stop` (ARCH §3.4 — kept in the lib so
 /// the bin file stays under the 300-line code cap and the wiring
 /// itself is unit-testable). `stop_children` is the `--stop-children`
 /// flag (§2.9): `false` stops the one agent, `true` walks the id
@@ -213,10 +213,10 @@ pub fn cli_run(repo: &Path, branch: &str, stop_children: bool) -> Result<(), Err
 /// provider adapter and tool subprocesses without escaping into the
 /// invoking shell or UI's process group — and, symmetrically, without
 /// reaching *out* to a sibling or parent executor. Called at the top
-/// of **every** driver: `lernie prompt` (root) and `lernie dispatch`
+/// of **every** driver: `litany prompt` (root) and `litany dispatch`
 /// (child re-entry) alike. The old no-setpgid-for-child-harnesses rule
 /// is retired (§2.9): a child executor takes its own pgid like a root,
-/// so a bare `lernie stop` on a parent cannot cross the agent boundary
+/// so a bare `litany stop` on a parent cannot cross the agent boundary
 /// into a running child — that cascade is now the opt-in CLI-level id
 /// namespace walk of `--stop-children`, not a kernel-group side effect.
 pub fn become_pgid_leader() {
@@ -235,7 +235,7 @@ pub fn become_pgid_leader() {
 fn become_pgid_leader_with(setpgid: impl FnOnce() -> libc::c_int) {
     let r = setpgid();
     if r != 0 {
-        eprintln!("lernie: setpgid: {}", io::Error::last_os_error());
+        eprintln!("litany: setpgid: {}", io::Error::last_os_error());
     }
 }
 

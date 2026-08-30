@@ -17,7 +17,7 @@
 #   panics (e.g. `.expect(...)` on infallible operations).
 # - `src/e2e/*` is the end-to-end subprocess-test boundary, the coverage
 #   analogue of the `src/bin/*` exec-binding boundary above. These modules
-#   drive the real `lernie` binary as a subprocess and carry failure-only
+#   drive the real `litany` binary as a subprocess and carry failure-only
 #   scaffolding (timeout kills, stderr drains, early-exit diagnostics) that
 #   a passing run never executes. They were migrated in from `tests/`
 #   (which tarpaulin never counts in the denominator) only because the
@@ -28,21 +28,21 @@
 #   the numerator, so every counted line needs an in-process test.
 # - Subprocess profraws are inert (measured, bl-7e33). Tarpaulin sets
 #   `LLVM_PROFILE_FILE=<target>/tarpaulin/profraws/<test-binary>_%m-%p.profraw`,
-#   every spawned `lernie` inherits it, and its profraw lands in the same
+#   every spawned `litany` inherits it, and its profraw lands in the same
 #   pool the test binary's does; tarpaulin then merges the whole pool
 #   *by function name* and maps the result through the test binary's
 #   coverage map alone. Those foreign records cannot corrupt ours: the
-#   lib compiled `--cfg test` and the lib linked into the `lernie` bin
+#   lib compiled `--cfg test` and the lib linked into the `litany` bin
 #   carry different crate disambiguators, so no repo function shares a
 #   name across the two images (e.g. `prompt::budget::check` is
-#   `_RNvNtNtCs5GBNLOVA7gO_6lernie6prompt6budget5check` in one and
+#   `_RNvNtNtCs5GBNLOVA7gO_6litany6prompt6budget5check` in one and
 #   `_RNvNtNtCslo6p4TyE50k_…` in the other). They also cannot help: a
 #   record no name in the coverage map matches is simply dropped. Hence
 #   the rule above — and hence there is nothing to gain by scrubbing
 #   `LLVM_PROFILE_FILE` at the spawn seam.
 # - `timeout` is bumped above tarpaulin's 60s default because the
 #   `src/e2e/prompt_end_to_end.rs` test chains two subprocess binaries
-#   (`lernie new` + `lernie prompt`) under instrumentation, which inflates
+#   (`litany new` + `litany prompt`) under instrumentation, which inflates
 #   wall-clock time well past the per-test default.
 # - `engine = "Llvm"` is load-bearing and THIS FILE is its only home
 #   (bl-6f1b). A `--engine llvm` on the command line is silently
@@ -67,7 +67,7 @@
 #   — rust#91092 — this line just says so out loud.)
 [default]
 engine = "Llvm"
-exclude-files = ["src/bin/*", "src/bin/lernie/*", "src/e2e/*", "crates/*/src/main.rs"]
+exclude-files = ["src/bin/*", "src/bin/litany/*", "src/e2e/*", "crates/*/src/main.rs"]
 ignore-panics = true
 timeout = "300s"
 args = ["--test-threads=1"]

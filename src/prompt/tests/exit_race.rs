@@ -124,7 +124,7 @@ impl AdapterRunner for DepositMidCall<'_> {
     }
 }
 
-/// The exit-launched driver, run in-process: what `lernie advance` will
+/// The exit-launched driver, run in-process: what `litany advance` will
 /// do on arrival ([`driver::drive`]), with the outcome recorded.
 struct DriveLauncher {
     outcomes: RefCell<Vec<DriveOutcome>>,

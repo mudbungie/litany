@@ -1,8 +1,8 @@
 [workspace]
-members = [".", "crates/agent-eval", "crates/lernie-eval-agent"]
+members = [".", "crates/agent-eval", "crates/litany-eval-agent"]
 
 # The brazen version pin's ONE home (README "The pinned adapter under
-# test"; Makefile BRAZEN_PIN seds this line). Both the lernie core and
+# test"; Makefile BRAZEN_PIN seds this line). Both the litany core and
 # the workspace-internal `agent-eval` (which reads the same `v=1` event
 # vocabulary off `response.json`, ARCH §9.3) inherit it via
 # `workspace = true`, so the pin cannot drift between them.
@@ -10,12 +10,12 @@ members = [".", "crates/agent-eval", "crates/lernie-eval-agent"]
 brazen = "=0.0.6"
 
 [package]
-name = "lernie"
-version = "0.0.11"
+name = "litany"
+version = "0.0.1"
 edition = "2024"
 description = "A git-backed agent harness"
 license = "MIT"
-repository = "https://github.com/mudbungie/lernie"
+repository = "https://github.com/mudbungie/litany"
 keywords = ["agent", "llm", "git", "harness", "cli"]
 categories = ["development-tools", "command-line-utilities"]
 # The floor is the crate's own source, not the edition: edition 2024 needs
@@ -73,5 +73,5 @@ httpmock = "0.7"
 syn = { version = "2", features = ["full", "parsing"] }
 
 [[bin]]
-name = "lernie"
-path = "src/bin/lernie/main.rs"
+name = "litany"
+path = "src/bin/litany/main.rs"

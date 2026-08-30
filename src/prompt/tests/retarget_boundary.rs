@@ -1,6 +1,6 @@
 //! The retarget mark is consumed **by the agent's own executor, at a step
 //! boundary** (ARCH §2.2, §2.3) — the claim the whole design rests on,
-//! proven here against a real workspace by driving one `lernie advance`
+//! proven here against a real workspace by driving one `litany advance`
 //! hop over a marked branch.
 //!
 //! Nothing about the hop is special-cased for it: the branch has an empty

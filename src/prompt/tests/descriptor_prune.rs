@@ -5,7 +5,7 @@
 //!
 //! The unit tests for the derivation itself are
 //! `crate::prompt::dispatch::step_commit::descriptors::tests`; this one proves the
-//! **wiring**: that `lernie prompt`'s dispatch commit passes the resolved
+//! **wiring**: that `litany prompt`'s dispatch commit passes the resolved
 //! `worker` toolset and not some other list. Its fixture grants
 //! `[bash, read_file]` (`fixtures::VALID_PER_REPO_PROVIDERS_YAML`) while
 //! the inherited tree carries a `message` descriptor pair — the exact

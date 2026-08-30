@@ -115,7 +115,7 @@ pub fn step_dir_rel(conv_id: &str, seq: u32) -> String {
 /// (ARCH §6: workflow position is a function of disk state; the same
 /// derivation discipline as the transcript counter, §2.3). An absent or
 /// empty directory yields `1` — the general path with empty inputs, not
-/// a bootstrap special case. A fresh `lernie advance` hop reads its
+/// a bootstrap special case. A fresh `litany advance` hop reads its
 /// position here instead of carrying a loop counter across the exec
 /// baton.
 pub fn next_step_seq(conv_repo: &std::path::Path, conv_id: &str) -> std::io::Result<u32> {
@@ -142,7 +142,7 @@ pub fn next_step_seq(conv_repo: &std::path::Path, conv_id: &str) -> std::io::Res
 ///
 /// This is the single derivation behind every "did this branch's work
 /// end well?" question — the §8 silent-death sweep and the
-/// `lernie message` failed-branch advisory alike: a latest step that
+/// `litany message` failed-branch advisory alike: a latest step that
 /// never settled complete (§2.3) — [`Outcome::NoTerminal`] (killed or
 /// stopped mid-work, §2.9) or [`Outcome::Failed`] (retries exhausted or
 /// a non-retryable error, §2.10) — committed no transcript entry, so

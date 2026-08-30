@@ -27,7 +27,7 @@
 //! plain-scalar trap), or a tool schema that is not valid JSON — used to
 //! pass this snapshot unparsed and surface only at the first prompt step,
 //! deep inside `crate::prompt::dispatch::tools::compose` (ARCH §3.3
-//! *Tools-list assembly*), after `lernie new` or `lernie config` had
+//! *Tools-list assembly*), after `litany new` or `litany config` had
 //! already authored the commit (and, for `new`, created the workspace).
 //! This pass now runs the frontmatter YAML through the same
 //! [`skill::parse`] the composer's `read_description` calls, and the

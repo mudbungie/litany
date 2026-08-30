@@ -1,17 +1,17 @@
 [package]
-name = "lernie-eval-agent"
+name = "litany-eval-agent"
 version = "0.1.0"
 edition = "2024"
-description = "Harness driver for the lernie evaluation runner: the far side of the ARCH §9.3 agent seam"
+description = "Harness driver for the litany evaluation runner: the far side of the ARCH §9.3 agent seam"
 license = "MIT"
 # Workspace-internal, like `agent-eval` (ARCH §9.3): the driver is
 # evaluation tooling for this repo's suite, not part of the published
-# lernie crate.
+# litany crate.
 publish = false
 
 [dev-dependencies]
 tempfile = "3"
 
 [[bin]]
-name = "lernie-eval-agent"
+name = "litany-eval-agent"
 path = "src/main.rs"

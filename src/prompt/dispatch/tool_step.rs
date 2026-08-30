@@ -69,7 +69,7 @@ pub(in crate::prompt) enum ToolWindow {
 /// loop.
 ///
 /// The executor's SIGTERM flag ([`Deps::stop`], §2.9 step 3) is the stop
-/// signal handed to each tool, so a `lernie stop` landing in a
+/// signal handed to each tool, so a `litany stop` landing in a
 /// tool-execution window is the *same* terminal sequence as one landing in
 /// a model-call window: the tool subprocesses are the executor's limbs and
 /// take the group SIGTERM (§2.9 steps 1-2). A tool cut down that way

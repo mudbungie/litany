@@ -1,8 +1,8 @@
 //! Built-in tools — the in-process implementations behind
-//! `lernie tool <name>` (ARCH §3.3, §12 v0.3 toolset).
+//! `litany tool <name>` (ARCH §3.3, §12 v0.3 toolset).
 //!
 //! Each tool is a pure function over [`Read`]/[`Write`] so unit tests
-//! drive it without touching real stdio. The `lernie tool` subcommand
+//! drive it without touching real stdio. The `litany tool` subcommand
 //! is a thin shim that locks the process's stdio handles and delegates
 //! to [`run`]; the §3.3 stdio contract (stdin = `tool_use.input` JSON,
 //! stdout = raw result bytes, exit code = is_error) is enforced here.
@@ -23,7 +23,7 @@
 //! path (§3.3 *The patch tool*): one atomic multi-file envelope,
 //! located through the matching ladder, applied all-or-nothing.
 //! All derive the calling agent's
-//! identity from `LERNIE_CONV_BRANCH` (§3.3), never from model input.
+//! identity from `LITANY_CONV_BRANCH` (§3.3), never from model input.
 //! Adding a new one is a match arm in [`run`] plus a sibling module.
 
 use std::io::{Read, Write};
@@ -57,7 +57,7 @@ const MESSAGE: &str = "message";
 /// Built-in tool name: read a file's bytes (§3.3).
 const READ_FILE: &str = "read_file";
 
-/// The closed set of built-in tool names `lernie tool <name>` answers to,
+/// The closed set of built-in tool names `litany tool <name>` answers to,
 /// sorted — the one list behind both the [`Error::Unknown`] decline and
 /// the `<NAME>` argument's CLI help (PRINCIPLES single source of truth).
 /// The compactor pair (`write_summary` / `mark_for_deletion`) is
@@ -75,7 +75,7 @@ pub const NAMES: [&str; 7] = [
 ];
 
 /// [`NAMES`] rendered for a human: the pool named in the unknown-tool
-/// decline and in `lernie tool --help`, in the same voice `load_skill`
+/// decline and in `litany tool --help`, in the same voice `load_skill`
 /// names its own pool with (§3.3 "declined … naming the available pool").
 pub fn pool() -> String {
     NAMES.join(", ")
@@ -85,7 +85,7 @@ pub fn pool() -> String {
 /// error variant; an unknown tool name is the dispatcher-level case.
 #[derive(Debug, Error)]
 pub enum Error {
-    /// The lernie binary was invoked as `lernie tool <name>` for a
+    /// The litany binary was invoked as `litany tool <name>` for a
     /// `<name>` that isn't a built-in. The harness only routes here
     /// after external resolution misses (§3.3), so this is "no tool
     /// of that name exists at all". The decline names the available pool
@@ -115,12 +115,12 @@ pub enum Error {
     #[error(transparent)]
     Bash(#[from] bash::Error),
     /// `dispatch` failed (bad input JSON, missing role / soul,
-    /// `lernie dispatch <role>` exit non-zero, etc., per
+    /// `litany dispatch <role>` exit non-zero, etc., per
     /// [`dispatch::Error`]). The §3.3 stdio contract concats stderr
     /// after stdout so the agent sees the failure verbatim.
     #[error(transparent)]
     Dispatch(#[from] dispatch::Error),
-    /// `message` failed (bad input JSON, missing env, `lernie message`
+    /// `message` failed (bad input JSON, missing env, `litany message`
     /// exit non-zero, etc., per [`message::Error`]). Same stderr-concat
     /// contract as the other arms.
     #[error(transparent)]
@@ -146,7 +146,7 @@ pub enum Error {
 }
 
 /// Dispatch one in-process tool call. `name` is the tool name as the
-/// model spelled it (and as the harness passed via `lernie tool
+/// model spelled it (and as the harness passed via `litany tool
 /// <name>`); `driver_target` is the binding-injected re-entry path
 /// (`cmd::Fx::driver_target`, §2.11) the `dispatch` and `message`
 /// built-ins go back through the front door with; `stdin` carries the

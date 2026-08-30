@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "apply_patch",
-  "description": "Input schema for the lernie built-in `apply_patch` tool (ARCH §3.3 *The patch tool*). The harness sends this verbatim as the `input_schema` field of the tool's entry in the model request's `tools: [...]` array.",
+  "description": "Input schema for the litany built-in `apply_patch` tool (ARCH §3.3 *The patch tool*). The harness sends this verbatim as the `input_schema` field of the tool's entry in the model request's `tools: [...]` array.",
   "type": "object",
   "properties": {
     "input": {

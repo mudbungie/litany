@@ -26,7 +26,28 @@ reaching a release.
 
 ## [Unreleased]
 
-- Bump the brazen pin to =0.0.6 so lernie publishes ahead of its downstream [bl-8ba7]
+## [0.0.1](https://github.com/mudbungie/litany/compare/v0.0.11...litany-v0.0.1) - 2026-08-29
+
+- **The engine crate is renamed `lernie` → `litany`, and the `lernie` name
+  passes to a sibling component at a version fence.** Under the four-component
+  split (yog the server, lernie the seat, litany the engine, thrall the foot),
+  this crate — the agent-loop engine — continues its line under the name
+  `litany`. **The engine's line under the name `lernie` ends at 0.0.x; a
+  `lernie` release numbered 0.1.0 or above is a different component, the
+  seat.** That version fence is the only rule that disambiguates the two eras
+  of the name on crates.io; read a `lernie` version against it before assuming
+  which component you have. The rename carries three durable-state surfaces
+  with it, and each is a migration for an existing install:
+  `LERNIE_HOME` → `LITANY_HOME`; the XDG harness roots
+  `$XDG_CONFIG_HOME/lernie` and `$XDG_DATA_HOME/lernie` → `.../litany`; and the
+  in-workspace mark namespace `refs/lernie/*` → `refs/litany/*`. Every other
+  `LERNIE_*` variable is renamed likewise — of these, **`LERNIE_CONV_REPO` and
+  `LERNIE_CONV_BRANCH` are a published contract to operator-authored tool
+  scripts** under `<harness-root>/tools/`, so a script reading them by name
+  must be updated to `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH` or it will read
+  an unset variable. The reasoning, the full surface census and the migration
+  recipe are in `docs/DESIGN_ENGINE_RENAME.md` [bl-2f58]
+- Bump the brazen pin to =0.0.6 so litany publishes ahead of its downstream [bl-8ba7]
 - Scrub the live operator home path from docs, adopt the leak-scan disclosure gate (rules table, scanner, fixtures, `make leak-scan` in lint, daily `store-scan.yml`), and except GitHub's own noreply committer addresses from the personal-email rule [bl-d0d1]
 
 ### Changes

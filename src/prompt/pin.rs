@@ -4,7 +4,7 @@
 //! `Cargo.toml` — and every consumer derives from it rather than
 //! mirroring the number: the load-time version guard
 //! ([`super::resolve`]), the not-found refusal's fix-it command
-//! ([`super::Error::AdapterMissing`]), `lernie --version`, and the
+//! ([`super::Error::AdapterMissing`]), `litany --version`, and the
 //! Makefile's `BRAZEN_PIN` (which reads the same line with `sed`, and
 //! is pinned to agree by `super::tests::pin`).
 
@@ -32,7 +32,7 @@ pub(super) fn parse_brazen_pin(manifest: &str) -> Option<&str> {
     None
 }
 
-/// The exact brazen crate version lernie links, read from the
+/// The exact brazen crate version litany links, read from the
 /// `brazen = "=<pin>"` dependency in the embedded `Cargo.toml` — the
 /// number's one home (the `make install` pin derives from the same
 /// line). The load-time version guard rejects a `bz` whose `--version`

@@ -22,7 +22,7 @@ fn assert_untouched(ws: &std::path::Path) {
 #[test]
 fn prompt_declines_a_malformed_pin_in_its_own_voice() {
     let (_h, ws) = fixture::workspace();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         prompt::run(
             prompt::Args {
                 repo: ws.clone(),
@@ -48,7 +48,7 @@ fn dispatch_declines_a_reserved_pin_destination_in_its_own_voice() {
     fixture::spawn_root(&ws, "20260101-p1");
     let src = ws.join("pin-src.md");
     std::fs::write(&src, b"content").unwrap();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         dispatch::run(
             dispatch::Args {
                 role: "worker".into(),

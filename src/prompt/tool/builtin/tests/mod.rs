@@ -15,7 +15,7 @@ pub(super) fn route<R: Read, W: Write, E: Write>(
     stdout: &mut W,
     stderr: &mut E,
 ) -> Result<i32, Error> {
-    run(name, Path::new("lernie"), stdin, stdout, stderr)
+    run(name, Path::new("litany"), stdin, stdout, stderr)
 }
 
 /// The `bash`, `cd` and compactor-tool routing arms, and the advertised
@@ -77,7 +77,7 @@ impl dispatch::Spawner for StubSpawner {
 /// Test-only stub for the message tool's [`message::Sender`]
 /// dependency. Records nothing and reports a clean deposit — enough to
 /// exercise the routing arm of [`run_with`] without spawning a real
-/// `lernie message` subprocess.
+/// `litany message` subprocess.
 struct StubSender;
 impl message::Sender for StubSender {
     fn send(
@@ -209,10 +209,10 @@ fn load_skill_routed_to_inner_module() {
     std::fs::create_dir_all(&skill).unwrap();
     std::fs::write(skill.join("SKILL.md"), b"body").unwrap();
 
-    // The pool resolves from the `LERNIE_HOME`-collapsed data root (§3.3).
+    // The pool resolves from the `LITANY_HOME`-collapsed data root (§3.3).
     let mut env = stub_env(repo.path(), "a1");
     env.0
-        .insert("LERNIE_HOME", home.path().as_os_str().to_owned());
+        .insert("LITANY_HOME", home.path().as_os_str().to_owned());
 
     let input = serde_json::json!({"name":"git-ops"}).to_string();
     let mut stdin = Cursor::new(input.into_bytes());

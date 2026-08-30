@@ -8,31 +8,31 @@ use crate::harness_root::Roots;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-/// Serializes `LERNIE_HOME` mutation. The harness-root env (§2.2) is
+/// Serializes `LITANY_HOME` mutation. The harness-root env (§2.2) is
 /// process-global; every in-process test that must point it at a scratch
 /// dir (`prime`/`new`, which found real files; `config`, whose
 /// `harness_root::resolve` call is unmocked; `archive::replay_cli`'s
-/// `LERNIE_HOME`-scoped scratch base) funnels through [`with_lernie_home`]
+/// `LITANY_HOME`-scoped scratch base) funnels through [`with_litany_home`]
 /// so the mutation is the *one* place a parallel `cargo test --lib` run
 /// can race — the lock, not the caller's own scope, is what makes it
 /// safe. Rust 2024's `set_var` is `unsafe` for exactly this reason.
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-/// Run `f` with `LERNIE_HOME` set to `home`, then clear it. Serialized
-/// against every other `LERNIE_HOME` mutation via [`ENV_LOCK`] — the
+/// Run `f` with `LITANY_HOME` set to `home`, then clear it. Serialized
+/// against every other `LITANY_HOME` mutation via [`ENV_LOCK`] — the
 /// single guarded critical section, so a reader of the ambient env (e.g.
 /// `harness_root::resolve` called from inside `f`) never observes another
 /// test's home mid-flight. Tests never pre-set the var, so the restore is
 /// an unconditional clear — not a save/restore of a prior value.
-pub fn with_lernie_home<R>(home: &Path, f: impl FnOnce() -> R) -> R {
+pub fn with_litany_home<R>(home: &Path, f: impl FnOnce() -> R) -> R {
     let _guard = ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     // SAFETY: guarded by ENV_LOCK; no other thread reads/writes the var
     // concurrently while the guard is held.
-    unsafe { std::env::set_var("LERNIE_HOME", home) };
+    unsafe { std::env::set_var("LITANY_HOME", home) };
     let r = f();
-    unsafe { std::env::remove_var("LERNIE_HOME") };
+    unsafe { std::env::remove_var("LITANY_HOME") };
     r
 }
 
@@ -46,21 +46,21 @@ pub fn bare_roots(base: &Path) -> Roots {
     }
 }
 
-/// Resolve the cargo-built `lernie` binary from the running test binary.
+/// Resolve the cargo-built `litany` binary from the running test binary.
 ///
-/// `env!("CARGO_BIN_EXE_lernie")` is set only for `tests/` integration
+/// `env!("CARGO_BIN_EXE_litany")` is set only for `tests/` integration
 /// targets, not for lib unit tests, so an in-crate test that must spawn
 /// the real binary derives it from `current_exe()`: the test executable
-/// (`<target>/<profile>/deps/<test>-<hash>`) and the `lernie` binary
-/// (`<target>/<profile>/lernie`) are siblings — walk up from the test
-/// binary and take the first ancestor directory holding a `lernie` file.
-pub fn lernie_binary() -> PathBuf {
+/// (`<target>/<profile>/deps/<test>-<hash>`) and the `litany` binary
+/// (`<target>/<profile>/litany`) are siblings — walk up from the test
+/// binary and take the first ancestor directory holding a `litany` file.
+pub fn litany_binary() -> PathBuf {
     let test_exe = std::env::current_exe().expect("current_exe for the test binary");
     for dir in test_exe.ancestors() {
-        let candidate = dir.join("lernie");
+        let candidate = dir.join("litany");
         if candidate.is_file() {
             return candidate;
         }
     }
-    panic!("built `lernie` binary not found above {test_exe:?}; run `cargo build` first");
+    panic!("built `litany` binary not found above {test_exe:?}; run `cargo build` first");
 }

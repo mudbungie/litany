@@ -66,7 +66,7 @@ pub(super) fn settle_crashed_window(
         return Ok(());
     }
     eprintln!(
-        "lernie: settling a crashed tool window on [{agent_id}] — {} unanswered \
+        "litany: settling a crashed tool window on [{agent_id}] — {} unanswered \
          invocation(s) recorded as died (ARCH §6, bl-4187)",
         unanswered.len()
     );

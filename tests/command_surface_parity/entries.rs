@@ -23,7 +23,7 @@
 use crate::graph;
 use crate::items::is_pub;
 use clap::CommandFactory;
-use lernie::cmd::{Cli, Command, Error, Fx, Outcome};
+use litany::cmd::{Cli, Command, Error, Fx, Outcome};
 use std::collections::BTreeSet;
 use syn::Item;
 
@@ -45,7 +45,7 @@ macro_rules! verb_table {
         /// half of the bijection. Called by a test so the pairing is
         /// executed, not merely compiled.
         fn pair_every_verb() -> usize {
-            [$(pair(Command::$variant, lernie::cmd::$module::run)),+].len()
+            [$(pair(Command::$variant, litany::cmd::$module::run)),+].len()
         }
     };
 }
@@ -125,7 +125,7 @@ fn every_verb_entry_is_its_variants_payload() {
 /// them is the binding's act (ARCH §3.4).
 #[test]
 fn the_prelude_re_exports_are_mechanisms_and_no_types() {
-    use lernie::cmd::prelude;
+    use litany::cmd::prelude;
     use std::sync::atomic::{AtomicBool, Ordering};
     let mechanisms: [fn(); 2] = [prelude::become_pgid_leader, prelude::install_stop_handler];
     let flag: fn() -> &'static AtomicBool = prelude::stop_flag;

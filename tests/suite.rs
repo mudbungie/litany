@@ -3,7 +3,7 @@
 //! The suite itself is data under `tests/suite/` (one YAML file per failure
 //! category). The runner that executes it (`crates/agent-eval`, §9.3) reads
 //! this directory through `agent_eval::suite`, and the shipped harness
-//! driver (`crates/lernie-eval-agent`) closes the loop to a live model —
+//! driver (`crates/litany-eval-agent`) closes the loop to a live model —
 //! `make eval` runs this data end to end. This test pins the structural
 //! contract the runner relies on: 50 uniquely-identified tasks, each with
 //! a prompt and a

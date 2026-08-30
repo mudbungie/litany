@@ -133,7 +133,7 @@ fn override_path_that_is_a_file_surfaces_io() {
     assert!(matches!(err, ScaffoldError::Io(_)), "got {err:?}");
 }
 
-// --- LERNIE_HOME collapse, end to end through the binary -----------
+// --- LITANY_HOME collapse, end to end through the binary -----------
 
 /// Git env vars a hook-invoked test may inherit; scrubbed so
 /// subcommands operate on the tempdir, not the outer repo.
@@ -172,9 +172,9 @@ fn show_control(ws: &Path, path: &str) -> String {
 }
 
 #[test]
-fn lernie_home_collapse_reads_override_from_lernie_home_template() {
-    // With LERNIE_HOME set the config root collapses to it (ARCH §2.2),
-    // so the override lives at $LERNIE_HOME/template/ — the nested-world
+fn litany_home_collapse_reads_override_from_litany_home_template() {
+    // With LITANY_HOME set the config root collapses to it (ARCH §2.2),
+    // so the override lives at $LITANY_HOME/template/ — the nested-world
     // shape. The motivating case (bl-e795): a host whose only credential
     // is codex overrides providers.yaml so workspaces are born usable.
     let over_providers = "roles:\n  worker:\n    provider: codex\n    model: gpt-5.4\n";
@@ -186,15 +186,15 @@ fn lernie_home_collapse_reads_override_from_lernie_home_template() {
 
     let holder = TempDir::new().unwrap();
     let dest: PathBuf = holder.path().join("ws");
-    let mut cmd = Command::new(crate::test_support::lernie_binary());
+    let mut cmd = Command::new(crate::test_support::litany_binary());
     scrub_git_env(&mut cmd);
     let out = cmd
         .arg("new")
         .arg(&dest)
-        .env("LERNIE_HOME", home.path())
-        .env("GIT_AUTHOR_NAME", "lernie-test")
+        .env("LITANY_HOME", home.path())
+        .env("GIT_AUTHOR_NAME", "litany-test")
         .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
-        .env("GIT_COMMITTER_NAME", "lernie-test")
+        .env("GIT_COMMITTER_NAME", "litany-test")
         .env("GIT_COMMITTER_EMAIL", "test@example.invalid")
         // A fixture identity is not this machine's, and a global
         // `core.hooksPath` hook that enforces one would refuse every
@@ -204,10 +204,10 @@ fn lernie_home_collapse_reads_override_from_lernie_home_template() {
         .env("GIT_CONFIG_KEY_0", "core.hooksPath")
         .env("GIT_CONFIG_VALUE_0", "/dev/null")
         .output()
-        .expect("invoke lernie binary");
+        .expect("invoke litany binary");
     assert!(
         out.status.success(),
-        "lernie new failed: {}",
+        "litany new failed: {}",
         String::from_utf8_lossy(&out.stderr)
     );
 

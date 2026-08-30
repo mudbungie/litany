@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "cd",
-  "description": "Input schema for the lernie built-in `cd` tool (ARCH §3.3 Working directory). The harness sends this verbatim as the `input_schema` field of the tool's entry in the model call's `tools: [...]` array.",
+  "description": "Input schema for the litany built-in `cd` tool (ARCH §3.3 Working directory). The harness sends this verbatim as the `input_schema` field of the tool's entry in the model call's `tools: [...]` array.",
   "type": "object",
   "properties": {
     "path": {

@@ -55,7 +55,7 @@ pub use spawn::SpawnTool;
 pub const DEFAULT_TOOL_DEADLINE: Duration = Duration::from_secs(5);
 
 /// Subdirectory under the harness root where externalized tool binaries
-/// live (ARCH §3.3 — "discovery mirrors §4.4: looks up `lernie-tool-<name>`
+/// live (ARCH §3.3 — "discovery mirrors §4.4: looks up `litany-tool-<name>`
 /// at `<harness-root>/tools/`").
 pub const TOOLS_DIR: &str = "tools";
 
@@ -64,21 +64,21 @@ pub const TOOLS_DIR: &str = "tools";
 pub const STEP_TOOLS_SUBDIR: &str = "tools";
 
 /// Name prefix for externalized tool binaries (ARCH §3.3, mirroring
-/// §4.4's `lernie-provider-<name>` convention).
-pub const EXTERNAL_PREFIX: &str = "lernie-tool-";
+/// §4.4's `litany-provider-<name>` convention).
+pub const EXTERNAL_PREFIX: &str = "litany-tool-";
 
-/// Argv used when invoking an in-process tool via the lernie binary
-/// (ARCH §3.3 — "addressed as `lernie tool <name>`").
+/// Argv used when invoking an in-process tool via the litany binary
+/// (ARCH §3.3 — "addressed as `litany tool <name>`").
 pub const IN_PROCESS_SUBCOMMAND: &str = "tool";
 
 /// Env var conveying the conversation-repo root path to the tool
 /// subprocess (ARCH §3.3 env-var bullet). Pinned here so the executor
 /// (the writer) and the `dispatch` built-in (the reader) cannot drift.
-pub const ENV_CONV_REPO: &str = "LERNIE_CONV_REPO";
+pub const ENV_CONV_REPO: &str = "LITANY_CONV_REPO";
 /// Env var conveying the calling conversation's branch name (== full
 /// hyphenated descent / conv-id, ARCH §2.2) to the tool subprocess.
 /// Same provenance as [`ENV_CONV_REPO`].
-pub const ENV_CONV_BRANCH: &str = "LERNIE_CONV_BRANCH";
+pub const ENV_CONV_BRANCH: &str = "LITANY_CONV_BRANCH";
 
 /// One tool invocation as the model emitted it — the `id`, `name`, and
 /// `input` fields of a `tool_use` content block (ARCH §3.3 stdin

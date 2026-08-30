@@ -1,5 +1,5 @@
 //! Integration test for the workspace template, exercised end-to-end
-//! through the `lernie new` subcommand.
+//! through the `litany new` subcommand.
 //!
 //! Validates the resulting workspace against ARCH §2.2: one bare
 //! repository at `repo.git`, exactly one ref — `config/default`, no
@@ -34,8 +34,8 @@ fn scrub_git_env(cmd: &mut Command) {
     }
 }
 
-fn lernie_bin() -> PathBuf {
-    crate::test_support::lernie_binary()
+fn litany_bin() -> PathBuf {
+    crate::test_support::litany_binary()
 }
 
 fn scaffold(dest: &Path) -> String {
@@ -44,15 +44,15 @@ fn scaffold(dest: &Path) -> String {
     // (§3.3) sees the shipped pools rather than the dev host's, and the
     // dev host's own install is left alone.
     let home = TempDir::new().unwrap();
-    let mut cmd = Command::new(lernie_bin());
+    let mut cmd = Command::new(litany_bin());
     scrub_git_env(&mut cmd);
     let out = cmd
         .arg("new")
         .arg(dest)
-        .env("LERNIE_HOME", home.path())
-        .env("GIT_AUTHOR_NAME", "lernie-test")
+        .env("LITANY_HOME", home.path())
+        .env("GIT_AUTHOR_NAME", "litany-test")
         .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
-        .env("GIT_COMMITTER_NAME", "lernie-test")
+        .env("GIT_COMMITTER_NAME", "litany-test")
         .env("GIT_COMMITTER_EMAIL", "test@example.invalid")
         // A fixture identity is not this machine's, and a global
         // `core.hooksPath` hook that enforces one would refuse every
@@ -62,10 +62,10 @@ fn scaffold(dest: &Path) -> String {
         .env("GIT_CONFIG_KEY_0", "core.hooksPath")
         .env("GIT_CONFIG_VALUE_0", "/dev/null")
         .output()
-        .expect("invoke lernie binary");
+        .expect("invoke litany binary");
     assert!(
         out.status.success(),
-        "lernie new failed: {}\nstderr: {}",
+        "litany new failed: {}\nstderr: {}",
         out.status,
         String::from_utf8_lossy(&out.stderr)
     );
@@ -232,17 +232,17 @@ fn no_stray_files_or_checkouts_remain() {
 
 #[test]
 fn no_args_uses_harness_root_with_auto_id() {
-    // `lernie new` with no path argument resolves
-    // <LERNIE_HOME>/workspaces/<auto-id>/ and prints that path.
+    // `litany new` with no path argument resolves
+    // <LITANY_HOME>/workspaces/<auto-id>/ and prints that path.
     let home = TempDir::new().unwrap();
-    let mut cmd = Command::new(lernie_bin());
+    let mut cmd = Command::new(litany_bin());
     scrub_git_env(&mut cmd);
     let out = cmd
         .arg("new")
-        .env("LERNIE_HOME", home.path())
-        .env("GIT_AUTHOR_NAME", "lernie-test")
+        .env("LITANY_HOME", home.path())
+        .env("GIT_AUTHOR_NAME", "litany-test")
         .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
-        .env("GIT_COMMITTER_NAME", "lernie-test")
+        .env("GIT_COMMITTER_NAME", "litany-test")
         .env("GIT_COMMITTER_EMAIL", "test@example.invalid")
         // A fixture identity is not this machine's, and a global
         // `core.hooksPath` hook that enforces one would refuse every
@@ -252,10 +252,10 @@ fn no_args_uses_harness_root_with_auto_id() {
         .env("GIT_CONFIG_KEY_0", "core.hooksPath")
         .env("GIT_CONFIG_VALUE_0", "/dev/null")
         .output()
-        .expect("invoke lernie binary");
+        .expect("invoke litany binary");
     assert!(
         out.status.success(),
-        "lernie new (no args) failed: {}",
+        "litany new (no args) failed: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     let printed = String::from_utf8(out.stdout).unwrap().trim().to_string();
@@ -271,12 +271,12 @@ fn binary_refuses_non_empty_destination() {
     std::fs::create_dir(&dest).unwrap();
     std::fs::write(dest.join("preexisting"), b"x").unwrap();
     let home = TempDir::new().unwrap();
-    let mut cmd = Command::new(lernie_bin());
+    let mut cmd = Command::new(litany_bin());
     scrub_git_env(&mut cmd);
     let out = cmd
         .arg("new")
         .arg(&dest)
-        .env("LERNIE_HOME", home.path())
+        .env("LITANY_HOME", home.path())
         .output()
         .unwrap();
     assert!(

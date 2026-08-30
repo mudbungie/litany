@@ -1,11 +1,11 @@
-//! `lernie scan` — the operator sweep-and-flush (ARCH §2.11, §8).
+//! `litany scan` — the operator sweep-and-flush (ARCH §2.11, §8).
 //! Hand/cron only; never wired into any driver hot path.
 
 use super::{Error, Fx, Outcome};
 use crate::prompt::inbox::scan;
 use std::path::PathBuf;
 
-/// `lernie scan <workspace>`.
+/// `litany scan <workspace>`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to the workspace (conversation repo) root to sweep.

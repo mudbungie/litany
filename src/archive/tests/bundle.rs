@@ -135,7 +135,7 @@ fn bundle_refuses_the_retired_layout_with_an_actionable_error() {
         "{err:?}"
     );
     assert!(msg.contains("retired per-conversation layout"), "{msg}");
-    assert!(msg.contains("lernie new"), "{msg}");
+    assert!(msg.contains("litany new"), "{msg}");
     // No git op ran — the guard short-circuits before enumeration.
     assert!(
         git.runs.borrow().is_empty(),
@@ -156,5 +156,5 @@ fn bundle_refuses_a_non_workspace() {
         ),
         "{err:?}"
     );
-    assert!(err.to_string().contains("lernie new"), "{err}");
+    assert!(err.to_string().contains("litany new"), "{err}");
 }

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use tempfile::TempDir;
 
 /// Minimal stub [`EnvLookup`] backed by a HashMap so tests can pin
-/// `LERNIE_CONV_REPO` / `LERNIE_CONV_BRANCH` without touching the
+/// `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH` without touching the
 /// process env (cargo test runs in parallel; mutating env is racy).
 pub(super) struct StubEnv(pub(super) HashMap<&'static str, OsString>);
 
@@ -28,7 +28,7 @@ pub(super) fn env(repo: &Path, branch: &str) -> StubEnv {
     StubEnv(m)
 }
 
-/// One recorded `lernie dispatch` invocation: role, repo, branch, goal,
+/// One recorded `litany dispatch` invocation: role, repo, branch, goal,
 /// and the optional `--name` (§2.3).
 pub(super) type Invocation = (String, PathBuf, String, String, Option<String>);
 
@@ -107,7 +107,7 @@ impl Spawner for ErrSpawner {
         _goal: &str,
         _name: Option<&str>,
     ) -> Result<DispatchOutput, io::Error> {
-        Err(io::Error::new(io::ErrorKind::NotFound, "no lernie binary"))
+        Err(io::Error::new(io::ErrorKind::NotFound, "no litany binary"))
     }
 }
 

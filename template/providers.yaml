@@ -1,7 +1,7 @@
 # The first config commit's role assignments (ARCH §4.3). `worker` is the
 # role every root agent resolves ("roots are workers"), so its `tools:`
 # grant is what an interactive conversation can call out of the box — and
-# it is the whole tool pool this install ships (`lernie prime` seeds
+# it is the whole tool pool this install ships (`litany prime` seeds
 # `<data-root>/tools/`). Granting a subset here is drift, not minimalism:
 # a name added to the pool and forgotten here is grantless for everyone.
 # `src/install/tests.rs::the_shipped_worker_grant_is_the_whole_tool_pool`

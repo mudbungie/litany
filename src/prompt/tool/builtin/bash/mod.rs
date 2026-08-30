@@ -9,7 +9,7 @@
 //!
 //! The shell inherits this process's working directory, which the
 //! executor pinned to the calling agent's **current** working directory
-//! before spawning `lernie tool bash` (§3.3 *Working directory*): the
+//! before spawning `litany tool bash` (§3.3 *Working directory*): the
 //! agent's worktree by default, or wherever its own [`super::cd`] call
 //! last moved it. That inheritance is the whole mechanism: the cwd is
 //! resolved once, where the tool call's identity is known. Nothing here
@@ -24,7 +24,7 @@
 //! defers bounding a tool's authority to the v1.1 sandbox).
 //!
 //! The shell runs in its own process group so a SIGTERM the harness
-//! sends to `lernie tool bash` can be forwarded to the entire spawned
+//! sends to `litany tool bash` can be forwarded to the entire spawned
 //! tree (§2.9 cascade). The internal SIGTERM-then-SIGKILL grace fits
 //! inside [`crate::prompt::tool::DEFAULT_TOOL_DEADLINE`] (5s pinned by
 //! §3.3) so the executor's outer SIGKILL is never the one that tears
@@ -90,7 +90,7 @@ pub enum Error {
     Stderr(#[source] io::Error),
 }
 
-/// Production entry point invoked by `lernie tool bash`. Installs the
+/// Production entry point invoked by `litany tool bash`. Installs the
 /// SIGTERM forwarder once per process and delegates to [`run_with`].
 #[rustfmt::skip]
 pub fn run<R: Read, W: Write, E: Write>(

@@ -1,5 +1,5 @@
 //! The tool-control seam through both drivers (ARCH §3.3 *Tool
-//! control*, §6): a fresh hold parks `run_exchange` and the `lernie
+//! control*, §6): a fresh hold parks `run_exchange` and the `litany
 //! advance` hop without a terminal. The parked-branch lifecycle —
 //! queued mail, resume, stale sweep — is [`super::tool_control_resume`]
 //! (split to hold the 300-line code-file cap).
@@ -26,7 +26,7 @@ pub(super) fn approval_control(dir: &Path) -> PathBuf {
     std::fs::write(
         &path,
         "#!/bin/sh\n\
-         if [ -f \"$LERNIE_CONV_REPO/approval\" ]; then \
+         if [ -f \"$LITANY_CONV_REPO/approval\" ]; then \
            echo '{\"verdict\":\"pass\"}'; \
          else \
            echo '{\"verdict\":\"hold\",\"reason\":\"awaiting approval\"}'; \
@@ -127,7 +127,7 @@ fn a_hold_parks_run_exchange_without_a_terminal() {
     assert!(
         runs.iter().any(
             |(_, args)| args.first().map(String::as_str) == Some("update-ref")
-                && args.iter().any(|a| a == "refs/lernie/held/ct-1-deadbeef")
+                && args.iter().any(|a| a == "refs/litany/held/ct-1-deadbeef")
         ),
         "no hold-mark write recorded"
     );

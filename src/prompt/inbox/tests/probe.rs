@@ -133,7 +133,7 @@ fn resolve_cli_sender_uses_branch_when_set() {
 #[test]
 fn cli_run_deposits_via_production_deps() {
     // Exercises the production wiring: env-derived sender, SystemClock,
-    // the real AdvanceLauncher. Whatever `LERNIE_CONV_BRANCH` is in the
+    // the real AdvanceLauncher. Whatever `LITANY_CONV_BRANCH` is in the
     // test env, a single message file must land. The lock is held by
     // the test so the probe observes Busy and no real driver spawns
     // (the launch path is exercised by the launcher tests below and the
@@ -188,7 +188,7 @@ fn advance_launcher_spawns_detached_and_returns_at_once() {
 /// The §2.11 stderr capture: what a detached driver writes to stderr
 /// lands in `steps/<agent-id>/driver.log` instead of `/dev/null`, and a
 /// second launch **appends** rather than truncating the first's record.
-/// A stub script stands in for `lernie advance` — under test is the fd
+/// A stub script stands in for `litany advance` — under test is the fd
 /// the launcher binds, not what the driver chooses to say through it.
 #[test]
 fn advance_launcher_captures_child_stderr_and_appends_across_launches() {
@@ -290,7 +290,7 @@ fn detach_into_own_session_never_fails() {
 #[test]
 fn advance_launcher_surfaces_a_spawn_failure() {
     let ws = TempDir::new().unwrap();
-    let launcher = AdvanceLauncher::with_exe("/no/such/lernie-binary".into());
+    let launcher = AdvanceLauncher::with_exe("/no/such/litany-binary".into());
     let err = launcher.launch(ws.path(), "a1").unwrap_err();
     assert_eq!(err.kind(), io::ErrorKind::NotFound);
 }

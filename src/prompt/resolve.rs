@@ -2,11 +2,11 @@
 //! (ARCH §2.2, §4.2, §4.3, §6).
 //!
 //! Control is read from a **config commit** (ARCH §2.2), never from a
-//! worktree file: `lernie prompt` (a fresh root) resolves against the
+//! worktree file: `litany prompt` (a fresh root) resolves against the
 //! **governing config commit of the ref it is about to fork off** — the
 //! config commit itself for the ordinary fresh start, its nearest
 //! `config/*` ancestor when the start forks from history (§2.3, §7.2) —
-//! and `lernie advance` (the §6 hop) resolves the governing config
+//! and `litany advance` (the §6 hop) resolves the governing config
 //! commit of the existing agent's branch. Both are the one ancestry
 //! derivation ([`crate::workspace::governing_config`]). The reads —
 //! `providers.yaml`, `workflow.yaml` policy, the role soul — go through
@@ -14,7 +14,7 @@
 //! binary with its load-time version guard (§4.4) resolve as before.
 //! [`WorkerConfig`] is the owned product; [`WorkerConfig::as_resolved`]
 //! borrows it into the [`dispatch::Resolved`] shape the step machinery
-//! consumes. `lernie advance` resolves *lazily*: a no-op hop (lost
+//! consumes. `litany advance` resolves *lazily*: a no-op hop (lost
 //! acquire, nothing due) exits before any config is read (§6).
 
 use super::{
@@ -52,7 +52,7 @@ pub(super) enum ConfigSource<'a> {
 /// The owned resolution of the worker role against one workspace:
 /// everything a step needs that is not on the branch itself. Owned (not
 /// borrowed from a `ModelsConfig`) so callers that resolve lazily —
-/// `lernie advance` — can return it from the resolving scope.
+/// `litany advance` — can return it from the resolving scope.
 #[derive(Clone)]
 pub(super) struct WorkerConfig {
     /// The agent's role (ARCH §2.5, §4.3), derived from its dispatch
@@ -138,7 +138,7 @@ pub(super) fn resolve_worker(
     // dispatch commit subject — the single authoritative home
     // (`crate::prompt::role`). A fresh root has no agent branch yet and no
     // dispatch commit to read, so it resolves the worker default; an
-    // existing agent (the `lernie advance` hop) reads its own subject, so a
+    // existing agent (the `litany advance` hop) reads its own subject, so a
     // dispatched compactor resolves `souls/compactor.md` and the compactor
     // `providers.yaml` assignment rather than the worker's.
     let role = agent_role(workspace, &source, deps)?;

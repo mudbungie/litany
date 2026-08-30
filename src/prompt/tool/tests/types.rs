@@ -27,7 +27,7 @@ fn fixed_clock_emits_distinct_iso_and_compact_strings() {
 fn pinned_constants_match_arch_3_3() {
     // Touching these requires touching ARCH §3.3 in the same review.
     assert_eq!(TOOLS_DIR, "tools");
-    assert_eq!(EXTERNAL_PREFIX, "lernie-tool-");
+    assert_eq!(EXTERNAL_PREFIX, "litany-tool-");
     assert_eq!(IN_PROCESS_SUBCOMMAND, "tool");
     assert_eq!(STEP_TOOLS_SUBDIR, "tools");
     assert_eq!(INPUT_FILE, "input.json");

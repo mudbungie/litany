@@ -17,9 +17,9 @@
 //! PRINCIPLES single source of truth). Picking up a newer pool version is
 //! `rm skills/<name>` then reload, an ordinary curation act (§5.4).
 //!
-//! The calling agent's workspace + branch arrive via `LERNIE_CONV_REPO` /
-//! `LERNIE_CONV_BRANCH` (§3.3, harness-derived); the data root resolves
-//! from the same `LERNIE_HOME` / XDG env the harness reads
+//! The calling agent's workspace + branch arrive via `LITANY_CONV_REPO` /
+//! `LITANY_CONV_BRANCH` (§3.3, harness-derived); the data root resolves
+//! from the same `LITANY_HOME` / XDG env the harness reads
 //! ([`crate::harness_root`]). An unknown `name` is declined —
 //! `is_error` naming the available pool — never fuzzy-matched (PRINCIPLES
 //! decline illegal operations).
@@ -39,7 +39,7 @@ use crate::workspace;
 /// the data-root pool subdirectory (`<data-root>/skills/`, §3.3).
 const SKILLS_DIR: &str = "skills";
 /// Env keys the data-root resolution reads (mirrors [`harness_root`]).
-const ENV_LERNIE_HOME: &str = "LERNIE_HOME";
+const ENV_LITANY_HOME: &str = "LITANY_HOME";
 const ENV_XDG_DATA: &str = "XDG_DATA_HOME";
 const ENV_HOME: &str = "HOME";
 
@@ -95,7 +95,7 @@ pub enum Error {
 /// the skill body in (or report it already loaded), and write the JSON
 /// status to `stdout`. Pure over [`Read`]/[`Write`] + the injected
 /// [`EnvLookup`] so unit tests drive it with `Cursor`/`Vec` and a stub
-/// env; the `lernie tool load_skill` shim wires the live process stdio
+/// env; the `litany tool load_skill` shim wires the live process stdio
 /// plus [`super::dispatch::ProcessEnv`].
 pub fn run<R: Read, W: Write>(
     stdin: &mut R,
@@ -148,7 +148,7 @@ pub fn run<R: Read, W: Write>(
 /// the same env [`harness_root`] reads, injected via [`EnvLookup`] so the
 /// tool stays pure over its environment for tests.
 fn skills_pool(env: &dyn EnvLookup) -> Result<PathBuf, Error> {
-    let override_v = env.get(ENV_LERNIE_HOME);
+    let override_v = env.get(ENV_LITANY_HOME);
     let xdg_data = env.get(ENV_XDG_DATA);
     let home = env.get(ENV_HOME);
     let roots = harness_root::resolve_from(

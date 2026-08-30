@@ -1,26 +1,26 @@
-//! The `lernie` harness binary — the **exec binding** of the command
+//! The `litany` harness binary — the **exec binding** of the command
 //! surface (ARCH §3.4 "One command surface, two bindings").
 //!
 //! The verbs, their arguments, and their products are defined once, in
-//! [`lernie::cmd`] ([`lernie::cmd::Command`] is the authoritative
+//! [`litany::cmd`] ([`litany::cmd::Command`] is the authoritative
 //! inventory, §3.4). This binary is the thin exec binding: it parses the
 //! shared [`Cli`], runs the §2.9 preludes the parsed verb names
-//! ([`Command::preludes`](lernie::cmd::Command::preludes)),
+//! ([`Command::preludes`](litany::cmd::Command::preludes)),
 //! builds the [`Fx`] injections (the running-binary path, the `$EDITOR`
 //! spawn, the locked stdio, the stop flag), invokes
-//! [`Command::run`](lernie::cmd::Command::run), and performs the returned
+//! [`Command::run`](litany::cmd::Command::run), and performs the returned
 //! [`Outcome`] — printing a product, exec'ing a successor, or mapping a
 //! tool exit code. Every process-global and terminal effect lives here,
 //! at the binding, never in the surface.
 //!
-//! Verb inventory (mirrors [`Command`](lernie::cmd::Command), the one authoritative
+//! Verb inventory (mirrors [`Command`](litany::cmd::Command), the one authoritative
 //! definition): `new`, `config`, `prompt`, `dispatch`, `stop`,
 //! `message`, `scan`, `bundle`, `replay`, `advance`, `tool`, `prime`.
 
 mod cli;
 
 use clap::Parser;
-use lernie::cmd::{Cli, Fx, Outcome, prelude};
+use litany::cmd::{Cli, Fx, Outcome, prelude};
 use std::io;
 use std::path::Path;
 use std::process::ExitCode;
@@ -41,7 +41,7 @@ fn main() -> ExitCode {
     let driver_target = match std::env::current_exe() {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("lernie: resolve current executable: {e}");
+            eprintln!("litany: resolve current executable: {e}");
             return ExitCode::FAILURE;
         }
     };
@@ -91,7 +91,7 @@ fn perform(outcome: Outcome) -> ExitCode {
         Outcome::Quiet => ExitCode::SUCCESS,
         Outcome::Exec(mut cmd) => {
             use std::os::unix::process::CommandExt;
-            eprintln!("lernie advance: exec successor: {}", cmd.exec());
+            eprintln!("litany advance: exec successor: {}", cmd.exec());
             ExitCode::FAILURE
         }
         // Tool exit codes ride within `u8` (POSIX), preserved by `cmd`.

@@ -67,7 +67,7 @@ pub(super) struct SpawnArgs<'a> {
     pub(super) stdin_bytes: &'a [u8],
     /// (key, value) pairs added to the inherited environment per ARCH
     /// §3.3 (the harness conveys conversation context —
-    /// `LERNIE_CONV_REPO`, `LERNIE_CONV_BRANCH` — to tools through
+    /// `LITANY_CONV_REPO`, `LITANY_CONV_BRANCH` — to tools through
     /// env vars rather than the model-facing input schema).
     pub(super) extra_env: &'a [(&'a str, OsString)],
     /// Working directory for the child — the calling agent's worktree

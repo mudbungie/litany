@@ -1,10 +1,10 @@
-//! `lernie retarget` — the exit from the config freeze (ARCH §2.2, §3.4).
+//! `litany retarget` — the exit from the config freeze (ARCH §2.2, §3.4).
 //!
 //! Fork is the freeze: an agent's governing config commit is derived from
 //! its branch's ancestry, so a config edit after the fork governs nothing
 //! it does. This verb is the one deliberate, auditable break of that — and
 //! it breaks nothing else, because it writes no branch. It writes a **ref
-//! mark**, `refs/lernie/retarget/<agent-id>`, at the target config commit
+//! mark**, `refs/litany/retarget/<agent-id>`, at the target config commit
 //! ([`crate::workspace::retarget`]); the agent's own executor consumes it
 //! at its next `advance` step boundary and lands the re-fork there
 //! ([`crate::prompt::retarget`]). §2.3's branch-advancement invariant is
@@ -26,7 +26,7 @@ use crate::template::RealGit;
 use crate::workspace::{self, DEFAULT_CONFIG_NAME};
 use std::path::PathBuf;
 
-/// `lernie retarget <workspace> <agent> [--config <name>]`.
+/// `litany retarget <workspace> <agent> [--config <name>]`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to the workspace (conversation repo) root.
@@ -35,7 +35,7 @@ pub struct Args {
     pub agent: String,
     /// Config lineage whose head the agent should be governed by from its
     /// next step on. Defaults to `default` — the general path with empty
-    /// inputs, the same reading `lernie prompt` gives an unnamed config.
+    /// inputs, the same reading `litany prompt` gives an unnamed config.
     #[arg(long)]
     pub config: Option<String>,
 }
@@ -49,7 +49,7 @@ pub fn run(args: Args, _fx: &mut Fx) -> Result<Outcome, Error> {
     let target = preflight(&args.workspace, &args.agent, name, &git).map_err(|s| e(&s))?;
     match target {
         None => eprintln!(
-            "lernie: {} already governs [{}] — nothing to retarget",
+            "litany: {} already governs [{}] — nothing to retarget",
             workspace::config_ref(name),
             args.agent,
         ),
@@ -57,7 +57,7 @@ pub fn run(args: Args, _fx: &mut Fx) -> Result<Outcome, Error> {
             workspace::retarget::write(&args.workspace, &args.agent, &commit, &git)
                 .map_err(|s| e(&s))?;
             eprintln!(
-                "lernie: [{}] marked for retarget onto {} ({}); it lands at the agent's next \
+                "litany: [{}] marked for retarget onto {} ({}); it lands at the agent's next \
                  step (ARCH §2.2)",
                 args.agent,
                 &commit[..commit.len().min(12)],

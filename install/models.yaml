@@ -1,5 +1,5 @@
 # Global config-root models.yaml (ARCH §4.2; the config root is
-# $XDG_CONFIG_HOME/lernie, default ~/.config/lernie — ARCH §2.2).
+# $XDG_CONFIG_HOME/litany, default ~/.config/litany — ARCH §2.2).
 #
 # Mechanism only — this file ships no model policy (bl-35e2). Which
 # providers exist, their endpoints, auth, and the login workflow are
@@ -18,6 +18,6 @@
 #
 # adapter: /path/to/bz-compatible-binary
 #
-# `lernie prime` / `make install` lay this down only if no models.yaml
+# `litany prime` / `make install` lay this down only if no models.yaml
 # already exists at the config root, so re-running install never
 # clobbers a hand-edited file.

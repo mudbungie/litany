@@ -14,7 +14,7 @@
 //! counts and where the full record lives, so the model knows what it
 //! lost and can re-run with a filter instead of guessing.
 //!
-//! Counts are **bytes**, never tokens: lernie has no tokenizer, and a
+//! Counts are **bytes**, never tokens: litany has no tokenizer, and a
 //! fabricated token count would be a lie in the transcript. The split
 //! is byte-exact — a multi-byte UTF-8 sequence cut at the boundary
 //! degrades to replacement characters in the committed entry, which is

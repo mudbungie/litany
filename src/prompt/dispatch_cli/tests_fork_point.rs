@@ -1,11 +1,11 @@
-//! `lernie dispatch --from <ref>` where the fork point crosses config
+//! `litany dispatch --from <ref>` where the fork point crosses config
 //! lineages (ARCH §2.2, §2.3, §7.2).
 //!
 //! The property under test is the one §2.2 states — *"an agent started
 //! by fork-back-in (§2.3) inherits its source's config the same way"* —
 //! and it is a property about **agreement**: a child's control is read
 //! at dispatch time from one commit and resolved at every later step
-//! (`lernie advance`, §6) from its own branch's ancestry. Those are the
+//! (`litany advance`, §6) from its own branch's ancestry. Those are the
 //! same commit only if the dispatch reads the *fork point's* governing
 //! config rather than the dispatcher's. Split from [`super::tests`] for
 //! the per-file line cap — as are the same-lineage `--from` cases
@@ -17,7 +17,7 @@ use crate::template::{GitRunner, RealGit};
 use crate::workspace::fixture;
 
 /// A second config lineage forked off `default`, carrying its own worker
-/// soul — the shape `lernie config --from` authors (§2.2).
+/// soul — the shape `litany config --from` authors (§2.2).
 const STRICT_SOUL: &str = "You are the strict worker.";
 
 fn author_strict(ws: &Path) {
@@ -72,7 +72,7 @@ fn a_child_forked_across_lineages_is_governed_by_the_config_it_forked_off() {
     assert_eq!(soul, STRICT_SOUL);
 
     // And the agreement itself: the commit the artifacts came from is the
-    // commit every later `lernie advance` derives from the child's own
+    // commit every later `litany advance` derives from the child's own
     // branch (§6, `resolve::ConfigSource::Agent`). One fact, one answer —
     // §4.3's "it must be the *same* commit the grant came from".
     let at_dispatch = crate::workspace::governing_config(&repo, "config/strict", &git).unwrap();

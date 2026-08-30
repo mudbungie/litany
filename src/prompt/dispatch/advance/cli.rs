@@ -1,9 +1,9 @@
-//! Production wiring for `lernie advance <workspace> <agent>` (§6).
+//! Production wiring for `litany advance <workspace> <agent>` (§6).
 //!
-//! Mirrors the `lernie prompt` deps wiring — the same real components,
+//! Mirrors the `litany prompt` deps wiring — the same real components,
 //! the same discipline of keeping the bin a thin shim: [`cli_run`] does
 //! everything up to the `exec` itself, returning the fully prepared
-//! successor [`Command`] (args, `LERNIE_LOCK_FD`, close-on-exec cleared
+//! successor [`Command`] (args, `LITANY_LOCK_FD`, close-on-exec cleared
 //! — [`baton::successor_command`]) for the bin to `exec`. The exec
 //! stays in the bin because a successful `execve` never returns — the
 //! library boundary is the last observable point of this process.
@@ -82,7 +82,7 @@ fn cli_run_with(
     // §2.3 existence guard, ahead of the lease: the `agents/*` refs are
     // the registry, so a hop at a name with no ref is refused here —
     // before `take_lease` would `mkdir` the inbox and manufacture the
-    // very orphan directory `lernie scan` reports as debris. Not folded
+    // very orphan directory `litany scan` reports as debris. Not folded
     // into the §2.11 lost-lease no-op (`Ok(Done)`): that is a live agent
     // already driven, this is an operator typo, and it exits 1.
     crate::workspace::require_agent(

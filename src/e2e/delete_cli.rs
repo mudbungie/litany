@@ -1,4 +1,4 @@
-//! End-to-end subprocess tests for `lernie delete` (ARCH §9.2
+//! End-to-end subprocess tests for `litany delete` (ARCH §9.2
 //! *Retention and GC*). The argv shape, the exit codes and the one-line
 //! product are what a frontend spawns and parses (§3.5), so they are
 //! pinned here against a real repo rather than only through the library
@@ -35,11 +35,11 @@ fn git(dest: &Path, args: &[&str]) {
 }
 
 fn run(args: &[&str]) -> Output {
-    let mut cmd = Command::new(crate::test_support::lernie_binary());
+    let mut cmd = Command::new(crate::test_support::litany_binary());
     for var in INHERITED_GIT_ENV {
         cmd.env_remove(var);
     }
-    cmd.args(args).output().expect("lernie")
+    cmd.args(args).output().expect("litany")
 }
 
 /// A workspace (§2.2) with a root agent, a child forked off its tip, and
@@ -98,7 +98,7 @@ fn workspace() -> TempDir {
             &repo,
             &[
                 "update-ref",
-                &format!("refs/lernie/notify/{id}"),
+                &format!("refs/litany/notify/{id}"),
                 &format!("refs/heads/agents/{id}"),
             ],
         );
@@ -148,7 +148,7 @@ fn the_bare_form_refuses_a_subtree_dry_run_plans_it_and_children_takes_it() {
     let out = run(&["delete", p, ROOT]);
     assert!(!out.status.success());
     let err = String::from_utf8_lossy(&out.stderr);
-    assert!(err.starts_with("lernie delete: "), "{err}");
+    assert!(err.starts_with("litany delete: "), "{err}");
     assert!(err.contains(CHILD) && err.contains("--children"), "{err}");
     assert!(out.stdout.is_empty());
     assert!(refs(ws.path()).contains(&format!("refs/heads/agents/{ROOT}")));
@@ -179,7 +179,7 @@ fn the_bare_form_refuses_a_subtree_dry_run_plans_it_and_children_takes_it() {
     );
     let after = refs(ws.path());
     assert!(!after.contains("agents/"), "{after}");
-    assert!(!after.contains("refs/lernie/"), "{after}");
+    assert!(!after.contains("refs/litany/"), "{after}");
     for id in [ROOT, CHILD] {
         for dir in ["agents", "steps", "inbox"] {
             assert!(

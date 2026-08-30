@@ -83,7 +83,7 @@ fn apply_declines_on_a_real_conflict_even_when_the_child_also_pruned_description
         .unwrap();
     assert_eq!(subject, "parent diverged");
     let marked = git()
-        .run_capture(wt, &["rev-parse", "refs/lernie/conflicted/p-child"])
+        .run_capture(wt, &["rev-parse", "refs/litany/conflicted/p-child"])
         .unwrap();
     assert_eq!(marked, terminal);
     // The parent's descriptions/** is untouched by the decline either.

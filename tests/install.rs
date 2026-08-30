@@ -46,11 +46,11 @@ fn run_install(prefix: &Path, home: &Path) {
         .current_dir(repo_root())
         .arg("install")
         .arg(format!("INSTALL_PREFIX={}", prefix.display()))
-        .arg(format!("LERNIE_HOME={}", home.display()))
+        .arg(format!("LITANY_HOME={}", home.display()))
         .env("CARGO_INSTALL_ROOT", bz_install_root())
-        .env("GIT_AUTHOR_NAME", "lernie-test")
+        .env("GIT_AUTHOR_NAME", "litany-test")
         .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
-        .env("GIT_COMMITTER_NAME", "lernie-test")
+        .env("GIT_COMMITTER_NAME", "litany-test")
         .env("GIT_COMMITTER_EMAIL", "test@example.invalid")
         // A fixture identity is not this machine's, and a global
         // `core.hooksPath` hook that enforces one would refuse every
@@ -103,7 +103,7 @@ fn make_install_lays_down_skeleton_idempotently() {
 
     // Path binaries land under INSTALL_PREFIX/bin.
     let bin = prefix.path().join("bin");
-    for b in ["lernie", "agent-eval", "lernie-eval-agent"] {
+    for b in ["litany", "agent-eval", "litany-eval-agent"] {
         assert!(bin.join(b).is_file(), "{b} missing from bin/");
     }
 

@@ -136,7 +136,7 @@ fn the_shipped_template_declares_no_budgets_and_is_unbounded() {
     // Operator ruling 2026-08-16 (ARCH §6 "Nothing ships bounded"): the
     // shipped `workflow.yaml` declares no `budgets:` block, so a
     // template-born workspace is unbounded on every axis — including
-    // `max_depth`. These are the exact bytes `lernie new` writes into
+    // `max_depth`. These are the exact bytes `litany new` writes into
     // the first config commit (pinned by template/tests_override.rs),
     // so this is the workspace's own state, not just the parser's.
     let raw = crate::template::TEMPLATE

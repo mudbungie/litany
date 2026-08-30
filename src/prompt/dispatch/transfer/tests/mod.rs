@@ -156,7 +156,7 @@ fn apply_declines_loudly_when_the_diff_does_not_apply() {
         .unwrap();
     assert_eq!(subject, "parent diverged");
     let marked = git()
-        .run_capture(wt, &["rev-parse", "refs/lernie/conflicted/p-child"])
+        .run_capture(wt, &["rev-parse", "refs/litany/conflicted/p-child"])
         .unwrap();
     assert_eq!(marked, terminal);
     // Parent's own version is untouched by the declined apply.

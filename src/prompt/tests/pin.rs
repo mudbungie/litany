@@ -49,7 +49,7 @@ fn every_brazen_version_the_readme_spells_is_the_pin() {
     let readme =
         std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md")).unwrap();
     // The three shapes the prose uses — the install command, the
-    // manifest line, and the `lernie --version` rendering — matched
+    // manifest line, and the `litany --version` rendering — matched
     // literally so an unrelated `=` near the word "brazen" cannot be
     // mistaken for a version.
     let spelled: Vec<&str> = ["brazen --version =", "brazen = \"=", "(brazen "]

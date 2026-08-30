@@ -109,7 +109,7 @@ fn compare_reports_deltas_at_every_grain() {
 #[test]
 fn missing_metrics_on_one_side_yield_no_delta() {
     // Candidate never disclosed a workspace (e.g. a foreign driver with
-    // no lernie report): quality still compares; efficiency deltas are
+    // no litany report): quality still compares; efficiency deltas are
     // — on every derived metric.
     let baseline = Record {
         provenance: provenance("driver-a"),

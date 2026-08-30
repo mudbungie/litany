@@ -1,4 +1,4 @@
-//! Branch-state lookup for `lernie stop`.
+//! Branch-state lookup for `litany stop`.
 //!
 //! One question needs answering before sending any signal: does the
 //! agent branch `agents/<id>` exist in the workspace repository? An

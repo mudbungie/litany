@@ -5,8 +5,8 @@ use super::*;
 use crate::workspace::fixture;
 use tempfile::TempDir;
 
-/// A real scaffolded workspace (the `lernie new` core) with a parent
-/// agent branch + worktree — the state `lernie dispatch` is invoked
+/// A real scaffolded workspace (the `litany new` core) with a parent
+/// agent branch + worktree — the state `litany dispatch` is invoked
 /// against in production (§3.4). The default config lists `worker` and
 /// `compactor` with their souls, so both validate off this parent.
 pub(super) fn scaffolded_repo_with_parent(parent: &str) -> (TempDir, std::path::PathBuf) {
@@ -16,7 +16,7 @@ pub(super) fn scaffolded_repo_with_parent(parent: &str) -> (TempDir, std::path::
 }
 
 /// A [`Launcher`] that swallows launches — the fork + front-door
-/// deposit is under test, not the real `lernie advance` spawn.
+/// deposit is under test, not the real `litany advance` spawn.
 pub(super) struct NoopLauncher;
 impl Launcher for NoopLauncher {
     fn launch(&self, _workspace: &Path, _agent_id: &str) -> std::io::Result<()> {
@@ -131,7 +131,7 @@ fn a_path_that_is_not_a_workspace_is_the_shared_layout_decline() {
     assert_eq!(
         err.to_string(),
         format!(
-            "{} is not a workspace (no repo.git) — create one with `lernie new` (ARCH §2.2)",
+            "{} is not a workspace (no repo.git) — create one with `litany new` (ARCH §2.2)",
             holder.path().display()
         )
     );
@@ -157,7 +157,7 @@ fn a_parent_with_no_agent_ref_is_the_shared_existence_decline() {
         err.to_string(),
         "no agent \"nosuchparent\" in this workspace — a child forks off an existing parent \
          (ARCH §2.5); check the id against the workspace's `agents/*` refs, or start an \
-         agent with `lernie prompt` / `lernie dispatch`"
+         agent with `litany prompt` / `litany dispatch`"
     );
 }
 

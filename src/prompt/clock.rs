@@ -40,7 +40,7 @@ pub trait Clock {
 /// Short (hex) identifier for the conv-id suffix. The real impl
 /// derives entropy from the wall clock at nanosecond granularity,
 /// which is enough to prevent collisions between v0.3's
-/// single-threaded, human-paced `lernie prompt` invocations.
+/// single-threaded, human-paced `litany prompt` invocations.
 pub trait IdGen {
     /// Eight hex characters. The length is a format contract — the
     /// branch-name convention uses it verbatim.

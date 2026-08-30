@@ -33,7 +33,7 @@ pub(crate) fn path(workspace: &Path) -> PathBuf {
 /// debris this removes. Unconditional — on the ordinary path there is
 /// nothing there and every step is a no-op, so there is no leftover
 /// special case to get wrong, and no state a hard kill can leave that
-/// makes the *next* `lernie config` fail. The transient checkout holds no
+/// makes the *next* `litany config` fail. The transient checkout holds no
 /// authored history by construction (its content is the origin's tree
 /// plus the pools plus an uncommitted edit), so removing it loses only
 /// the killed pass's unsaved edit. A path that survives all three steps

@@ -196,7 +196,7 @@
       "additionalProperties": false
     },
     "ToolOutputBound": {
-      "description": "The `tool_output:` block. Both fields are byte counts — lernie has no tokenizer, so bytes are the only honest unit (§3.3). `Copy` because it is two words of policy handed down the executor path by value.",
+      "description": "The `tool_output:` block. Both fields are byte counts — litany has no tokenizer, so bytes are the only honest unit (§3.3). `Copy` because it is two words of policy handed down the executor path by value.",
       "type": "object",
       "required": [
         "head_bytes",

@@ -1,4 +1,4 @@
-//! End-to-end subprocess tests for `lernie message`'s recipient guards:
+//! End-to-end subprocess tests for `litany message`'s recipient guards:
 //! the agent id is one path component (ARCH §2.3) and the recipient
 //! exists (§2.11 — "a message is content addressed to an *existing*
 //! agent"). Both are declines the real binary must make before it
@@ -7,13 +7,13 @@
 
 use crate::prompt::inbox::{inbox_dir, try_acquire};
 use crate::template::{GitRunner, RealGit};
-use crate::test_support::lernie_binary;
+use crate::test_support::litany_binary;
 use crate::workspace::{agent_name, fixture};
 use std::path::Path;
 use std::process::Command;
 
 /// Fork a root agent and land the name fact on it — the on-disk shape a
-/// `lernie prompt --name` / `lernie dispatch --name` leaves behind
+/// `litany prompt --name` / `litany dispatch --name` leaves behind
 /// (ARCH §2.3), built without a provider.
 fn named_root(ws: &Path, id: &str, name: &str) {
     let git = RealGit::new();
@@ -22,16 +22,16 @@ fn named_root(ws: &Path, id: &str, name: &str) {
     git.run(&wt, &["commit", "-m", "settle name"]).unwrap();
 }
 
-/// Run `lernie message <ws> <agent> <content>` and hand back
+/// Run `litany message <ws> <agent> <content>` and hand back
 /// `(success, stderr)`.
 fn message(ws: &Path, agent: &str, content: &str) -> (bool, String) {
-    let out = Command::new(lernie_binary())
+    let out = Command::new(litany_binary())
         .arg("message")
         .arg(ws)
         .arg(agent)
         .arg(content)
         .output()
-        .expect("spawn lernie message");
+        .expect("spawn litany message");
     (
         out.status.success(),
         String::from_utf8_lossy(&out.stderr).into_owned(),
@@ -43,7 +43,7 @@ fn an_escaping_agent_id_is_declined_and_writes_nothing_outside_the_workspace() {
     let (holder, ws) = fixture::workspace();
     let (ok, stderr) = message(&ws, "../../victim/pwned", "hello");
     assert!(!ok, "an escaping id must exit non-zero");
-    assert!(stderr.contains("lernie message: agent id"), "{stderr}");
+    assert!(stderr.contains("litany message: agent id"), "{stderr}");
     // `<ws>/inbox/../../victim` is `<holder>/victim`.
     assert!(
         !holder.path().join("victim").exists(),

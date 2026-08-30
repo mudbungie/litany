@@ -8,7 +8,7 @@
 //! pre-commit hook and GitHub Actions, with no new toolchain.
 //!
 //! It is itself a consumer of the public surface — it may link nothing
-//! but [`lernie::cmd`]. The ground truth of "what is `pub`" is the
+//! but [`litany::cmd`]. The ground truth of "what is `pub`" is the
 //! crate's own source, parsed with `syn`; the ground truth of "what is a
 //! verb" is the CLI's introspected subcommand set, read from clap at
 //! runtime. A bijection between the two is the invariant.
@@ -19,7 +19,7 @@
 //!   each `Command` variant's constructor with its module's `run` as
 //!   function *values*, so the compiler — not an assertion — proves the
 //!   variant's payload type, the entry's argument type, the injected
-//!   [`lernie::cmd::Fx`] and the product type `Result<Outcome, Error>`
+//!   [`litany::cmd::Fx`] and the product type `Result<Outcome, Error>`
 //!   are one and the same. Divergence is unrepresentable rather than
 //!   checked. The table is itself asserted exhaustive against both the
 //!   clap subcommand set and the crate's verb modules, so it cannot rot.

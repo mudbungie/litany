@@ -1,4 +1,4 @@
-//! Lernie — a git-backed agent harness, exposed as its command surface.
+//! Litany — a git-backed agent harness, exposed as its command surface.
 //!
 //! The crate's public API is [`cmd`] (ARCH §3.4 "One command
 //! surface, two bindings"): the `Cli`/`Command` clap definitions, one
@@ -12,23 +12,23 @@
 //! public that is not a verb's entry, its arguments, its products, the
 //! binding preludes, or the mint seam, and no verb lacks its entry.
 //!
-//! Consume it two ways, both the *same* control plane: exec the `lernie`
-//! binary (the exec binding, `src/bin/lernie`) or link the crate and call
+//! Consume it two ways, both the *same* control plane: exec the `litany`
+//! binary (the exec binding, `src/bin/litany`) or link the crate and call
 //! the same entries in-process (the linked binding, §3.5). The linked
 //! binding promises **pin-exact 0.x consumption only** — no semver
-//! stability, the posture brazen takes toward lernie (§4.4).
+//! stability, the posture brazen takes toward litany (§4.4).
 //!
 //! Everything below `cmd` is private machinery, reachable only through a
 //! verb's entry — pub-in-private, so externally unreachable:
 //! - `config`: parses and validates the config-commit files (§2.2) and
 //!   generates their JSON Schemas (`config::schemas`).
 //! - `harness_root`: resolves the XDG-split installation root, collapsed
-//!   by `LERNIE_HOME` (§2.2).
+//!   by `LITANY_HOME` (§2.2).
 //! - `install`: founds that root, seed-if-absent — the `prime` verb (§2.2).
 //! - `workspace`: the workspace physical model — the bare `repo.git`, the
 //!   `config/*` / `agents/*` ref namespaces, governing-config resolution
 //!   (§2.2–§2.3).
-//! - `template`: the config-commit skeleton `lernie new` authors from.
+//! - `template`: the config-commit skeleton `litany new` authors from.
 //! - `prompt`: the executor — steps, tools, dispatch, inbox, stop (§2, §6).
 //! - `provider`: the response-segment classifier over brazen's `v=1`
 //!   event vocabulary (§4.4).

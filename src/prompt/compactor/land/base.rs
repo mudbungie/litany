@@ -191,5 +191,5 @@ fn scratch_worktree(compactor_id: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    std::env::temp_dir().join(format!("lernie-compaction-base-{compactor_id}-{nanos}"))
+    std::env::temp_dir().join(format!("litany-compaction-base-{compactor_id}-{nanos}"))
 }

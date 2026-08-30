@@ -34,7 +34,7 @@ use std::path::Path;
 
 /// Token estimate: ~4 bytes/token (the English-text heuristic,
 /// `docs/TAXONOMY.md` "Token and tokenizer"). The budget is an estimate
-/// by construction — lernie carries no provider tokenizer (§4.2 keeps
+/// by construction — litany carries no provider tokenizer (§4.2 keeps
 /// provider facts out of the harness); framing overhead is not counted.
 const BYTES_PER_TOKEN: u64 = 4;
 

@@ -1,4 +1,4 @@
-//! `lernie prime` — found the installation substrate idempotently (ARCH
+//! `litany prime` — found the installation substrate idempotently (ARCH
 //! §2.2): resolve the harness root and seed the default `models.yaml`,
 //! the tool/skill pools, and the `workflows/`/`workspaces/` dirs,
 //! seed-if-absent. `make install` runs it.
@@ -14,14 +14,14 @@
 //! product**, so it goes to stderr and the verb stays
 //! [`Outcome::Quiet`](super::Outcome::Quiet) — stdout carries one product
 //! per verb and `prime` has none (§3.4). Founding done on the way to
-//! another verb (`lernie new`, §2.2) reports nothing: that verb's product
+//! another verb (`litany new`, §2.2) reports nothing: that verb's product
 //! is its own, and its founding is a precondition, not the act asked for.
 
 use super::{Error, Fx, Outcome};
 use crate::harness_root::{self, Roots};
 use crate::install::Founding;
 
-/// `lernie prime` — takes no arguments.
+/// `litany prime` — takes no arguments.
 #[derive(clap::Args, Debug)]
 pub struct Args {}
 
@@ -45,9 +45,9 @@ fn go() -> Result<Outcome, Box<dyn std::error::Error>> {
 fn report(roots: &Roots, founding: &Founding) -> String {
     let Founding { seeded, kept } = *founding;
     format!(
-        "lernie prime: config root {} — models.yaml, workflows/\n\
-         lernie prime: data root {} — tools/, skills/, workspaces/\n\
-         lernie prime: harness root founded: {seeded} files seeded, {kept} already present \
+        "litany prime: config root {} — models.yaml, workflows/\n\
+         litany prime: data root {} — tools/, skills/, workspaces/\n\
+         litany prime: harness root founded: {seeded} files seeded, {kept} already present \
          and left alone (seed-if-absent, ARCH §2.2)",
         roots.config.display(),
         roots.data.display(),
@@ -61,8 +61,8 @@ mod tests {
 
     fn roots() -> Roots {
         Roots {
-            config: PathBuf::from("/xc/lernie"),
-            data: PathBuf::from("/xd/lernie"),
+            config: PathBuf::from("/xc/litany"),
+            data: PathBuf::from("/xd/litany"),
         }
     }
 
@@ -79,9 +79,9 @@ mod tests {
         );
         assert_eq!(
             r,
-            "lernie prime: config root /xc/lernie — models.yaml, workflows/\n\
-             lernie prime: data root /xd/lernie — tools/, skills/, workspaces/\n\
-             lernie prime: harness root founded: 15 files seeded, 0 already present \
+            "litany prime: config root /xc/litany — models.yaml, workflows/\n\
+             litany prime: data root /xd/litany — tools/, skills/, workspaces/\n\
+             litany prime: harness root founded: 15 files seeded, 0 already present \
              and left alone (seed-if-absent, ARCH §2.2)"
         );
     }

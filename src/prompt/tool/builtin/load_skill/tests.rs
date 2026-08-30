@@ -16,12 +16,12 @@ impl EnvLookup for StubEnv {
     }
 }
 
-/// Env with workspace + branch + a `LERNIE_HOME`-collapsed data root.
+/// Env with workspace + branch + a `LITANY_HOME`-collapsed data root.
 fn env(repo: &Path, branch: &str, home: &Path) -> StubEnv {
     let mut m = HashMap::new();
     m.insert(ENV_CONV_REPO, repo.as_os_str().to_owned());
     m.insert(ENV_CONV_BRANCH, OsString::from(branch));
-    m.insert(ENV_LERNIE_HOME, home.as_os_str().to_owned());
+    m.insert(ENV_LITANY_HOME, home.as_os_str().to_owned());
     StubEnv(m)
 }
 
@@ -199,7 +199,7 @@ fn non_utf8_conv_branch_surfaces_missing_env() {
 
 #[test]
 fn unresolvable_data_root_surfaces_root_error() {
-    // Workspace + branch present, but no LERNIE_HOME / XDG / HOME, so the
+    // Workspace + branch present, but no LITANY_HOME / XDG / HOME, so the
     // data-root resolution has nothing to stand on.
     let repo = TempDir::new().unwrap();
     let mut m = HashMap::new();

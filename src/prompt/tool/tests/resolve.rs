@@ -53,9 +53,9 @@ fn falls_through_to_path_when_harness_root_missing() {
     // mutating the live PATH (which races with parallel tests under
     // edition 2024's unsafe set_var).
     let pathdir = TempDir::new().unwrap();
-    let bin = pathdir.path().join("lernie-tool-from-path");
+    let bin = pathdir.path().join("litany-tool-from-path");
     write_script(&bin, "echo found");
-    let hit = which_in_path_env("lernie-tool-from-path", Some(pathdir.path().as_os_str()));
+    let hit = which_in_path_env("litany-tool-from-path", Some(pathdir.path().as_os_str()));
     assert_eq!(hit, Some(bin));
 }
 
@@ -63,17 +63,17 @@ fn falls_through_to_path_when_harness_root_missing() {
 fn path_lookup_skips_dirs_without_the_binary() {
     let a = TempDir::new().unwrap();
     let b = TempDir::new().unwrap();
-    let bin = b.path().join("lernie-tool-second");
+    let bin = b.path().join("litany-tool-second");
     write_script(&bin, "echo b");
     // Concatenate two dirs into a single PATH so split_paths walks both.
     let combined: OsString = std::env::join_paths([a.path(), b.path()]).expect("joinable paths");
-    let hit = which_in_path_env("lernie-tool-second", Some(&combined));
+    let hit = which_in_path_env("litany-tool-second", Some(&combined));
     assert_eq!(hit, Some(bin));
 }
 
 #[test]
 fn path_lookup_returns_none_when_unset() {
-    assert_eq!(which_in_path_env("lernie-tool-x", None), None);
+    assert_eq!(which_in_path_env("litany-tool-x", None), None);
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn the_production_lookup_reads_the_live_path() {
     // so this pins the one production edge — the live-`PATH` read — with
     // a name no install could plausibly carry.
     assert_eq!(
-        EnvPath.which_on_path("lernie-tool-definitely-not-installed"),
+        EnvPath.which_on_path("litany-tool-definitely-not-installed"),
         None
     );
 }
@@ -95,7 +95,7 @@ fn resolves_external_via_path_when_harness_root_misses() {
     // (line 92→93) without mutating the live PATH env.
     let root = HarnessRoot::new();
     let path_dir = TempDir::new().unwrap();
-    let bin = path_dir.path().join("lernie-tool-from-path");
+    let bin = path_dir.path().join("litany-tool-from-path");
     write_script(&bin, "echo hit-via-path");
     let clock = FixedClock::default();
     let step = StepDir::new();
@@ -121,14 +121,14 @@ fn resolves_external_via_path_when_harness_root_misses() {
 fn falls_back_to_the_injected_driver_target_when_external_missing() {
     let root = HarnessRoot::new();
     let scripts = TempDir::new().unwrap();
-    // Pretend `scripts/fake-lernie` is the injected driver target; when
+    // Pretend `scripts/fake-litany` is the injected driver target; when
     // invoked with `tool greet …`, echo the args so the test can confirm
     // the third hop's argv shape.
-    let fake_lernie = scripts.path().join("fake-lernie");
-    write_script(&fake_lernie, r#"echo "$@""#);
+    let fake_litany = scripts.path().join("fake-litany");
+    write_script(&fake_litany, r#"echo "$@""#);
     let clock = FixedClock::default();
     let step = StepDir::new();
-    let exec = SpawnTool::new(root.path(), &clock, &fake_lernie)
+    let exec = SpawnTool::new(root.path(), &clock, &fake_litany)
         .with_path_lookup(Box::new(StaticPath(None)));
     let outcome = exec
         .execute(
@@ -144,7 +144,7 @@ fn falls_back_to_the_injected_driver_target_when_external_missing() {
         .unwrap();
     assert!(!outcome.is_error);
     // The stand-in echoed `tool greet`, confirming the third hop is
-    // built per §3.3 ("addressed as `lernie tool <name>`") against the
+    // built per §3.3 ("addressed as `litany tool <name>`") against the
     // *injected* target — not `current_exe`, which under this test
     // binary (and under a linked host) is a different image entirely.
     assert_eq!(after_header(&outcome.content), b"tool greet\n");

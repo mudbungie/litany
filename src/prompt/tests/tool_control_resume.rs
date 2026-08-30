@@ -1,4 +1,4 @@
-//! The parked-branch lifecycle through `lernie advance` (ARCH §3.3
+//! The parked-branch lifecycle through `litany advance` (ARCH §3.3
 //! *Tool control*): a parked branch queues its mail and resumes by
 //! fresh adjudication — skip, lift, hand off — plus the stale-mark
 //! sweep, the missing-worktree total path, and a stop mid-resume.

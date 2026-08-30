@@ -1,4 +1,4 @@
-# lernie agent-name wordlist — 541 words. TWO are drawn and joined in
+# litany agent-name wordlist — 541 words. TWO are drawn and joined in
 # PascalCase as an agent name (`PeachHollow`) when a creation path omits
 # `name` (ARCH §2.3, bl-79a2). The mint's whole pool is the ordered pairs of
 # distinct words — 541 × 540 = 292,140 names — and that pair space, not this

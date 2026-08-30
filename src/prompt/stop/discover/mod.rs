@@ -1,4 +1,4 @@
-//! Pid discovery for `lernie stop` (Linux `/proc` scan).
+//! Pid discovery for `litany stop` (Linux `/proc` scan).
 //!
 //! Resolves "the harness driving `<agent>`" by the **executor lock**
 //! (ARCH §2.11): it scans `/proc/<pid>/fd/*` symlinks for the absolute
@@ -20,7 +20,7 @@
 //! **A discovered pgid is only trusted once it equals the holder's own
 //! pid** (§2.9 "Discovery trusts a pgid only from a group leader"). Every
 //! driver makes itself a process-group leader at startup — `setpgid(0, 0)`
-//! for `lernie prompt`, `setsid` for a detached `lernie advance` — so a
+//! for `litany prompt`, `setsid` for a detached `litany advance` — so a
 //! settled executor's pgid *is* its pid. Before that lands, `/proc/<pid>/stat`
 //! still reports the group the executor **inherited from whoever spawned
 //! it**: the operator's shell in production, the coverage runner under
@@ -122,9 +122,9 @@ impl ProcFsFinder {
         Err(io::Error::other(format!(
             "pid {pid} holds the agent's inbox lock but reports process group \
              {pgid} instead of its own pid: it is not a group leader, so that \
-             group is one lernie stop does not own (the executor's \
+             group is one litany stop does not own (the executor's \
              setpgid/setsid has not landed, or failed — ARCH §2.9). Refusing to \
-             signal it; re-run `lernie stop` once the executor has settled."
+             signal it; re-run `litany stop` once the executor has settled."
         )))
     }
 }

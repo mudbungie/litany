@@ -36,7 +36,7 @@
 //!   the construction was violated, and staging would commit `<<<<<<<`
 //!   markup into context (§5.2). The whole landing is **declined loudly**:
 //!   the rebase aborts (the branch is restored bit-for-bit),
-//!   `refs/lernie/conflicted/<compactor-id>` marks the compactor's tip,
+//!   `refs/litany/conflicted/<compactor-id>` marks the compactor's tip,
 //!   and the branch continues uncompacted (§2.7).
 //! - **Another compaction landed since `P`** — the point is no longer
 //!   reachable from the branch, or a base sits in the replay span.
@@ -89,7 +89,7 @@ pub enum LandOutcome {
     Superseded,
     /// Git had to write conflict markers during the replay — the landing
     /// is aborted, the branch restored, and
-    /// `refs/lernie/conflicted/<compactor-id>` marked at the compactor's
+    /// `refs/litany/conflicted/<compactor-id>` marked at the compactor's
     /// tip. Carries the offending paths for the operator-facing line.
     Conflicted(Vec<String>),
 }

@@ -1,9 +1,9 @@
-//! Installation-substrate seeding — the `lernie prime` verb (ARCH §2.2).
+//! Installation-substrate seeding — the `litany prime` verb (ARCH §2.2).
 //!
 //! [`prime`] idempotently **founds the harness root**: it resolves the
 //! config root and data root exactly as every other verb does (via
 //! [`crate::harness_root`] — the XDG split, collapsed to one directory by
-//! `LERNIE_HOME`) and lays down what a ready installation carries — the
+//! `LITANY_HOME`) and lays down what a ready installation carries — the
 //! default `models.yaml` (ARCH §4.2), the `tools/` schema pool and the
 //! `skills/` pool (ARCH §3.3), and the empty `workflows/` / `workspaces/`
 //! directories — **creating what is absent and never clobbering what
@@ -13,9 +13,9 @@
 //!
 //! The shipped assets are **embedded in the binary** at build time (the
 //! same `include_dir!` discipline [`crate::template`] uses for the config
-//! template), so the `lernie` binary is self-contained: seeding a fresh
-//! `LERNIE_HOME` never reaches back to the source tree. `make install`
-//! invokes `lernie prime` rather than duplicating the seeding — the verb
+//! template), so the `litany` binary is self-contained: seeding a fresh
+//! `LITANY_HOME` never reaches back to the source tree. `make install`
+//! invokes `litany prime` rather than duplicating the seeding — the verb
 //! is the single source of truth for what a ready installation looks like
 //! (`docs/PRINCIPLES.md`, single source of truth; §3.4 front door).
 
@@ -86,7 +86,7 @@ impl Founding {
 /// Idempotent by construction: directories are `create_dir_all` (a no-op
 /// when present) and every file is written only when absent, so a second
 /// run changes nothing and a hand-edited entry (a curated `models.yaml`,
-/// an edited `SKILL.md`) is never clobbered. Under `LERNIE_HOME` both
+/// an edited `SKILL.md`) is never clobbered. Under `LITANY_HOME` both
 /// roots collapse to one directory and every path below lands there.
 pub fn prime(roots: &Roots) -> Result<Founding, Error> {
     let mut founding = Founding::default();

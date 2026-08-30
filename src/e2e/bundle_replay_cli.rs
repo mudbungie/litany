@@ -1,4 +1,4 @@
-//! End-to-end subprocess tests for `lernie bundle` and `lernie replay`
+//! End-to-end subprocess tests for `litany bundle` and `litany replay`
 //! (ARCH §9.2 *Replay and archival*). These drive the real `git`
 //! transport — bundle create, fetch-from-bundle, worktree materialize —
 //! against a hand-built workspace, so the argument shapes the unit tests
@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
 
-fn lernie_bin() -> std::path::PathBuf {
-    crate::test_support::lernie_binary()
+fn litany_bin() -> std::path::PathBuf {
+    crate::test_support::litany_binary()
 }
 
 const INHERITED_GIT_ENV: &[&str] = &[
@@ -120,14 +120,14 @@ fn workspace() -> TempDir {
 }
 
 fn run(args: &[&str], home: Option<&Path>) -> std::process::Output {
-    let mut cmd = Command::new(lernie_bin());
+    let mut cmd = Command::new(litany_bin());
     for var in INHERITED_GIT_ENV {
         cmd.env_remove(var);
     }
     if let Some(h) = home {
-        cmd.env("LERNIE_HOME", h);
+        cmd.env("LITANY_HOME", h);
     }
-    cmd.args(args).output().expect("lernie")
+    cmd.args(args).output().expect("litany")
 }
 
 #[test]
@@ -271,12 +271,12 @@ fn replay_rejects_missing_bundle() {
 }
 
 /// In-process coverage of `archive::replay_cli` (the lib wiring the bin
-/// delegates to): it resolves the scratch base under `LERNIE_HOME`'s data
-/// root and lands the scratch workspace there. `LERNIE_HOME` is
-/// process-global (§2.2); [`crate::test_support::with_lernie_home`] is
+/// delegates to): it resolves the scratch base under `LITANY_HOME`'s data
+/// root and lands the scratch workspace there. `LITANY_HOME` is
+/// process-global (§2.2); [`crate::test_support::with_litany_home`] is
 /// the one lock-guarded mutation every in-process scratch home shares.
 #[test]
-fn replay_cli_lands_under_lernie_home() {
+fn replay_cli_lands_under_litany_home() {
     let ws = workspace();
     let archive = TempDir::new().unwrap();
     let arch_dir = archive.path().join("arch");
@@ -289,7 +289,7 @@ fn replay_cli_lands_under_lernie_home() {
     .expect("bundle");
 
     let home = TempDir::new().unwrap();
-    let scratch = crate::test_support::with_lernie_home(home.path(), || {
+    let scratch = crate::test_support::with_litany_home(home.path(), || {
         crate::archive::replay_cli(&arch_dir).expect("replay_cli")
     });
 

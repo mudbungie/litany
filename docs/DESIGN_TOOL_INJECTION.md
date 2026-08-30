@@ -24,24 +24,24 @@ yog's client/server split (its `docs/REMOTE.md` §5) needs two things:
    local spawn path, so a conversation can teleoperate another machine's
    advertised tools.
 
-It is **not** an ask for dynamic discovery inside lernie, a second
+It is **not** an ask for dynamic discovery inside litany, a second
 control plane, or a policy exemption. Everything in §4 stays true.
 
 ## 2. Terms
 
 - **Injected tool** — a tool definition a request declares that no
   config named: it is not in the calling role's `providers.yaml` `tools:`
-  grant and has no `descriptions/tools/<name>.json` behind it. lernie
+  grant and has no `descriptions/tools/<name>.json` behind it. litany
   already had exactly one source of these, the compactor's
   `write_summary` / `mark_for_deletion` pair (ARCH §2.7). The term is
-  lernie's own — `src/prompt/dispatch/tools.rs` has called this axis
+  litany's own — `src/prompt/dispatch/tools.rs` has called this axis
   *Injection* since bl-f021.
 - **Procedure injection** — injected tools contributed by the calling
   role's own procedure. The compactor's pair, and only that, today.
 - **Host injection** — injected tools contributed by the **binding**:
   the linked host that called into the command surface. New here.
 - **Host** / **binding** — ARCH §3.4's word: the exec binding is
-  `src/bin/lernie`, a linked binding is a program that links the crate
+  `src/bin/litany`, a linked binding is a program that links the crate
   and drives the same verbs. Only a linked binding can carry an
   injection; the exec binding passes `None`.
 - **Router** — the execution half of a host injection: the function
@@ -96,7 +96,7 @@ grant gate, and `route()` sits on the same object.
 
 **`RoutedCall` is the stdio contract, in memory.** It carries exactly
 what a tool subprocess gets — `tool_use.id`, name and input on stdin
-(ARCH §3.3 *Stdin*), plus the `LERNIE_CONV_REPO` / `LERNIE_CONV_BRANCH`
+(ARCH §3.3 *Stdin*), plus the `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH`
 identity from its environment — and one thing a subprocess gets from the
 kernel instead: the §2.9 cancel flag. `RoutedCapture` is the same three
 facts a subprocess produces. Nothing new is invented on either side,
@@ -136,14 +136,14 @@ already names every `tool_use` block regardless.
 interrupt it — there is no in-process analogue of the SIGTERM cascade —
 so three obligations are stated at the trait and are the host's:
 
-- **Carry your own deadline.** lernie imposes no wall-clock limit on a
+- **Carry your own deadline.** litany imposes no wall-clock limit on a
   tool (ARCH §3.3), and the §6 budgets bound a drive, not a wait. Bound
   every wait and render an expiry as a non-zero `RoutedCapture`.
 - **A vanished endpoint is an in-band error result, never a hang.**
   Unreachable, disconnected, protocol garbage: `exit_code != 0` with the
   reason on `stderr`, exactly what an external tool that cannot reach its
   backend does.
-- **Watch `RoutedCall::stop`**, so a `lernie stop` landing inside a
+- **Watch `RoutedCall::stop`**, so a `litany stop` landing inside a
   routed invocation ends it as promptly as SIGTERM ends a subprocess.
 
 ## 4. Containment
@@ -161,12 +161,12 @@ each with its own schema, and each is granted, adjudicated, declined and
 audited by that name. The seam adds no surface a policy would have to
 chase.
 
-**The set changes only by the binding's explicit act.** lernie never
+**The set changes only by the binding's explicit act.** litany never
 queries anything to discover tools; it reads what the installed object
 states. A host that changes what `tools()` returns has changed the prompt
 prefix and pays the cache rebuild knowingly (ARCH §5.5: "between
 compactions the assembled prompt only grows at the tail, so provider
-prompt caches stay warm"). Nothing in lernie makes the set churn — no
+prompt caches stay warm"). Nothing in litany makes the set churn — no
 poll, no notification receiver, no live catalog — which is the same
 property `DESIGN_MCP_BRIDGE.md` §2 got from pinning, arrived at from the
 other side: there, discovery is frozen at operator time; here, it is
@@ -253,11 +253,11 @@ absent binary does too.
   `parallel` multi-tool envelope the router answers what it owns in list
   order on the calling thread, then the spawned remainder overlaps as
   before. Whether a host's transport is safe to drive concurrently is the
-  host's fact and lernie holds none of it. Results still render in list
+  host's fact and litany holds none of it. Results still render in list
   order, so nothing observable changes.
 - **The seam is per-process, not per-agent.** One injection serves every
   agent a driver verb drives. `RoutedCall` carries the workspace and
-  agent id so a router can discriminate, but lernie will not do it for
+  agent id so a router can discriminate, but litany will not do it for
   them.
 - **No stability promise.** Like the linked binding and the mint seam
   (`src/mint.rs`), this is pin-exact 0.x consumption: no semver

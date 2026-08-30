@@ -7,7 +7,7 @@
 //! **Branch and its descent.** A conversation's spend and wall span its
 //! own `steps/<branch>/` records *and* every descended subagent's
 //! `steps/<branch>-*/` (hyphenated descent, ARCH §2.2) — the same prefix
-//! walk `lernie stop` uses to cascade a stop (§2.9).
+//! walk `litany stop` uses to cascade a stop (§2.9).
 
 use crate::prompt::step::StepMeta;
 use brazen::Event;
@@ -127,7 +127,7 @@ fn step_tokens(step_dir: &Path) -> u64 {
 /// A floor rather than a ceiling on purpose — spend is what was really
 /// consumed, and billing a prompt twice ends a conversation before the
 /// ceiling its operator declared. Collapses back to the plain sum if
-/// brazen ever guarantees disjoint slices (lernie bl-68f5 / brazen
+/// brazen ever guarantees disjoint slices (litany bl-68f5 / brazen
 /// bl-d192). Each `None` field is 0; non-`Usage` events carry no tokens.
 fn usage_tokens(event: Event) -> u64 {
     match event {

@@ -1,6 +1,6 @@
 //! The launched driver's own-branch entry (ARCH §2.11 exit protocol).
 //!
-//! Every launch — a writer's post-deposit probe, the `lernie scan`
+//! Every launch — a writer's post-deposit probe, the `litany scan`
 //! flush, an exiting executor's self-directed launch — spawns a driver
 //! that runs this entry against its target agent. Warrant is decided
 //! here, under the lock, never by the launcher (§2.11): [`drive`]
@@ -9,7 +9,7 @@
 //! **The no-op driver path (§2.11 pin 1).** A driver that acquires and
 //! finds nothing to deliver exits silently — no step, no epitaph — after
 //! honouring the §2.11 **release rule** at its own lease release
-//! ([`release_then_reprobe`], run by the `lernie advance` hop): only a
+//! ([`release_then_reprobe`], run by the `litany advance` hop): only a
 //! deposit its own last inbox read never saw fires a launch, so a
 //! found-nothing drive over a quiet inbox launches nothing and the
 //! exit-launch recursion terminates here, while a deposit racing that
@@ -20,7 +20,7 @@
 //! step 6).
 //!
 //! **Scope note.** The step that *reacts* to delivered mail — "found-mail
-//! → step to a new terminal → exit-launch again" (§2.11) — is `lernie
+//! → step to a new terminal → exit-launch again" (§2.11) — is `litany
 //! advance`'s (§6, [`super::advance`]). This module is the own-branch
 //! delivery entry that verb runs on arrival: `advance` holds its own
 //! lease (adopted or acquired) and calls [`deliver`]; [`drive`] is the
@@ -134,7 +134,7 @@ pub(super) fn release_then_reprobe(
 /// (a test acquires the lease, then runs this). Failures are logged and
 /// swallowed — fire-and-forget, the §2.11 accepted crash class: the
 /// stranding is late, never lost, and the next touch (a reprompt, a
-/// hand-run `lernie scan`) heals it.
+/// hand-run `litany scan`) heals it.
 pub(super) fn reprobe_after_release(
     workspace: &Path,
     agent_id: &str,
@@ -149,7 +149,7 @@ pub(super) fn reprobe_after_release(
             .any(|m| deposit_warrants_launch(&m.path)),
         Err(e) => {
             eprintln!(
-                "lernie: post-release inbox re-read for {agent_id}: {e} \
+                "litany: post-release inbox re-read for {agent_id}: {e} \
                  (accepted crash class, ARCH §2.11)"
             );
             return;
@@ -160,7 +160,7 @@ pub(super) fn reprobe_after_release(
     }
     if let Err(e) = inbox::probe_and_launch(workspace, agent_id, launcher) {
         eprintln!(
-            "lernie: post-release launch for {agent_id}: {e} (accepted crash class, ARCH §2.11)"
+            "litany: post-release launch for {agent_id}: {e} (accepted crash class, ARCH §2.11)"
         );
     }
 }
@@ -169,7 +169,7 @@ pub(super) fn reprobe_after_release(
 /// writer's own launch decision, replayed (§2.11): the release rule
 /// completes the launch the deposit would have gotten had it landed a
 /// millisecond after the release, no more. A plain message's writer
-/// (`lernie message`, `lernie dispatch`, the scan flush) always
+/// (`litany message`, `litany dispatch`, the scan flush) always
 /// launches; a result message's launch is pin 2's one epitaph decision —
 /// `final-response` (the child's own `revive_parent`) and `died` (the
 /// scan flush behind the sweep's deposit) wake the recipient, while

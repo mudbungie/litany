@@ -9,7 +9,7 @@
 //!   block verbatim (`id`, `name`, `input`) plus the calling `role` and
 //!   `agent_id`. Everything else a control wants — the transcript, the
 //!   worktree, an approval file — it reads from disk via the same
-//!   `LERNIE_CONV_REPO` / `LERNIE_CONV_BRANCH` env vars every tool gets.
+//!   `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH` env vars every tool gets.
 //! - **stdout** — one JSON verdict ([`Verdict`]): `{"verdict":"pass"}`,
 //!   `{"verdict":"refuse","reason":…}` or `{"verdict":"hold","reason":…}`.
 //! - **exit 0** — anything else is a control failure, and a control
@@ -47,7 +47,7 @@ pub struct ControlRequest<'a> {
     /// The calling agent's role (§4.3) — scoping by role is the
     /// control's business, not the harness's.
     pub role: &'a str,
-    /// The calling agent's id (== `LERNIE_CONV_BRANCH`).
+    /// The calling agent's id (== `LITANY_CONV_BRANCH`).
     pub agent_id: &'a str,
 }
 
@@ -90,7 +90,7 @@ pub enum ControlError {
 
 /// Spawn `command` per the module contract and parse its verdict.
 /// `conv_repo` is the workspace root — the control's cwd and its
-/// `LERNIE_CONV_REPO`; `stop` is the executor's §2.9 flag, so a stop
+/// `LITANY_CONV_REPO`; `stop` is the executor's §2.9 flag, so a stop
 /// landing mid-consult cascades onto the control like any tool.
 pub fn consult(
     command: &str,

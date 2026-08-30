@@ -53,7 +53,7 @@ pub mod mint;
 pub const NAME_FILE: &str = "name";
 
 /// Why a requested name may not be given to a new agent. Rendered inside
-/// the verb's uniform `lernie <verb>: <error>` failure line (§3.4).
+/// the verb's uniform `litany <verb>: <error>` failure line (§3.4).
 #[derive(Debug, thiserror::Error)]
 pub enum Unavailable {
     /// Not one unbroken word: the same single-path-component rule agent
@@ -78,7 +78,7 @@ pub enum Unavailable {
     /// fact lives — a scan of the `agents/*` refs (§2.3).
     #[error(
         "agent name {name:?} is already worn by agent {holder} in this workspace — a name is \
-         unique among living agents (ARCH §2.3); pick another, or `lernie delete` the holder \
+         unique among living agents (ARCH §2.3); pick another, or `litany delete` the holder \
          to recycle it"
     )]
     Taken { name: String, holder: String },

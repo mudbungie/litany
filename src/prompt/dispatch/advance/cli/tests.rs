@@ -1,4 +1,4 @@
-//! Unit tests for the `lernie advance` production wiring
+//! Unit tests for the `litany advance` production wiring
 //! ([`super`]): the §2.3 existence guard, the lease arms (acquire,
 //! held, adopted, bad fd), the layout guard, and the §6 handoff mapping.
 //! Lifted out of the module to keep it under the 300-line cap.
@@ -15,7 +15,7 @@ fn test_lease(dir: &Path) -> ExecutorLock {
 /// The injected driver target for tests — a bare name; these hops all
 /// error before any spawn/exec would consult it.
 fn td() -> &'static Path {
-    Path::new("lernie")
+    Path::new("litany")
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn a_non_workspace_is_refused_by_the_layout_guard() {
 #[test]
 fn a_name_with_no_agent_ref_is_refused_before_the_lease() {
     // The §2.3 existence guard: no `agents/*` ref, so the hop is
-    // refused in the `lernie message` voice — and, crucially, the
+    // refused in the `litany message` voice — and, crucially, the
     // inbox directory the lease would have created never appears.
     let (_h, ws) = crate::workspace::fixture::workspace();
     let err = cli_run(&ws, "ghost", td(), None, &AtomicBool::new(false), None).unwrap_err();
@@ -167,7 +167,7 @@ fn tools_pending_hands_off_as_a_prepared_exec() {
     let ws = TempDir::new().unwrap();
     let lease = test_lease(&inbox_dir(ws.path(), "20260101-a1"));
     let out = handoff(
-        Path::new("/usr/bin/lernie"),
+        Path::new("/usr/bin/litany"),
         ws.path(),
         "20260101-a1",
         AdvanceOutcome::ToolsPending(lease),
@@ -188,7 +188,7 @@ fn tools_pending_hands_off_as_a_prepared_exec() {
 fn non_tools_outcomes_hand_off_as_done() {
     let ws = TempDir::new().unwrap();
     let out = handoff(
-        Path::new("lernie"),
+        Path::new("litany"),
         ws.path(),
         "20260101-a1",
         AdvanceOutcome::NothingToDo,

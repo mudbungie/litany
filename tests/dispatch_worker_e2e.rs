@@ -1,11 +1,11 @@
-//! End-to-end subprocess test for `lernie dispatch worker`: scaffolds a
+//! End-to-end subprocess test for `litany dispatch worker`: scaffolds a
 //! workspace, fabricates a parent branch + worktree manually, invokes
 //! the CLI, and asserts the reshaped dispatch contract (ARCH §2.5 — fork
 //! plus front door): a child branch `<parent>-<sub-id>` off the parent's
 //! tip carrying the dispatch commit's `goal.md` + `soul.md` (§2.3
 //! step 2), plus a clean exit — the deposit + driver launch succeeded.
 //!
-//! The dispatch now *starts* the child (a detached `lernie advance`, §6),
+//! The dispatch now *starts* the child (a detached `litany advance`, §6),
 //! which runs asynchronously and may advance the child branch past its
 //! dispatch commit. Assertions therefore read only race-free facts: the
 //! dispatch commit is an immutable ancestor of the child branch, and
@@ -18,8 +18,8 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use tempfile::TempDir;
 
-fn lernie_bin() -> &'static str {
-    env!("CARGO_BIN_EXE_lernie")
+fn litany_bin() -> &'static str {
+    env!("CARGO_BIN_EXE_litany")
 }
 
 const INHERITED_GIT_ENV: &[&str] = &[
@@ -61,15 +61,15 @@ fn git_run(dest: &Path, args: &[&str]) {
 }
 
 fn scaffold_repo(dest: &Path, harness: &Path) {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("new")
         .arg(dest)
-        .env("LERNIE_HOME", harness)
+        .env("LITANY_HOME", harness)
         .output()
-        .expect("spawn lernie new");
+        .expect("spawn litany new");
     assert!(
         out.status.success(),
-        "lernie new: {}",
+        "litany new: {}",
         String::from_utf8_lossy(&out.stderr)
     );
 }
@@ -107,18 +107,18 @@ fn dispatch_worker_lands_dispatch_commit_with_goal_and_soul() {
     fabricate_parent(&dest, parent_branch);
 
     let goal_text = "Summarize the parent branch's commits.\n";
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .args(["dispatch", "worker"])
         .arg(&dest)
         .arg(parent_branch)
         .args(["--goal", goal_text])
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .stderr(Stdio::piped())
         .output()
-        .expect("spawn lernie dispatch worker");
+        .expect("spawn litany dispatch worker");
     assert!(
         out.status.success(),
-        "lernie dispatch worker: {}",
+        "litany dispatch worker: {}",
         String::from_utf8_lossy(&out.stderr)
     );
 
@@ -217,14 +217,14 @@ fn dispatch_worker_rejects_missing_goal() {
     scaffold_repo(&dest, &harness);
     fabricate_parent(&dest, "p1");
 
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .args(["dispatch", "worker"])
         .arg(&dest)
         .arg("p1")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .stderr(Stdio::piped())
         .output()
-        .expect("spawn lernie dispatch worker");
+        .expect("spawn litany dispatch worker");
     assert!(!out.status.success(), "expected failure on missing --goal");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
@@ -242,15 +242,15 @@ fn dispatch_compactor_rejects_unexpected_goal() {
     scaffold_repo(&dest, &harness);
     fabricate_parent(&dest, "p1");
 
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .args(["dispatch", "compactor"])
         .arg(&dest)
         .arg("p1")
         .args(["--goal", "no goal allowed for compactor"])
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .stderr(Stdio::piped())
         .output()
-        .expect("spawn lernie dispatch compactor");
+        .expect("spawn litany dispatch compactor");
     assert!(!out.status.success(), "expected failure on stray --goal");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
@@ -273,15 +273,15 @@ fn dispatch_role_absent_from_config_is_refused() {
     scaffold_repo(&dest, &harness);
     fabricate_parent(&dest, "p1");
 
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .args(["dispatch", "verifier"])
         .arg(&dest)
         .arg("p1")
         .args(["--goal", "judge it"])
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .stderr(Stdio::piped())
         .output()
-        .expect("spawn lernie dispatch verifier");
+        .expect("spawn litany dispatch verifier");
     assert!(!out.status.success(), "expected failure on undefined role");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(

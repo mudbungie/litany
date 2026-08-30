@@ -1,11 +1,11 @@
-//! In-crate end-to-end tests that spawn the cargo-built `lernie` binary
+//! In-crate end-to-end tests that spawn the cargo-built `litany` binary
 //! *and* reach into private machinery to build fixtures (authoring a
 //! config commit, driving `RealGit`, bundling/replaying an archive,
 //! holding the executor lock). Migrated in from `tests/` when the library
 //! surface was narrowed to [`crate::cmd`] (§3.4): once those helpers went
 //! private, an external integration test could no longer name them, so
 //! these live in-crate as `#[cfg(test)]` modules. The binary they spawn is
-//! resolved via [`crate::test_support::lernie_binary`].
+//! resolved via [`crate::test_support::litany_binary`].
 //!
 //! Tests that only spawn the binary (no private fixture) stay in `tests/`.
 

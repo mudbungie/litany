@@ -23,7 +23,7 @@ const USER_TAIL: &str = "spawn a subagent to analyze the files under the XDG loc
 const CHILD_GOAL: &str = "Analyze the files under the XDG location and report.\n";
 
 /// A [`Launcher`] that starts nothing: these tests assert on-disk shape,
-/// and a real `lernie advance` would advance the child underneath them.
+/// and a real `litany advance` would advance the child underneath them.
 struct NoopLauncher;
 impl Launcher for NoopLauncher {
     fn launch(&self, _ws: &Path, _agent: &str) -> io::Result<()> {

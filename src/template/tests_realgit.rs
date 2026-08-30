@@ -37,7 +37,7 @@ fn realgit_returns_error_on_nonzero_exit() {
 fn realgit_returns_error_when_binary_missing() {
     let holder = TempDir::new().unwrap();
     let git = RealGit {
-        bin: PathBuf::from("/no/such/lernie-test-git"),
+        bin: PathBuf::from("/no/such/litany-test-git"),
     };
     let err = git.run(holder.path(), &["init"]).unwrap_err();
     assert_eq!(err.kind(), io::ErrorKind::NotFound);

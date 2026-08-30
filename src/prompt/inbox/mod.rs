@@ -5,16 +5,16 @@
 //! This module lands the deposit half of the channel: the executor lock
 //! ([`lock`]), the create-only deposit ([`deposit`]), and the
 //! deposit-starts-a-driver probe ([`probe_and_launch`]) behind the
-//! `lernie message` verb ([`cli_message`]). The delivery drain that moves
+//! `litany message` verb ([`cli_message`]). The delivery drain that moves
 //! these files into the transcript lives with the executor's step loop
 //! (bl-1129, [`crate::prompt::dispatch`] — a driver, not a writer). The
 //! workspace-wide sweep-and-flush behind the **operator verb**
-//! `lernie scan` — crash-rate compensation, never wired into any driver
+//! `litany scan` — crash-rate compensation, never wired into any driver
 //! hot path (§2.11) — is [`scan`] (bl-d148, bl-5846); it, the
 //! result-message return path (bl-4ce8), and the §2.11 exit protocol's
 //! self-directed launch (bl-5846) ride this same substrate.
 //!
-//! **Writer/driver totality (§2.11).** `lernie message` is a *writer*:
+//! **Writer/driver totality (§2.11).** `litany message` is a *writer*:
 //! it deposits and, if it observes the recipient quiescent (the lock
 //! probe succeeds), *launches* a driver and exits — launching is not
 //! driving, so the probe lease is released the instant it is taken and
@@ -71,7 +71,7 @@ pub fn parent_of(agent_id: &str) -> Option<String> {
 }
 
 /// Launches a driver for a quiescent agent — the one launch seam shared
-/// by the writer's post-deposit probe, the `lernie scan` flush, and the
+/// by the writer's post-deposit probe, the `litany scan` flush, and the
 /// exit protocol's self-directed launch (§2.11). Kept as a trait so
 /// every launch decision is testable with the spawn injected, and so the
 /// production launch target can change without touching the callers. No
@@ -86,7 +86,7 @@ pub trait Launcher {
     fn launch(&self, workspace: &Path, agent_id: &str) -> io::Result<()>;
 }
 
-/// The production launcher: detach-spawns `lernie advance <workspace>
+/// The production launcher: detach-spawns `litany advance <workspace>
 /// <agent>` (§6), the workflow-chain driver that takes the lease,
 /// rematerializes the worktree, drains the inbox, and steps (its
 /// own-branch entry is [`crate::prompt::dispatch::driver::drive`]).
@@ -234,7 +234,7 @@ pub enum MessageError {
     UnknownAgent(#[from] crate::workspace::UnknownAgent),
 }
 
-/// The `lernie message <workspace> <agent> <content>` verb (§2.11,
+/// The `litany message <workspace> <agent> <content>` verb (§2.11,
 /// §3.4): deposit, then probe-and-launch. `sender` is resolved by the
 /// caller — [`resolve_cli_sender`] for the bin, the calling agent's id
 /// for the `message` tool — never from model input. Returns the probe
@@ -251,7 +251,7 @@ pub fn cli_message(
     probe_and_launch(workspace, agent_id, launcher).map_err(MessageError::Probe)
 }
 
-/// CLI entry for `lernie message <workspace> <agent> <content>` (§3.4).
+/// CLI entry for `litany message <workspace> <agent> <content>` (§3.4).
 /// Guards the recipient first — the layout (§2.2) and then the agent's
 /// existence ([`crate::workspace::agent_exists`]): §2.11 addresses a
 /// message to an *existing* agent, so a deposit that no drain could ever
@@ -260,7 +260,7 @@ pub fn cli_message(
 /// can advise on a branch whose latest model call failed (§2.10).
 /// Kept in the lib so the bin stays under the 300-line cap and the wiring
 /// is unit-testable — the same discipline as `stop::cli_run`. Resolves
-/// the sender from the live `LERNIE_CONV_BRANCH` ([`resolve_cli_sender`])
+/// the sender from the live `LITANY_CONV_BRANCH` ([`resolve_cli_sender`])
 /// and wires the production clock plus the real [`AdvanceLauncher`]
 /// detached spawn (§2.11) at `driver_target` — the running-binary path
 /// the exec binding injects (`cmd::Fx::driver_target`, §3.4), never
@@ -284,11 +284,11 @@ pub fn cli_run(
     cli_message(workspace, agent, content, &sender, &SystemClock, &launcher)
 }
 
-/// Resolve the deposit sender for a direct `lernie message` invocation
-/// from the `LERNIE_CONV_BRANCH` value (§3.3): the calling agent's id
+/// Resolve the deposit sender for a direct `litany message` invocation
+/// from the `LITANY_CONV_BRANCH` value (§3.3): the calling agent's id
 /// when the harness set it (an agent's `message` tool re-entering the
 /// verb), else [`USER_SENDER`] for a bare user/frontend invocation. An
-/// unset *or empty* value is `user`, mirroring the `LERNIE_HOME`
+/// unset *or empty* value is `user`, mirroring the `LITANY_HOME`
 /// set-and-non-empty discipline (§2.2).
 pub fn resolve_cli_sender(branch_env: Option<&OsStr>) -> String {
     match branch_env {

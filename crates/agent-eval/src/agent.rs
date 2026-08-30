@@ -10,9 +10,9 @@
 //! The agent's own exit code is **not** the pass signal — success is
 //! decided solely by the task `check` (ARCH §9.1). What the agent reports
 //! back is only a [`BundleTarget`] (its workspace path and agent id), so
-//! that a failing run can be archived for triage via the shipped `lernie
+//! that a failing run can be archived for triage via the shipped `litany
 //! bundle` (§9.2, the [`Bundler`] seam). The agent writes those two lines
-//! to the file named by `LERNIE_EVAL_REPORT`; absent or malformed, the
+//! to the file named by `LITANY_EVAL_REPORT`; absent or malformed, the
 //! run is simply un-bundleable, never an error.
 
 use std::ffi::OsString;
@@ -22,17 +22,17 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// One agent invocation: run the `prompt` in `workdir` (shared with the
-/// task's `setup`/`check`), under an isolated `lernie_home`, configured by
+/// task's `setup`/`check`), under an isolated `litany_home`, configured by
 /// `experiment` (a `workflow.yaml`).
 pub struct Dispatch<'a> {
     pub prompt: &'a str,
     pub workdir: &'a Path,
-    pub lernie_home: &'a Path,
+    pub litany_home: &'a Path,
     pub experiment: &'a Path,
 }
 
 /// Where a run's work landed, for archival (ARCH §9.2): the workspace and
-/// the agent id `lernie bundle` needs.
+/// the agent id `litany bundle` needs.
 #[derive(Clone, Debug, PartialEq)]
 pub struct BundleTarget {
     pub workspace: PathBuf,
@@ -61,13 +61,13 @@ pub trait Bundler {
 
 /// Production [`Agent`]: invoke an external harness-driver program with
 /// the prompt on argv, `workdir` as the working directory, and
-/// `LERNIE_HOME` / `LERNIE_EXPERIMENT` / `LERNIE_EVAL_REPORT` in the env.
+/// `LITANY_HOME` / `LITANY_EXPERIMENT` / `LITANY_EVAL_REPORT` in the env.
 ///
-/// `LERNIE_EXPERIMENT` is a hand-off, not a hook: the harness reads no
+/// `LITANY_EXPERIMENT` is a hand-off, not a hook: the harness reads no
 /// such variable — it takes its `workflow.yaml` from the workspace's
 /// config commit (ARCH §2.2) — so *applying* the experiment is the
-/// driver's own work, which the shipped `lernie-eval-agent` performs
-/// through `lernie config`. The contract is spelled out in the repo
+/// driver's own work, which the shipped `litany-eval-agent` performs
+/// through `litany config`. The contract is spelled out in the repo
 /// README, "Run the suite".
 pub struct CommandAgent {
     program: OsString,
@@ -83,19 +83,19 @@ impl CommandAgent {
 
 impl Agent for CommandAgent {
     fn dispatch(&self, d: &Dispatch) -> io::Result<AgentOutcome> {
-        let report = d.lernie_home.join("agent-report");
+        let report = d.litany_home.join("agent-report");
         // The agent's exit status is deliberately ignored: the pass
         // signal is the task `check`, never the agent's own claim (§9.1).
         Command::new(&self.program)
             .arg(d.prompt)
             .current_dir(d.workdir)
-            .env("LERNIE_HOME", d.lernie_home)
-            .env("LERNIE_EXPERIMENT", d.experiment)
-            .env("LERNIE_EVAL_REPORT", &report)
+            .env("LITANY_HOME", d.litany_home)
+            .env("LITANY_EXPERIMENT", d.experiment)
+            .env("LITANY_EVAL_REPORT", &report)
             .status()
             // Failing to spawn is a harness fault, and the one thing the
             // operator needs to see is *which* program did not run —
-            // e.g. the shipped `lernie-eval-agent` before `make install`
+            // e.g. the shipped `litany-eval-agent` before `make install`
             // has put it on PATH.
             .map_err(|e| {
                 io::Error::new(
@@ -126,7 +126,7 @@ fn read_target(path: &Path) -> Option<BundleTarget> {
     })
 }
 
-/// Production [`Bundler`]: `lernie bundle <workspace> <agent> <dest>`.
+/// Production [`Bundler`]: `litany bundle <workspace> <agent> <dest>`.
 pub struct CommandBundler {
     program: OsString,
 }
@@ -150,7 +150,7 @@ impl Bundler for CommandBundler {
         if status.success() {
             Ok(())
         } else {
-            Err(io::Error::other(format!("lernie bundle exited {status}")))
+            Err(io::Error::other(format!("litany bundle exited {status}")))
         }
     }
 }

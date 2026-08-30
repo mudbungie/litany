@@ -1,17 +1,17 @@
 //! The one interactive sliver of the exec binding that lives at the
-//! coverage-exempt bin seam (ARCH §3.4): the `lernie config` `$EDITOR`
-//! hand-off, injected as [`lernie::cmd::Fx::editor`]. A real interactive
+//! coverage-exempt bin seam (ARCH §3.4): the `litany config` `$EDITOR`
+//! hand-off, injected as [`litany::cmd::Fx::editor`]. A real interactive
 //! `$EDITOR` session cannot be driven from a test; the decline path can,
 //! and is (below) — origin resolution and the commit are covered where
 //! they actually live, in the crate's private `template::authoring`
-//! machinery. The `lernie advance` successor `exec` is no longer a
-//! bespoke handler: it rides the generic [`lernie::cmd::Outcome::Exec`]
+//! machinery. The `litany advance` successor `exec` is no longer a
+//! bespoke handler: it rides the generic [`litany::cmd::Outcome::Exec`]
 //! the binding performs in `main`.
 
 use std::io;
 use std::path::Path;
 
-/// The `lernie config` `$EDITOR` hand-off (ARCH §2.2, §3.4): open the
+/// The `litany config` `$EDITOR` hand-off (ARCH §2.2, §3.4): open the
 /// authoring checkout so the user edits the control files, treating a
 /// non-zero editor exit as a failed edit. `$EDITOR` may carry arguments,
 /// so it runs through `sh -c`.

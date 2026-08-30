@@ -15,7 +15,7 @@ use tempfile::TempDir;
 /// re-entering the test binary — which is exactly what threading the
 /// target instead of `current_exe` bought.
 pub(super) fn driver_target() -> &'static Path {
-    Path::new("lernie")
+    Path::new("litany")
 }
 
 /// The bytes a §3.3 *result envelope* carries after its `Exit code: N`
@@ -54,7 +54,7 @@ impl Clock for FixedClock {
 /// Harness root containing a `tools/` subdir; the [`TempDir`] is held
 /// so its lifetime spans the whole test. Tests interact with it
 /// through [`Self::install`] which drops a script into
-/// `tools/lernie-tool-<name>`.
+/// `tools/litany-tool-<name>`.
 pub(super) struct HarnessRoot {
     pub(super) dir: TempDir,
 }
@@ -71,7 +71,7 @@ impl HarnessRoot {
     }
 
     /// Drop a chmod-+x shell script under
-    /// `<root>/tools/lernie-tool-<name>` and return its absolute path.
+    /// `<root>/tools/litany-tool-<name>` and return its absolute path.
     pub(super) fn install(&self, name: &str, body: &str) -> PathBuf {
         let path = self.dir.path().join(super::super::TOOLS_DIR).join(format!(
             "{}{}",

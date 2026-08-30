@@ -1,6 +1,18 @@
-# lernie
+# litany
 
-[![Release-plz](https://github.com/mudbungie/lernie/actions/workflows/release-plz.yml/badge.svg?branch=main)](https://github.com/mudbungie/lernie/actions/workflows/release-plz.yml)
+[![Release-plz](https://github.com/mudbungie/litany/actions/workflows/release-plz.yml/badge.svg?branch=main)](https://github.com/mudbungie/litany/actions/workflows/release-plz.yml)
+
+> **This crate was published as `lernie` through 0.0.x.** It is the same
+> agent-loop engine, renamed. The `lernie` name did not retire — it passes to a
+> sibling component, the **seat** (the window and its client face), at a
+> **version fence**: the engine's line under the name `lernie` ends at 0.0.x,
+> and a `lernie` release numbered **0.1.0 or above is the seat, not this
+> engine**. That fence is the only rule that separates the two eras of the name
+> on crates.io. If you are upgrading from `lernie` 0.0.x, read the migration in
+> [`docs/DESIGN_ENGINE_RENAME.md`](docs/DESIGN_ENGINE_RENAME.md) §2.6 —
+> `LERNIE_HOME` becomes `LITANY_HOME`, the XDG harness roots move from
+> `.../lernie` to `.../litany`, and the in-workspace mark namespace moves from
+> `refs/lernie/*` to `refs/litany/*`.
 
 A git-backed agent harness. Design spec: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Principles catalog: [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md).
@@ -11,20 +23,20 @@ CI runs `make ci` (`fmt-check` + `lint` + `coverage` with the 100% gate + `test-
 
 ## One command surface, two bindings
 
-lernie is defined once as a **command surface** — the set of verbs, their arguments, and their products (ARCH §3.4). It is consumable two ways, and both are the *same* control plane:
+litany is defined once as a **command surface** — the set of verbs, their arguments, and their products (ARCH §3.4). It is consumable two ways, and both are the *same* control plane:
 
-- **Exec binding** — run the `lernie` binary: `exec("lernie", args)` with env-var auth. This is what the CLI and every frontend use.
-- **Linked binding** — depend on the `lernie` crate and drive the same verb entries in-process. The crate's entire public API is `lernie::cmd` (the `Cli`/`Command` clap surface, one `run` entry per verb, the `Fx`/`Outcome`/`Error` binding seam, and the `prelude` binding preludes). The linked binding is **pin-exact 0.x only** — no semver stability, the posture brazen takes toward lernie.
+- **Exec binding** — run the `litany` binary: `exec("litany", args)` with env-var auth. This is what the CLI and every frontend use.
+- **Linked binding** — depend on the `litany` crate and drive the same verb entries in-process. The crate's entire public API is `litany::cmd` (the `Cli`/`Command` clap surface, one `run` entry per verb, the `Fx`/`Outcome`/`Error` binding seam, and the `prelude` binding preludes). The linked binding is **pin-exact 0.x only** — no semver stability, the posture brazen takes toward litany.
 
 Parity between the two is enforced mechanically, not by convention. `tests/command_surface_parity/` asserts the bijection at three depths: it pairs each verb's `Command` variant with its module's entry *as function values*, so the compiler — not an assertion — proves the two share one argument type and one product type; it walks the crate's whole module graph (via `syn`) and asserts that every externally reachable declaration (item, field, enum variant, method, derive, trait impl) is exactly a verb's entry, its arguments, its products, or the binding preludes, with every `src/**/*.rs` proven reachable so nothing can hide in a file the walk never opened; and it asserts, per verb, that the CLI's introspected argument set (via clap) is exactly that verb's public `Args` fields — same names, same arity, same named-vs-positional form. It rides `make check` (hence the pre-commit hook and GitHub Actions), so a divergence between the linked surface and the CLI fails the build.
 
 ## Quickstart
 
 ```
-cargo install lernie --locked                    # or: make install, from a clone
+cargo install litany --locked                    # or: make install, from a clone
 cargo install brazen --version =0.0.6 --locked   # the provider adapter, always needed
-lernie new ~/work/chat    # create a workspace (bare repo.git + config/default)
-ANTHROPIC_API_KEY=... lernie prompt ~/work/chat 'hello'
+litany new ~/work/chat    # create a workspace (bare repo.git + config/default)
+ANTHROPIC_API_KEY=... litany prompt ~/work/chat 'hello'
 ```
 
 Three install routes, not one — see **[Install](#install)** for what each
@@ -36,35 +48,35 @@ There are three routes, and they do not lay down the same things. All
 three need a second binary — the provider adapter `bz` — which only the
 Makefile route installs for you.
 
-| | `cargo install lernie` | release tarball | `make install` |
+| | `cargo install litany` | release tarball | `make install` |
 |---|---|---|---|
-| binaries | `lernie` | `lernie` | `lernie`, `agent-eval`, `lernie-eval-agent` |
+| binaries | `litany` | `litany` | `litany`, `agent-eval`, `litany-eval-agent` |
 | installs `bz` | no | no | yes, at the pin |
-| runs `lernie prime` | no | no | yes |
+| runs `litany prime` | no | no | yes |
 | lands where | cargo's bin dir | wherever you unpack it | `$INSTALL_PREFIX/bin` |
 
 ### From crates.io
 
 ```
-cargo install lernie --locked
+cargo install litany --locked
 cargo install brazen --version =0.0.6 --locked   # the pinned provider adapter
-lernie prime                                     # found the harness root
+litany prime                                     # found the harness root
 ```
 
-You get the `lernie` binary alone, in cargo's bin directory
+You get the `litany` binary alone, in cargo's bin directory
 (`~/.cargo/bin` unless `--root`/`CARGO_INSTALL_ROOT` says otherwise) —
-no `agent-eval`, no `lernie-eval-agent`, no `bz`, and nothing runs after
-the build. The `lernie prime` line is optional but explicit: `prime`
-founds the harness root (below), and `lernie new` founds it too on its
+no `agent-eval`, no `litany-eval-agent`, no `bz`, and nothing runs after
+the build. The `litany prime` line is optional but explicit: `prime`
+founds the harness root (below), and `litany new` founds it too on its
 way to creating a workspace, so a user who skips `prime` is not stranded
 — only uninformed about where their state went. Running it is how you
 find out, because it says what it founded:
 
 ```
-$ lernie prime
-lernie prime: config root /home/u/.config/lernie — models.yaml, workflows/
-lernie prime: data root /home/u/.local/share/lernie — tools/, skills/, workspaces/
-lernie prime: harness root founded: 15 files seeded, 0 already present and left alone (seed-if-absent, ARCH §2.2)
+$ litany prime
+litany prime: config root /home/u/.config/litany — models.yaml, workflows/
+litany prime: data root /home/u/.local/share/litany — tools/, skills/, workspaces/
+litany prime: harness root founded: 15 files seeded, 0 already present and left alone (seed-if-absent, ARCH §2.2)
 ```
 
 That report is on **stderr** — `prime` has no stdout product (ARCH §3.4)
@@ -74,9 +86,9 @@ already-founded root from a fresh one.
 
 ### From a GitHub release
 
-Each `v*` release carries `lernie-x86_64-unknown-linux-gnu.tar.gz`: the
-`lernie` binary, this README, and the license. Unpack it, put `lernie`
-on your `PATH`, then run the `cargo install brazen` and `lernie prime`
+Each `v*` release carries `litany-x86_64-unknown-linux-gnu.tar.gz`: the
+`litany` binary, this README, and the license. Unpack it, put `litany`
+on your `PATH`, then run the `cargo install brazen` and `litany prime`
 lines above — the tarball ships no adapter and runs nothing.
 
 ### From a clone, with make
@@ -84,12 +96,12 @@ lines above — the tarball ships no adapter and runs nothing.
 ```
 make install                                  # default: ~/.local/bin, XDG homes
 make install INSTALL_PREFIX=/usr/local        # binaries -> /usr/local/bin/
-make install LERNIE_HOME=/opt/lernie          # collapse both homes -> /opt/lernie/
+make install LITANY_HOME=/opt/litany          # collapse both homes -> /opt/litany/
 ```
 
 `make install` runs a release build and then:
 
-1. Installs `lernie`, `agent-eval`, and `lernie-eval-agent` into
+1. Installs `litany`, `agent-eval`, and `litany-eval-agent` into
    `$INSTALL_PREFIX/bin` with `install -m 0755` (atomic overwrite, no
    symlinks). Make sure that directory is on your `PATH`.
 2. Installs the provider adapter — brazen's `bz` — with
@@ -99,10 +111,10 @@ make install LERNIE_HOME=/opt/lernie          # collapse both homes -> /opt/lern
    One binary serves every provider
    (ARCH §4.4); the harness resolves `bz` on `PATH`, and a load-time
    guard rejects any `bz` whose version differs from the pin.
-3. **Founds the harness root by invoking `lernie prime`** — the single
+3. **Founds the harness root by invoking `litany prime`** — the single
    verb that seeds the installation substrate (ARCH §2.2), so the
    Makefile no longer duplicates the seeding. `prime` resolves the roots
-   (XDG split, collapsed by `LERNIE_HOME`) and lays down the default
+   (XDG split, collapsed by `LITANY_HOME`) and lays down the default
    `models.yaml` under the **config root** (mechanism only: the optional
    `adapter:` override — no models, endpoints, or auth), the `tools/` and
    `skills/` pools and the `workspaces/` tree under the **data root**,
@@ -110,12 +122,12 @@ make install LERNIE_HOME=/opt/lernie          # collapse both homes -> /opt/lern
    throughout**: a second run changes nothing, and a hand-edited
    `models.yaml` (or any operator-added pool entry) survives a re-install.
    The shipped assets are embedded in the binary, so `prime` needs no
-   source tree — `LERNIE_HOME=<dir> lernie prime` seeds any fresh home.
+   source tree — `LITANY_HOME=<dir> litany prime` seeds any fresh home.
    There is no frozen profile pool: the config a workspace runs under is
    its own `config/default` commit, authored from
-   [`template/`](template/) at `lernie new` (fork is the freeze, ARCH §2.2).
-4. Smoke-tests the freshly installed binaries with `lernie --version`
-   and a throwaway `lernie new`. Failure aborts the install with a
+   [`template/`](template/) at `litany new` (fork is the freeze, ARCH §2.2).
+4. Smoke-tests the freshly installed binaries with `litany --version`
+   and a throwaway `litany new`. Failure aborts the install with a
    non-zero exit.
 
 Its closing banner prints what the other two routes leave you to find
@@ -125,7 +137,7 @@ below.
 ### The adapter is a second binary
 
 Nothing prompts without `bz`. It is brazen's one stateless binary for
-every provider (ARCH §4.4), it is **pinned exactly**, and lernie refuses
+every provider (ARCH §4.4), it is **pinned exactly**, and litany refuses
 a `bz` at any other version rather than downgrading silently:
 
 ```
@@ -133,10 +145,10 @@ cargo install brazen --version =0.0.6 --locked
 ```
 
 The pin is not folklore you have to read this file for — the installed
-binary carries it: `lernie --version` prints the linked pin beside its
-own version, `lernie <version> (brazen 0.0.6)`. Its one home is the
+binary carries it: `litany --version` prints the linked pin beside its
+own version, `litany <version> (brazen 0.0.6)`. Its one home is the
 `brazen = "=<pin>"` line in `Cargo.toml`;
-the Makefile's `BRAZEN_PIN`, the load-time guard, `lernie --version`,
+the Makefile's `BRAZEN_PIN`, the load-time guard, `litany --version`,
 and every pin printed in this file all derive from that line (a test
 holds them equal). With no `bz` at all, the first verb that drives a
 model call says so and hands you the command above.
@@ -144,20 +156,20 @@ model call says so and hands you the command above.
 Provider endpoints, auth, and wire dialects live entirely in brazen's
 own config (`~/.config/brazen/config.toml`; inspect with
 `bz --dump-config`, authenticate with `bz --login --provider <id>`).
-lernie references a provider *row* by name and never sees credential
+litany references a provider *row* by name and never sees credential
 material (ARCH §4.1).
 
 ### Where the state goes
 
 The harness root is the installation-global substrate (ARCH §2.2), split
-by XDG lifetime: `$XDG_CONFIG_HOME/lernie` (hand-edited declarations —
-`models.yaml`, `workflows/`) and `$XDG_DATA_HOME/lernie` (machine-
-populated pools and the `workspaces/` tree). `LERNIE_HOME=<dir>`
+by XDG lifetime: `$XDG_CONFIG_HOME/litany` (hand-edited declarations —
+`models.yaml`, `workflows/`) and `$XDG_DATA_HOME/litany` (machine-
+populated pools and the `workspaces/` tree). `LITANY_HOME=<dir>`
 collapses both to one directory, at install time and at runtime alike.
-`lernie prime` founds it, seed-if-absent throughout, so running it again
+`litany prime` founds it, seed-if-absent throughout, so running it again
 — or after an upgrade — never clobbers a hand edit. Only `make install`
 runs `prime` for you; on the other two routes it is your first command,
-or `lernie new`'s side effect.
+or `litany new`'s side effect.
 
 `make uninstall` removes the three installed binaries; `bz`
 (installed via cargo) is removed with `cargo uninstall brazen`. The
@@ -188,19 +200,19 @@ to run.
 ## Layout: harness root and workspaces
 
 The harness root is installation-global state, split by XDG lifetime
-into two homes (ARCH §2.2). `LERNIE_HOME`, if set and non-empty,
+into two homes (ARCH §2.2). `LITANY_HOME`, if set and non-empty,
 collapses both to that one directory (test isolation, alternate
 installs). Three distinct on-disk locations:
 
-- **Config root** — hand-edited declarations, `$XDG_CONFIG_HOME/lernie`
-  (default `~/.config/lernie`). Holds the global
+- **Config root** — hand-edited declarations, `$XDG_CONFIG_HOME/litany`
+  (default `~/.config/litany`). Holds the global
   [`models.yaml`](docs/ARCHITECTURE.md#42-model-abstraction) (the
   optional `adapter:` binary override — §4.2; no model policy) and the
   `workflows/` templates. Provider endpoints and auth live in brazen's
   config, not here (§4.1); each role's model is named in a repo's
   `providers.yaml` (§4.3).
-- **Data root** — machine-populated pools, `$XDG_DATA_HOME/lernie`
-  (default `~/.local/share/lernie`). Holds the `tools/` and `skills/`
+- **Data root** — machine-populated pools, `$XDG_DATA_HOME/litany`
+  (default `~/.local/share/litany`). Holds the `tools/` and `skills/`
   pools plus the `workspaces/` tree. Shared across every workspace.
 - **Workspace** — one git repository per workspace, at
   `<data-root>/workspaces/<workspace>/` (ARCH §2.2): a bare `repo.git`
@@ -214,13 +226,13 @@ installs). Three distinct on-disk locations:
   `inbox/` sit at the workspace root, outside every worktree.
   Workspace repositories are never pushed to a remote.
 
-`lernie new` creates a workspace and authors its **first config commit**
+`litany new` creates a workspace and authors its **first config commit**
 — an orphan root on `config/default` — from [`template/`](template/),
-the versioned skeleton embedded into the `lernie` binary at build time:
+the versioned skeleton embedded into the `litany` binary at build time:
 
 ```
-lernie new                     # auto-id under <data-root>/workspaces/
-lernie new /path/to/my-workspace
+litany new                     # auto-id under <data-root>/workspaces/
+litany new /path/to/my-workspace
 ```
 
 Or via the Makefile wrapper:
@@ -230,7 +242,7 @@ make new-workspace DEST=/path/to/my-workspace
 ```
 
 The binary **founds the harness root first** — it runs the same
-seed-if-absent routine `lernie prime` is (ARCH §2.2), so a data root
+seed-if-absent routine `litany prime` is (ARCH §2.2), so a data root
 nobody primed gains the `tools/` and `skills/` pools before they are
 read, and a primed install is untouched (nothing is clobbered, no flag
 is involved). That is what keeps the next step honest: the pools are an
@@ -255,31 +267,31 @@ context).
 **Pre-v1 clean break (ARCH §10):** the retired per-conversation layout
 (a `root/` worktree with loose control files) is refused with an
 actionable error, not migrated — create a fresh workspace with
-`lernie new`.
+`litany new`.
 
-**First-run smoke test (required).** `lernie new` authors the default
+**First-run smoke test (required).** `litany new` authors the default
 `providers.yaml` with a concrete model id, but validates it against
-nothing — id validity is brazen's fact, and lernie runs no model-list
+nothing — id validity is brazen's fact, and litany runs no model-list
 reconciliation (ARCH §4.2, the settled stance). A wrong id surfaces only
 at the first live model call. The required next step after creating a
-workspace is therefore a live `lernie prompt` (see the quick start
+workspace is therefore a live `litany prompt` (see the quick start
 above): it is the cheapest — and, by that stance, only — check that the
 authored id actually resolves on the wire.
 
 `make smoke` automates exactly this:
 
 ```
-make smoke     # scaffold a throwaway workspace + one live 'lernie prompt'
+make smoke     # scaffold a throwaway workspace + one live 'litany prompt'
 ```
 
-It founds a throwaway harness root with `lernie prime` — from the assets
+It founds a throwaway harness root with `litany prime` — from the assets
 **embedded in the binary**, the same front door `make install` uses, so
 the shipped install path is exercised too — scaffolds a workspace with
-`lernie new`, then runs one live `lernie prompt` against the **shipped
+`litany new`, then runs one live `litany prompt` against the **shipped
 defaults** — worker role, provider `anthropic`, model `claude-sonnet-5` —
 through the real `bz` data plane.
 The verdict is read from **observable state, never the agent's own
-claim**: the `lernie prompt` exit code is 0, the agent ref
+claim**: the `litany prompt` exit code is 0, the agent ref
 (`agents/<id>`) carries a committed transcript entry, and the off-worktree
 step record (`steps/<id>/001/`) holds a response with **no wire error and
 real assistant text**. That last pair is the point: an auth-failed run
@@ -305,7 +317,7 @@ make smoke SMOKE_PROVIDER=codex SMOKE_MODEL=gpt-5.4
 The override is laid into the throwaway config root through the same front
 door a real install uses — a `providers.yaml` override under
 `<config-root>/template/` (the config-root override; the role assignment
-is the whole model binding, ARCH §4.2/§4.3) — so there is no new `lernie`
+is the whole model binding, ARCH §4.2/§4.3) — so there is no new `litany`
 flag or verb. Local
 `ollama` (bz's `local` provider row) needs no credential, only a model
 that is actually pulled and served; the credential note above applies to
@@ -319,7 +331,7 @@ content"}`. So the local recipe validates the **tool-free path only** —
 one model call, assistant text, a committed transcript entry. It cannot
 exercise a tool step, a compactor (whose whole toolset is
 `write_summary`/`mark_for_deletion`), or any multi-step loop that runs a
-tool. This is a brazen-side gap in that provider row, not a lernie one,
+tool. This is a brazen-side gap in that provider row, not a litany one,
 and is filed there as brazen `bl-fba7`; to smoke a tool-using path,
 point `SMOKE_PROVIDER`/`SMOKE_MODEL` at a row whose protocol carries
 tool results.
@@ -332,15 +344,15 @@ runs only on demand.
 
 ## Authoring config commits
 
-`lernie new` authors a workspace's *first* config commit. Every later
+`litany new` authors a workspace's *first* config commit. Every later
 one — the general harness-assisted user act of ARCH §2.2 — is
-`lernie config`:
+`litany config`:
 
 ```
-lernie config <workspace>                       # advance config/default
-lernie config <workspace> <name>                # advance config/<name>
-lernie config <workspace> <name> --from <src>   # fork config/<name> off config/<src>
-lernie config <workspace> <name> --orphan       # fresh orphan lineage
+litany config <workspace>                       # advance config/default
+litany config <workspace> <name>                # advance config/<name>
+litany config <workspace> <name> --from <src>   # fork config/<name> off config/<src>
+litany config <workspace> <name> --orphan       # fresh orphan lineage
 ```
 
 The verb materializes a transient checkout of the target config lineage,
@@ -354,13 +366,13 @@ the workspace does not have is resolved *before* the checkout is
 materialized, and declined by name:
 
 ```
-lernie config: no config lineage "nosuch" in this workspace — existing lineages: default, strict
+litany config: no config lineage "nosuch" in this workspace — existing lineages: default, strict
 ```
 
 **Declining is fine, and leaves nothing behind.** Save no change and the
 pass is *declined*: there is nothing to commit, so no commit is authored,
 the branch does not move, and a `--from` / `--orphan` branch the pass
-would have created is not left behind. That is a success — `lernie
+would have created is not left behind. That is a success — `litany
 config` exits 0 and prints the one line
 
 ```
@@ -369,7 +381,7 @@ config/default unchanged: the edit changed nothing, so no config commit was auth
 
 so empty stdout means a commit landed. The transient checkout is torn
 down on every exit path (a decline, a git decline, an editor that fails),
-so the next `lernie config` always runs. Only a hard kill mid-pass can
+so the next `litany config` always runs. Only a hard kill mid-pass can
 leave the checkout behind, and the next pass clears it before starting
 (ARCH §2.11 "the next touch heals") — at the cost of the killed pass's
 unsaved edit, which was never committed.
@@ -378,25 +390,25 @@ This is the **only** act that advances a config branch (ARCH §2.3);
 agents forked before it keep their governing config, and agents forked
 after it govern under the new head (fork is the freeze, §2.2).
 
-A lineage you author this way is **startable by name**: `lernie prompt
+A lineage you author this way is **startable by name**: `litany prompt
 <ws> '<message>' --config <name>` forks the root off `config/<name>`'s
 head instead of `config/default`'s, and the agent is governed by that
 lineage (§2.2). A lineage the workspace does not have is declined by
 name, with the pool that does exist.
 
-## Moving a running agent onto a new config: `lernie retarget`
+## Moving a running agent onto a new config: `litany retarget`
 
 Fork is the freeze, so the config edit you just authored governs nothing
 an already-running agent does. That is deliberate — but it left no exit
 at all, so fixing an expired model id on a live conversation meant
-throwing the conversation away. `lernie retarget` is the exit:
+throwing the conversation away. `litany retarget` is the exit:
 
 ```
-lernie retarget <workspace> <agent>                 # onto config/default's head
-lernie retarget <workspace> <agent> --config strict # onto config/strict's head
+litany retarget <workspace> <agent>                 # onto config/default's head
+litany retarget <workspace> <agent> --config strict # onto config/strict's head
 ```
 
-It writes one ref, `refs/lernie/retarget/<agent-id>`, at the target
+It writes one ref, `refs/litany/retarget/<agent-id>`, at the target
 config commit — and nothing else. **The agent's own executor lands it**
 at its next step (ARCH §2.2, §2.3: no branch ever gains a second
 writer), by re-forking the branch off that commit and replaying the
@@ -405,13 +417,13 @@ landing uses. Afterwards the ordinary ancestry query answers the new
 config, with no new stored fact anywhere.
 
 ```
-lernie: [20260101-a1] marked for retarget onto a06b090c1d2e (config/default); it lands at the agent's next step (ARCH §2.2)
+litany: [20260101-a1] marked for retarget onto a06b090c1d2e (config/default); it lands at the agent's next step (ARCH §2.2)
 ```
 
 Three things worth knowing:
 
 - **It takes effect at the next step, never mid-step.** A config governs
-  steps. In practice you follow a retarget with `lernie message`, which
+  steps. In practice you follow a retarget with `litany message`, which
   *is* that next step.
 - **A target that already governs the agent is a clean no-op** — the verb
   says so and writes nothing.
@@ -429,12 +441,12 @@ products — are untouched.
 ## Sending a prompt
 
 ```
-lernie prompt /path/to/my-conversation 'hello'
-lernie prompt /path/to/my-conversation 'hello' --name pale-otter
-lernie prompt /path/to/my-conversation 'hello' --config strict
-lernie prompt /path/to/my-conversation 'try again' --from <ref>
-lernie prompt /path/to/my-conversation 'hello' --pin AGENTS.md=./AGENTS.md
-lernie prompt /path/to/my-conversation 'survey it' --cwd /path/to/some/checkout
+litany prompt /path/to/my-conversation 'hello'
+litany prompt /path/to/my-conversation 'hello' --name pale-otter
+litany prompt /path/to/my-conversation 'hello' --config strict
+litany prompt /path/to/my-conversation 'try again' --from <ref>
+litany prompt /path/to/my-conversation 'hello' --pin AGENTS.md=./AGENTS.md
+litany prompt /path/to/my-conversation 'survey it' --cwd /path/to/some/checkout
 ```
 
 `--pin <dest>=<src>` (repeatable) freezes `<src>`'s exact bytes at
@@ -451,7 +463,7 @@ harness-owned name (`goal.md`, `soul.md`, `name`, the control files,
 the dispatch commit (`git show agents/<id>:<dest>` is the provenance),
 descendants inherit them by ordinary fork, and whether one composes
 into assembled context is the governing manifest's §5.2 question — name
-a destination its globs see. `lernie dispatch` takes the identical
+a destination its globs see. `litany dispatch` takes the identical
 flag.
 
 `--cwd <path>` starts the agent working in a directory you name instead
@@ -463,10 +475,10 @@ ref exists, in the verb's own voice. Two things worth knowing: nothing
 outside the worktree is committed, so work an agent does in a foreign
 directory is real but off its branch (the same boundary `cd` has); and
 **nothing is inherited** — a child of a `--cwd` agent is back in its own
-worktree unless its own dispatch names a directory. `lernie dispatch`
+worktree unless its own dispatch names a directory. `litany dispatch`
 takes the identical flag; the model-facing `dispatch` *tool* does not.
 
-`lernie prompt` is the root-agent path (ARCH §2.3, §2.6, §2.7,
+`litany prompt` is the root-agent path (ARCH §2.3, §2.6, §2.7,
 §2.8, §2.10). Each invocation spawns its own `agents/<conv-id>` branch
 off the ref the start names (§2.2–§2.3 — there is no `main`),
 drives each step's model call through brazen's `bz` (§4.4), and steps
@@ -477,7 +489,7 @@ branch with no configured trigger never compacts. Merge-back is gone
 returns by depositing a result message at the address its epitaph names
 (§2.6):
 
-1. Resolve the harness root (`LERNIE_HOME`, else XDG homes, ARCH
+1. Resolve the harness root (`LITANY_HOME`, else XDG homes, ARCH
    §2.2) and guard the workspace layout (a non-workspace, or the
    retired per-conversation layout, is refused — §2.2, §10). Load
    `<config-root>/models.yaml` (the optional `adapter:` override —
@@ -490,7 +502,7 @@ returns by depositing a result message at the address its epitaph names
    never stored) of the ref in hand. A fresh root asks it of the ref it
    is about to fork off — for the ordinary start that is
    `config/default`'s head, which answers itself; for a `--from` start
-   it is that ref's own governing commit. `lernie advance` asks it of
+   it is that ref's own governing commit. `litany advance` asks it of
    an existing agent's branch. Either way the fork is the freeze, and
    what it freezes is that commit — never the fork point's tree.
 2. Run the load-time version guard: `bz --version` must equal the
@@ -614,7 +626,7 @@ returns by depositing a result message at the address its epitaph names
    dispatcher's inbox**, a result message applies the
    fork-point→terminal **work-product transfer** as one commit before its
    delivery commit, filtered to work products; a diff that fails to apply
-   is declined at `refs/lernie/conflicted/<agent-id>` (§2.6). A reply
+   is declined at `refs/litany/conflicted/<agent-id>` (§2.6). A reply
    delivered anywhere else is an ordinary message — the transfer is
    defined against the fork the dispatcher made and nobody else's.
 8. **Exit protocol (§2.11).** With the terminal deposit landed, the
@@ -633,7 +645,7 @@ returns by depositing a result message at the address its epitaph names
    not teardown, §2.3 step 6).
 9. Print the agent id (the bare conv-id) on stdout.
 
-After `lernie prompt` returns, inspect the agent against the bare
+After `litany prompt` returns, inspect the agent against the bare
 workspace repository:
 
 ```
@@ -684,7 +696,7 @@ listings, with no sidecar file.
 ## Stopping a conversation
 
 ```
-lernie stop /path/to/my-conversation <conv-id> [--stop-children]
+litany stop /path/to/my-conversation <conv-id> [--stop-children]
 ```
 
 Sends `SIGTERM` to the process group of the **one executor** driving
@@ -716,7 +728,7 @@ So a pgid is trusted only once it equals the holder's own pid (a group
 leader's does, and every driver becomes one), re-read a bounded number of
 times while it does not, and refused rather than signalled if it never
 settles; a stop that signals nothing is re-runnable, one that signals
-your shell is not. `lernie stop` additionally refuses any group it is
+your shell is not. `litany stop` additionally refuses any group it is
 itself standing in (§2.9).
 
 The group signal reaches every member independently: `bz` installs no
@@ -742,7 +754,7 @@ Behavior:
 - **Idempotent.** A branch with no live writer (already stopped, or the
   harness exited cleanly) returns success without sending any signal.
 - **Errors when** the agent branch (`agents/<conv-id>`) doesn't exist.
-  Surfaces as a non-zero exit with a `lernie stop:` prefix on stderr.
+  Surfaces as a non-zero exit with a `litany stop:` prefix on stderr.
   (The old "already merged" refusal died with `main`: nothing merges,
   so there is no merged state to refuse — an already-terminal branch is
   simply the idempotent no-holder case above.)
@@ -757,15 +769,15 @@ exec's this exact subcommand; there is no second control surface.
 
 ## Built-in tools (v0.3, +v0.4 Phase 2 dispatch)
 
-The agent can call **built-in tools** that ship inside the `lernie`
-binary as `lernie tool <name>` subcommands (ARCH §3.3 / §12). The tool
-executor's resolution order — `<data-root>/tools/lernie-tool-<name>`
-→ `PATH` → `lernie tool <name>` — falls through to this in-process
+The agent can call **built-in tools** that ship inside the `litany`
+binary as `litany tool <name>` subcommands (ARCH §3.3 / §12). The tool
+executor's resolution order — `<data-root>/tools/litany-tool-<name>`
+→ `PATH` → `litany tool <name>` — falls through to this in-process
 route for tools not externalized.
 
 Each built-in is the triple §3.3 pins:
 
-- **Binary** — the `lernie tool <name>` subcommand. Reads
+- **Binary** — the `litany tool <name>` subcommand. Reads
   `tool_use.input` JSON from stdin, writes raw bytes to stdout, exits
   0 on success or non-zero on failure; the harness renders the three
   into the §3.3 *result envelope* that becomes `tool_result.content`,
@@ -774,29 +786,29 @@ Each built-in is the triple §3.3 pins:
   middle is replaced by a marker naming the original byte/line counts
   and the diagnostic `output.json` that keeps every byte.
 - **JSON schema** — at [`schemas/tools/<name>.json`](schemas/tools/),
-  seeded to `<data-root>/tools/<name>.json` by `lernie prime` (which
+  seeded to `<data-root>/tools/<name>.json` by `litany prime` (which
   `make install` invokes, ARCH §2.2). Sent verbatim as the
   `input_schema` of the tool's entry in the model call's `tools: [...]`
   array.
 - **Skill** — at [`skills/<name>/SKILL.md`](skills/), seeded to
-  `<data-root>/skills/<name>/` by `lernie prime`. The frontmatter `description` is
+  `<data-root>/skills/<name>/` by `litany prime`. The frontmatter `description` is
   the tool's description in `tools: [...]`; the body explains when to
   reach for it.
 
-The pool is discoverable from the CLI itself — `lernie tool --help`
+The pool is discoverable from the CLI itself — `litany tool --help`
 names it, and a name that is not in it is declined non-zero naming it
 too, the same way `load_skill` declines an unknown skill (ARCH §3.3):
 
 ```
-$ lernie tool --help
+$ litany tool --help
 Arguments:
   <NAME>  Built-in tool to run; one of: apply_patch, bash, cd, dispatch, load_skill, message, read_file
 
-$ echo '{}' | lernie tool nosuchtool
-lernie tool nosuchtool: unknown built-in tool: "nosuchtool"; available: apply_patch, bash, cd, dispatch, load_skill, message, read_file
+$ echo '{}' | litany tool nosuchtool
+litany tool nosuchtool: unknown built-in tool: "nosuchtool"; available: apply_patch, bash, cd, dispatch, load_skill, message, read_file
 ```
 
-**A direct run gives you the triple, not the envelope.** `lernie tool
+**A direct run gives you the triple, not the envelope.** `litany tool
 <name>` *is* the tool binary, so it hands back exactly what the bullet
 above says a binary produces: stdout on stdout, stderr on stderr, the
 status as the process exit code. The §3.3 *result envelope* — exit code
@@ -805,7 +817,7 @@ the **harness's** rendering of those three into one `tool_result.content`,
 and nothing at the CLI prints it:
 
 ```
-$ echo '{"command":"echo out; echo err >&2; exit 3"}' | lernie tool bash
+$ echo '{"command":"echo out; echo err >&2; exit 3"}' | litany tool bash
 out
 err
 $ echo $?
@@ -814,12 +826,12 @@ $ echo $?
 
 Four of the built-ins are not runnable standalone at all. `cd`,
 `dispatch`, `message` and `load_skill` read the calling agent's identity
-from the harness-set `LERNIE_CONV_REPO` / `LERNIE_CONV_BRANCH` (ARCH
+from the harness-set `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH` (ARCH
 §3.3), which only a real step supplies, so by hand they decline:
 
 ```
-$ echo '{"path":"/tmp"}' | lernie tool cd
-lernie tool cd: missing env var "LERNIE_CONV_REPO" (set by the harness per ARCH §3.3)
+$ echo '{"path":"/tmp"}' | litany tool cd
+litany tool cd: missing env var "LITANY_CONV_REPO" (set by the harness per ARCH §3.3)
 ```
 
 Built-ins:
@@ -838,13 +850,13 @@ Built-ins:
   `@@ <enclosing symbol>` anchor lines disambiguate repeated blocks.
   Success returns a JSON report with each hunk's winning rung, landing
   line, and (under fuzz) the lines actually replaced. Try it directly:
-  `echo '{"input":"*** Begin Patch\n*** Add File: hi.txt\n+hello\n*** End Patch"}' | lernie tool apply_patch`.
+  `echo '{"input":"*** Begin Patch\n*** Add File: hi.txt\n+hello\n*** End Patch"}' | litany tool apply_patch`.
 - **`read_file`** — read the entire contents of a file at a given
   path. Rejects files larger than 1 MiB, reporting the file's **true**
   size (`stat`, not the capped read's length) so the agent can judge
   the magnitude it is up against; v0.4+ adds the oversized-output
   auto-dispatch shim (ARCH §3.3 / §12). Try it directly:
-  `echo '{"path":"README.md"}' | lernie tool read_file`.
+  `echo '{"path":"README.md"}' | litany tool read_file`.
 - **`bash`** — runs a shell command via `sh -c` and hands back the
   shell's own three: its stdout, its stderr, and its exit status
   (`128 + signo` when a signal killed it). The harness renders those
@@ -862,23 +874,23 @@ Built-ins:
   told the user it could only see "the server's IP" (bl-298c). A `cd`
   inside the command moves only that one shell — to move for more than
   one call, use `cd` below. Try it directly:
-  `echo '{"command":"ls"}' | lernie tool bash`.
+  `echo '{"command":"ls"}' | litany tool bash`.
 - **`cd`** — moves the calling agent's working directory for every
   later tool call (ARCH §3.3 *Working directory*). Input is `{path}`; a
   relative path resolves against where the agent currently is, `..` and
   symlinks resolve, and the result is `{"cwd":"<absolute path>"}`. A path
   that names nothing or names a file is declined and the agent stays put.
   The cwd is **one mutable per-agent fact**, stored as the agent's own
-  mark `refs/lernie/cwd/<agent-id>` — the same per-agent mark namespace
+  mark `refs/litany/cwd/<agent-id>` — the same per-agent mark namespace
   as `conflicted` / `budget-exhausted`, so it is reaped with the agent by
-  `lernie delete` and crosses no fork. The default is the agent's
+  `litany delete` and crosses no fork. The default is the agent's
   worktree, so an agent that never calls `cd` behaves exactly as before.
   Nothing is fenced off — `bash` could already reach outside with an
   absolute path — but the tool commit stages only the worktree, so writes
   made elsewhere are real and **uncommitted**: off the branch, invisible
   to a parent, absent from replay. It has no standalone run — moving an
   agent needs an agent, so by hand it declines for the missing
-  `LERNIE_CONV_REPO` (above).
+  `LITANY_CONV_REPO` (above).
 - **`dispatch`** (v0.4 Phase 2) — spawns a subagent on a fresh
   branch with the supplied goal and returns
   `{"status":"in_progress","handle":"<sub-branch>"}` synchronously
@@ -888,8 +900,8 @@ Built-ins:
   `providers.yaml` — both read from the calling branch's governing
   config commit (§2.2). Reads the calling
   conversation's repo + branch from the harness-set
-  `LERNIE_CONV_REPO` / `LERNIE_CONV_BRANCH` env vars (ARCH §3.3 env
-  bullet); spawns through `lernie dispatch <role>` (§3.4). The handle
+  `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH` env vars (ARCH §3.3 env
+  bullet); spawns through `litany dispatch <role>` (§3.4). The handle
   it returns is the child's *address* — there is no polling tool to
   pair with it. The substrate redesign (ARCH §2.5 "Dispatch returns
   the child's address") dissolved the handle/`await` pair: the child's
@@ -900,7 +912,7 @@ Built-ins:
   and the delivery-time work-product transfer — is built and live
   (bl-4ce8, bl-9f53, bl-c33b, §2.6), and **children run full step
   loops**: the dispatch's own front-door deposit finds the fresh child
-  quiescent and launches the ordinary driver, `lernie advance` (§6) —
+  quiescent and launches the ordinary driver, `litany advance` (§6) —
   there is no child-specific loop and no worker path — which steps the
   child to a terminal event, deposits its epitaph result (final-response,
   budget-exhausted, or stop) at the address §2.6 names, and revives that
@@ -911,24 +923,24 @@ Built-ins:
   unique display name it was dispatched with (ARCH §2.3). Unlike
   `dispatch` it starts no branch and returns no address — it deposits
   synchronously and returns `{"status":"deposited"}`. The sender is the
-  calling agent's id, taken from the harness-set `LERNIE_CONV_BRANCH`
+  calling agent's id, taken from the harness-set `LITANY_CONV_BRANCH`
   (never model-supplied), so provenance cannot be forged. It goes
-  through the front door — `lernie message` (below) — like `dispatch`
-  goes through `lernie dispatch`, so it inherits the front door's
+  through the front door — `litany message` (below) — like `dispatch`
+  goes through `litany dispatch`, so it inherits the front door's
   recipient guards: an id that is not a single path component, or one
   with no `agents/*` ref, comes back as an `is_error` result naming the
   decline instead of a silently lost message. **Shipped state:** the deposit lands
   and the step-boundary drain delivers it (bl-1129) — the next driver to
   step the branch moves the inbox file into `messages/` as a transcript
   entry at its next boundary. A deposit into a *quiescent* agent is
-  self-delivering: the free-lease probe detach-spawns `lernie advance`
+  self-delivering: the free-lease probe detach-spawns `litany advance`
   (§6, below), which acquires the lease, delivers the deposit, and steps
   the branch.
 - **`load_skill`** — copies a pooled skill's body into the calling
   agent's worktree at `skills/<name>/`, where the next context assembly
   composes it (ARCH §3.3 *Body-on-demand*, §5.2). Input is `{name}`; the
-  data-root pool + target worktree come from `LERNIE_HOME`/XDG and
-  `LERNIE_CONV_REPO` / `LERNIE_CONV_BRANCH`. Returns
+  data-root pool + target worktree come from `LITANY_HOME`/XDG and
+  `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH`. Returns
   `{"status":"loaded","path":"skills/<name>"}` on a fresh copy or
   `already_loaded` when the worktree already holds it (the loaded copy is
   the snapshot the branch is pinned to; `rm` and reload to refresh). An
@@ -950,28 +962,28 @@ Built-ins:
   declined at depth 1. Each inner invocation passes the same grant gate
   and executor as a top-level one and lands its own diagnostic record
   under a derived id (`<outer-id>-<k>`). The one built-in with no
-  `lernie tool` subcommand: its binary *is* the step loop
+  `litany tool` subcommand: its binary *is* the step loop
   (`src/prompt/dispatch/tool_step/multi.rs`), so it does not appear in
-  the `lernie tool --help` pool above, while its schema/skill pair
+  the `litany tool --help` pool above, while its schema/skill pair
   installs and grants like any other tool's.
 
 ## Naming an agent
 
-An agent may be dispatched with a **display name** — `lernie prompt
---name`, `lernie dispatch --name`, or the `dispatch` tool's optional
+An agent may be dispatched with a **display name** — `litany prompt
+--name`, `litany dispatch --name`, or the `dispatch` tool's optional
 `name` input (ARCH §2.1, §2.3). It is what you say out loud;
 the **id** stays the identifier (branch name, worktree directory,
 `steps/` and `inbox/` keys) and never carries display semantics.
 
 ```
-lernie prompt <ws> 'survey the crate' --name pale-otter
-lernie message <ws> pale-otter 'check the Makefile too'
+litany prompt <ws> 'survey the crate' --name pale-otter
+litany message <ws> pale-otter 'check the Makefile too'
 ```
 
 - **One home, no registry.** The name is a `name` file committed on the
   agent's own dispatch commit, beside `goal.md`. Reading it is `git show
   agents/<id>:name`, so the `agents/*` refs stay the workspace's only
-  registry, worktree teardown cannot lose it, and `lernie delete`
+  registry, worktree teardown cannot lose it, and `litany delete`
   recycles the name with no cleanup step at all — the ref goes, the blob
   goes, the name is free. There is no index file anywhere.
 - **Every dispatch commit writes the file; empty means unnamed.** A fork
@@ -983,7 +995,7 @@ lernie message <ws> pale-otter 'check the Makefile too'
   like the goal. Creation refuses one a living agent already wears
   (naming the holder), one that is not a single whitespace-free word,
   and one that begins with an agent-id timestamp (`YYYYMMDDTHHMMSSZ`) —
-  which keeps names and ids disjoint, so `lernie message` never has to
+  which keeps names and ids disjoint, so `litany message` never has to
   guess which you meant. Every refusal happens before the fork, so it
   leaves no branch behind.
 - **Ambiguity is refused, not resolved.** Creation-time uniqueness
@@ -993,10 +1005,10 @@ lernie message <ws> pale-otter 'check the Makefile too'
 
 ## Messaging an existing agent directly
 
-`lernie message <workspace> <agent> <content>` deposits a message into
+`litany message <workspace> <agent> <content>` deposits a message into
 `<agent>`'s inbox and, finding the recipient quiescent, launches a
 driver to deliver it (ARCH §2.11, §3.4). The sender is read from
-`LERNIE_CONV_BRANCH` — the calling agent's id when the `message` tool
+`LITANY_CONV_BRANCH` — the calling agent's id when the `message` tool
 re-enters the verb, else `user` for a bare invocation.
 
 - **`<agent>` is an id or a unique name** (ARCH §2.3, §2.11). An exact
@@ -1013,7 +1025,7 @@ re-enters the verb, else `user` for a bare invocation.
   path is declined, never sanitized, because `Path::join` would honour
   it and write outside the workspace — and an `agents/<id>` ref must
   exist for it: a message is addressed to an *existing* agent (§2.11),
-  so a deposit no drain would ever come for is refused (`lernie
+  so a deposit no drain would ever come for is refused (`litany
   message: no agent "…" …`, exit 1) rather than left in an inbox
   directory nothing will ever read. The id guard is the same rule at every verb taking an agent id
   from outside — `message`, `advance`, `stop`, `dispatch`, `bundle` —
@@ -1027,14 +1039,14 @@ re-enters the verb, else `user` for a bare invocation.
   the sender's own sequence, derived as max-present-plus-one over its
   existing files in that inbox.
 - After depositing, the verb probes the **executor lock** (`flock` on
-  the inbox directory): the same lease the shipped `lernie prompt` step
+  the inbox directory): the same lease the shipped `litany prompt` step
   loop holds for its whole run, releasing it on exit. A held lease means
   a driver is already stepping the branch (it will deliver at its next
   boundary); a free lease means the branch is quiescent.
-- On a free lease the verb launches a driver — `lernie advance
+- On a free lease the verb launches a driver — `litany advance
   <workspace> <agent>` (ARCH §6) — as a **detached spawn** (§2.11):
   `setsid` (its own session and process group), stdio to null,
-  fire-and-forget. The driver outlives the `lernie message` process, so
+  fire-and-forget. The driver outlives the `litany message` process, so
   messaging is scriptable: the verb returns as soon as the deposit and
   spawn land, and delivery + stepping continue in the driver.
 - **A failed branch is named, never refused.** If the quiescent
@@ -1043,21 +1055,21 @@ re-enters the verb, else `user` for a bare invocation.
   ARCH §2.10), the deposit and launch proceed unchanged — messaging is
   exactly how such a branch is retried once the cause is fixed — but the
   verb prints a stderr advisory naming the branch and pointing at
-  `steps/<agent>/` and `lernie scan`, so a silent death (ARCH §2.3, §8)
+  `steps/<agent>/` and `litany scan`, so a silent death (ARCH §2.3, §8)
   is distinguishable from ordinary idleness at the verb that touches
   it. Exit
   code and stdout are untouched.
 
-## Driving a branch: `lernie advance`
+## Driving a branch: `litany advance`
 
-`lernie advance <workspace> <agent>` is the §6 driver verb — the
+`litany advance <workspace> <agent>` is the §6 driver verb — the
 process every launch seam spawns, and the same verb an operator runs by
 hand. One invocation is one **hop**: guard the id (a single path
 component, and an `agents/<id>` ref must exist — a name that is no
 agent is refused with `no agent "…"` and exit 1 before any lease, so
 an operator typo neither drives anything nor leaves an `inbox/<id>/`
 behind), take the lease (adopt the
-`LERNIE_LOCK_FD` fd published by a predecessor hop, else try-acquire
+`LITANY_LOCK_FD` fd published by a predecessor hop, else try-acquire
 the executor lock — losing it is a clean no-op), deliver pending inbox
 messages through the real drain (rematerializing a torn-down worktree
 first), derive warrant from the transcript tail (ends user-side → a
@@ -1066,12 +1078,12 @@ exit silently; assistant `tool_use` with uncommitted results → decline
 loudly, the one non-replayable state — unless a hold mark parks it,
 see *The tool-control seam* below), run one step, and hand off: a
 step that emitted `tool_use` runs its tools and **exec's the successor
-`lernie advance`** with the lock fd deliberately inherited (close-on-
+`litany advance`** with the lock fd deliberately inherited (close-on-
 exec cleared just before exec; the successor fstat-validates the fd
 against the inbox directory and restores close-on-exec), while a
 terminal event ends the chain through the §2.11 exit protocol. Because
 the successor is `exec`'d in the same process, the pid, process group,
-and flock lease all survive the hop — `lernie stop` lands on whichever
+and flock lease all survive the hop — `litany stop` lands on whichever
 hop is current, and no rival driver can wedge between hops.
 
 ### The tool-control seam
@@ -1089,10 +1101,10 @@ The control gets the `tool_use` block plus the calling role and agent
 id as JSON on stdin and answers one JSON verdict on stdout — `pass`
 (the tool runs unchanged), `refuse` (it never runs; the reason reaches
 the model as an in-band error result), or `hold` (the invocation parks
-before execution for out-of-band review: a `refs/lernie/held/<agent>`
+before execution for out-of-band review: a `refs/litany/held/<agent>`
 mark records what parked and why, the branch exits without a terminal,
 and its mail queues). Release is re-adjudication: the next
-`lernie advance` of the agent consults the control freshly — skipping
+`litany advance` of the agent consults the control freshly — skipping
 already-committed results — so whatever fact lifts the hold (an
 approval file, a verifier's verdict) is the control's own contract. A
 control that cannot answer **fails closed**: the invocation does not
@@ -1101,7 +1113,7 @@ no control is consulted; the seam is the shipped surface.
 
 ## The exit protocol and the operator scan
 
-Normal operation needs zero scanning (ARCH §2.11): `lernie message`
+Normal operation needs zero scanning (ARCH §2.11): `litany message`
 deposits, probes the executor lock, and launches a driver if the agent
 is quiescent; the executor drains its inbox at every step boundary. The
 graceful-exit crack — a deposit landing after an executor's final drain
@@ -1115,16 +1127,16 @@ to deliver exits silently (no step, no epitaph, no further launch —
 `dispatch::driver::drive` is that entry), and the launch is decided by
 epitaph value — a final response launches; `stopped` and
 `budget-exhausted` never do. The exit launch rides the same launcher
-seam as the writer probe, so it is the same detached `lernie advance`
+seam as the writer probe, so it is the same detached `litany advance`
 spawn (§6); the decision logic, ordering, driver entry, and the spawn
 itself are live and tested.
 
 The parent-side step is what makes **revival-on-deposit** real
 (bl-4a6c): a child that returns to a quiescent — even torn-down —
 parent starts that parent's driver itself, through the *same*
-`probe_and_launch` the `lernie message` verb uses (one probe, no
+`probe_and_launch` the `litany message` verb uses (one probe, no
 second copy), so the parent rematerializes, delivers the result, and
-steps with no `lernie scan` in the path. A parent whose lease is held
+steps with no `litany scan` in the path. A parent whose lease is held
 gets nothing launched: its running executor delivers at its next step
 boundary. The epitaph decision governs this launch too, one level up:
 a `stopped` child would otherwise wake its parent to react to — perhaps
@@ -1137,7 +1149,7 @@ explicit touch.
 Crashes are accepted as a failure class (§2.11): everything is on disk,
 so a hard death strands results and messages *late*, never lost, and
 the next touch heals. That touch is a user reprompt — or the operator
-verb **`lernie scan <workspace>`** (§2.11, §8, bl-d148 + bl-5846): one
+verb **`litany scan <workspace>`** (§2.11, §8, bl-d148 + bl-5846): one
 workspace-wide pass, run by hand or by cron if you want a heartbeat,
 never wired into any driver hot path or default schedule (the events it
 compensates for happen at crash rate, not step rate). Two derived
@@ -1171,16 +1183,16 @@ touch, by design):
   exists — so an inbox directory with no matching ref is reported
   (`inboxes with no agent branch: N`) and left in place rather than
   driven: a driver launched for a name with no branch is refused by the
-  existence guard (`lernie advance: no agent "…"`, exit 1) on this pass
+  existence guard (`litany advance: no agent "…"`, exit 1) on this pass
   and every pass after, writing nothing. The sweep's own deposits
   are picked up by the flush that follows in the same pass.
 
 **Shipped state.** The scan (silent-death sweep + inbox flush) ships
-behind `lernie scan` and *only* there — driver startup (`lernie prompt`,
-`lernie dispatch`, `lernie advance`) runs no workspace scan. The flush
-and the exit launch reuse the same driver-launch seam as `lernie
+behind `litany scan` and *only* there — driver startup (`litany prompt`,
+`litany dispatch`, `litany advance`) runs no workspace scan. The flush
+and the exit launch reuse the same driver-launch seam as `litany
 message`, and the spawn is real: each seam decides *when* a driver is
-needed and detach-spawns `lernie advance` (§6) for it. Children run full
+needed and detach-spawns `litany advance` (§6) for it. Children run full
 step loops (bl-c33b), so a `died` child is a state a real run reaches; the
 derivation is additionally exercised against constructed on-disk states,
 since a hard crash is not reproducible on demand.
@@ -1192,14 +1204,14 @@ structurally by the prefix — there is no `main` (§2.2).
 
 ## Dispatching subagents directly
 
-`lernie dispatch <role> <repo> <branch> [--goal <text>] [--from <ref>]
+`litany dispatch <role> <repo> <branch> [--goal <text>] [--from <ref>]
 [--name <name>] [--pin <dest>=<src>]... [--cwd <path>]` is the §3.4 re-entry point
 every child dispatch uses.
 It is **writer-shaped, not an
 executor** (ARCH §2.1): it forks the child branch, lands the dispatch
 commit, and deposits the dispatch message through the same front door
 every sender uses — the driver that deposit launches is the ordinary
-`lernie advance` (§6). The role name is positional and the role set is
+`litany advance` (§6). The role name is positional and the role set is
 **open** (§4.3): a role is dispatchable iff the calling branch's
 governing config commit lists it under `providers.yaml` `roles:` and
 carries `souls/<role>.md`. The CLI enumerates no role names, so a
@@ -1212,16 +1224,16 @@ dispatching parent's `agents/<id>` ref. So all three refusals are the
 product's, never git's:
 
 ```
-lernie dispatch worker <no-such-ws> someagent --goal hi
-  → <path> is not a workspace (no repo.git) — create one with `lernie new` (ARCH §2.2)
-lernie dispatch worker <ws> nosuchparent --goal hi
+litany dispatch worker <no-such-ws> someagent --goal hi
+  → <path> is not a workspace (no repo.git) — create one with `litany new` (ARCH §2.2)
+litany dispatch worker <ws> nosuchparent --goal hi
   → no agent "nosuchparent" in this workspace — a child forks off an existing parent (ARCH §2.5); …
-lernie dispatch verifier <ws> <agent> --goal hi
+litany dispatch verifier <ws> <agent> --goal hi
   → role "verifier" is not defined in the providers.yaml that will govern a child of agent "<agent>" — defined roles: compactor, worker
 ```
 
 The role refusal names the pool that *is* defined — the same "name the
-pool" idiom `load_skill` and `lernie tool` decline with — and names the
+pool" idiom `load_skill` and `litany tool` decline with — and names the
 control file the user knows rather than the config commit's sha.
 
 `--from <ref>` forks the child off that ref instead of the parent's tip
@@ -1232,20 +1244,20 @@ terminal ref. The child is still `<parent>-<sub>`, so its return address
 else prompts it — is still the dispatcher's (§2.6). Its **config follows the fork point**:
 control is read from that ref's governing config commit (§2.2 — "an
 agent started by fork-back-in inherits its source's config the same
-way"), which is the commit every later `lernie advance` resolves from
+way"), which is the commit every later `litany advance` resolves from
 the child's own branch, so the soul, the grant, the descriptors and the
 budgets cannot disagree with what the child's steps will read. A fork
 point whose lineage does not define the role is declined by name; an
 absent ref is declined by the same guard `--from` uses at `prompt`,
 ahead of the fork, so neither leaves branch debris.
 
-`--pin <dest>=<src>` is exactly `lernie prompt`'s (above, one
+`--pin <dest>=<src>` is exactly `litany prompt`'s (above, one
 mechanism): the child's dispatch commit snapshots the named bytes
 beside `goal.md` + `soul.md`, refusals fire before the fork, and the
 harness-initiated dispatches (compactor, verifier) pin nothing — the
 same path with empty inputs.
 
-- `lernie dispatch compactor <workspace> <conv-id>` forks a
+- `litany dispatch compactor <workspace> <conv-id>` forks a
   compactor-souled child off that agent's tip — exactly what a due
   compaction checkpoint does (§2.7), run by hand. The compactor is an
   **ordinary child that makes a real model call** through `bz`; it is not
@@ -1283,11 +1295,11 @@ same path with empty inputs.
   replay conflict git cannot resolve on its own is **declined** rather
   than committed: a modify/delete on a work product the live branch
   rewrote resolves live-branch-wins, any marker-writing conflict aborts
-  the rebase and marks `refs/lernie/conflicted/<compactor-id>`, and a
+  the rebase and marks `refs/litany/conflicted/<compactor-id>`, and a
   pass another landing overtook is superseded and lands nothing — so
   marked-up text can never reach a `summary/**` file that is composed
   into the next model call.
-- `lernie dispatch worker <workspace> <parent-id> --goal <text>`
+- `litany dispatch worker <workspace> <parent-id> --goal <text>`
   spawns a worker child off the parent's tip. The new id is
   `<parent>-<sub-id>` (hyphenated descent, §2.2), its ref
   `agents/<parent>-<sub-id>` (§2.3), its worktree
@@ -1297,7 +1309,7 @@ same path with empty inputs.
   another (§2.2)
   (`souls/worker.md`, §2.2), both committed as the dispatch commit
   (§2.3 step 2). The child then **runs a full step loop** under the
-  `lernie advance` driver its dispatch deposit launched, and at its
+  `litany advance` driver its dispatch deposit launched, and at its
   terminal event deposits a result message — epitaph, terminal ref, and
   the terminal response iff it spoke — at the address §2.6 names (the
   dispatcher, unless somebody else has spoken to the child since),
@@ -1317,7 +1329,7 @@ stdin (canonical request, JSON) → bz → stdout (v=1 event stream, NDJSON, one
 
 The harness execs `bz --json --provider <row>` once per attempt, pipes a
 typed `brazen::CanonicalRequest` on stdin, and appends bz's stdout
-verbatim to the step's `response.json`. lernie links the `brazen` crate
+verbatim to the step's `response.json`. litany links the `brazen` crate
 (`brazen = "=0.0.6"`) for the canonical *types* only — the data plane
 always crosses the subprocess boundary (§3.4). Two facts follow:
 
@@ -1336,25 +1348,25 @@ always crosses the subprocess boundary (§3.4). Two facts follow:
 - **Auth and endpoints are brazen's.** Provider *rows* (endpoint,
   protocol, auth mode, model aliases) live in brazen's own config
   (`~/.config/brazen/config.toml`; `bz --dump-config`, `bz --login`).
-  lernie references a row by name and never sees credential material
+  litany references a row by name and never sees credential material
   (ARCH §4.1). A load-time guard (`bz --version` == the linked crate
   version) rejects a mismatched binary; `make install` installs the pin
   with `cargo install brazen --version =0.0.6`.
-- **A failed model call names the row.** Which row lernie routed a model call
-  under is lernie's fact, not brazen's (it is the role's `provider:` in
+- **A failed model call names the row.** Which row litany routed a model call
+  under is litany's fact, not brazen's (it is the role's `provider:` in
   the config commit's `providers.yaml`), so the harness states it:
   `provider error (<kind>) on provider row "<row>": <message>`. A
   missing credential — brazen's `auth` kind, what a 401/403 normalizes
   to — additionally states the fix, with the row substituted in:
 
   ```
-  lernie prompt: provider error (auth) on provider row "anthropic": no credential for this
+  litany prompt: provider error (auth) on provider row "anthropic": no credential for this
   provider … — no credential is reaching that row; authenticate it with
   `bz --login --provider anthropic`, or export the API-key env var it is configured to read.
   `bz --list-providers` shows every row's auth mode and credential state …
   ```
 
-  On an operator-run `lernie prompt` that lands on your terminal; a
+  On an operator-run `litany prompt` that lands on your terminal; a
   detached driver writes it to `<workspace>/steps/<agent-id>/driver.log`
   (ARCH §2.11).
 
@@ -1374,18 +1386,18 @@ always crosses the subprocess boundary (§3.4). Two facts follow:
 
 The desktop frontend lives in its own repository, `yog`: an
 egui/eframe window that renders a workspace and issues user actions via
-`lernie <subcommand>`. It composes on lernie's public surfaces only —
+`litany <subcommand>`. It composes on litany's public surfaces only —
 the CLI and the on-disk workspace layout (ARCH §3.5, §7.1) — and takes
 no Cargo dependency on this crate, so it builds, versions, and installs
 independently (`make install` there drops `yog` next to
-`lernie`). Keeping frontends out of this workspace is deliberate:
-lernie ships as a composable component, and anything that composes it
+`litany`). Keeping frontends out of this workspace is deliberate:
+litany ships as a composable component, and anything that composes it
 (a GUI, a web view) lives outside it and meets it at those surfaces.
 
 ## Evaluation: archival and the task suite (§9)
 
 **Archive a run.** A "run" is an agent subtree, not a whole workspace (§9.2).
-`lernie bundle <workspace> <agent> <out-dir>` writes the subtree — the
+`litany bundle <workspace> <agent> <out-dir>` writes the subtree — the
 `agents/<agent>` branch and its `agents/<agent>-*` hyphen-descendants (§2.3),
 with all the ancestry those refs reach — plus the subtree's **governing
 lineage**: every `config/*` ref whose history reaches it (§2.2). Both go into
@@ -1407,38 +1419,38 @@ to be the nearest one is how the bundle stays a faithful copy of the
 computation, not a leak.
 
 ```
-lernie bundle /path/to/workspace <agent-id> /path/to/archive
+litany bundle /path/to/workspace <agent-id> /path/to/archive
 ```
 
-**Replay a run.** `lernie replay <archive>` reconstructs a scratch workspace
-under `LERNIE_HOME`'s data root at `replays/<primary-id>/` (the primary id is
+**Replay a run.** `litany replay <archive>` reconstructs a scratch workspace
+under `LITANY_HOME`'s data root at `replays/<primary-id>/` (the primary id is
 the subtree's root agent), fetches every branch out of the bundle into a
 fresh bare `repo.git`, materializes the primary's worktree under `agents/`,
 restores the slices, and prints the scratch path. Point the ordinary frontend
-at it — replay is not a mode (§2.3). Set `LERNIE_HOME` to an isolated
+at it — replay is not a mode (§2.3). Set `LITANY_HOME` to an isolated
 directory to keep the replay sandboxed; the harness root it points at still
 supplies the machine-local pieces a config only *names* (`models.yaml` and the
 brazen provider rows, §4.2/§4.4).
 
-A replayed workspace is an ordinary workspace: `lernie prompt <scratch> "…"`
-forks a fresh root off the config head that rode the bundle, and `lernie
-message` / `lernie advance` drive the replayed agent on its own governing
+A replayed workspace is an ordinary workspace: `litany prompt <scratch> "…"`
+forks a fresh root off the config head that rode the bundle, and `litany
+message` / `litany advance` drive the replayed agent on its own governing
 config commit.
 
 ```
-LERNIE_HOME=/tmp/replay lernie replay /path/to/archive
+LITANY_HOME=/tmp/replay litany replay /path/to/archive
 ```
 
-**Delete a run.** `lernie delete <workspace> <agent> [--children] [--dry-run]`
+**Delete a run.** `litany delete <workspace> <agent> [--children] [--dry-run]`
 removes an agent and every slice of it (§9.2 *Retention and GC*): the
 `agents/<id>` ref, the worktree under `agents/<id>/`, the `steps/<id>/` and
-`inbox/<id>/` directories, and every `refs/lernie/<kind>/<id>` mark. `bundle`
+`inbox/<id>/` directories, and every `refs/litany/<kind>/<id>` mark. `bundle`
 composes in front of it — **bundle-then-delete is the archive path**, delete
 outright is the other, and neither verb carries a flag for the other.
 
 ```
-lernie delete /path/to/workspace <agent-id> --children --dry-run   # the plan
-lernie delete /path/to/workspace <agent-id> --children             # the act
+litany delete /path/to/workspace <agent-id> --children --dry-run   # the plan
+litany delete /path/to/workspace <agent-id> --children             # the act
 ```
 
 Two refusals, both checked across the whole subtree before anything is
@@ -1449,7 +1461,7 @@ removed:
   explicit request for the whole subtree (the shape of `stop --stop-children`,
   §2.9).
 - **A live driver is never reaped.** An agent whose executor holds the §2.11
-  lock is declined, naming the lock; `lernie stop` it first and delete once it
+  lock is declined, naming the lock; `litany stop` it first and delete once it
   is quiescent.
 
 The verb's one product is the census of what dies, identical in both moods —
@@ -1486,7 +1498,7 @@ reported a workspace, model attempts, tool invocations, and the four canonical
 usage counters) and the run's reproducibility inputs (bl-36fa):
 
 ```
-agent-eval run --config baseline --suite tests/suite --runs 5 --agent lernie-eval-agent
+agent-eval run --config baseline --suite tests/suite --runs 5 --agent litany-eval-agent
 ```
 
 `--record <out.json>` also saves the machine-readable evaluation record, and
@@ -1500,7 +1512,7 @@ saved records — quality and efficiency side by side, each record carrying its
 own reproducibility inputs (suite revision, starting fixture identity,
 experiment, driver command + version, observed models/providers, run count).
 `compare` runs nothing: no driver, no model. A metric one side never reported
-is `—`, never a fabricated zero, and no price is ever inferred — lernie has no
+is `—`, never a fabricated zero, and no price is ever inferred — litany has no
 tokenizer and reports only provider-reported counters.
 
 `--config <name>` names an experiment — a `workflow.yaml` variant under
@@ -1508,32 +1520,32 @@ tokenizer and reports only provider-reported counters.
 `baseline` is the shipped default itself: its `workflow.yaml` is a symlink to
 `template/workflow.yaml`, because an experiment is a diff against the default and
 the baseline's diff is empty.
-Per run the runner seeds a fresh isolated `LERNIE_HOME` and working directory,
+Per run the runner seeds a fresh isolated `LITANY_HOME` and working directory,
 runs the task `setup`, invokes the agent, then runs the task `check` — **exit 0
 is the sole pass signal** (§9.1), so success is observable state, never the
 agent's own claim. `--bundle-dir <dir>` archives failing runs for triage via
-`lernie bundle` (§9.2). The runner is fully tested against a faked agent, so it
+`litany bundle` (§9.2). The runner is fully tested against a faked agent, so it
 needs no live model to validate.
 
-**The shipped driver is `lernie-eval-agent`** (`crates/lernie-eval-agent`,
+**The shipped driver is `litany-eval-agent`** (`crates/litany-eval-agent`,
 workspace-internal like the runner; installed on `PATH` by `make install`).
 `--agent <cmd>` stays required with no default: which driver runs the agent
 under test is an experiment-defining input, so it is named explicitly. Per run
-the shipped driver seeds the run's isolated `LERNIE_HOME` from the machine's
-lernie config root (`models.yaml` plus the `template/` config-root override —
+the shipped driver seeds the run's isolated `LITANY_HOME` from the machine's
+litany config root (`models.yaml` plus the `template/` config-root override —
 the wire is machine-local by design, §4.2/§9.2, and those two front doors are
 how a machine points evaluation runs at its own provider rows), then drives
-the harness exclusively through the front door, exec'ing `lernie` from `PATH`:
-`lernie new`, `lernie config` (applying the experiment — below), and one
-`lernie prompt` carrying the task prompt grounded in the shared working
+the harness exclusively through the front door, exec'ing `litany` from `PATH`:
+`litany new`, `litany config` (applying the experiment — below), and one
+`litany prompt` carrying the task prompt grounded in the shared working
 directory. The contract any driver must honour, per run:
 
 | Given | How |
 |---|---|
 | the task prompt | argv[1] |
-| the isolated harness root for this run | `LERNIE_HOME` in the env |
-| the experiment's `workflow.yaml` | `LERNIE_EXPERIMENT` in the env — an absolute path |
-| where to report back | `LERNIE_EVAL_REPORT` in the env — a file path |
+| the isolated harness root for this run | `LITANY_HOME` in the env |
+| the experiment's `workflow.yaml` | `LITANY_EXPERIMENT` in the env — an absolute path |
+| where to report back | `LITANY_EVAL_REPORT` in the env — a file path |
 | the working directory | cwd (shared with the task's `setup` and `check`) |
 
 One non-run invocation exists beside the contract (bl-36fa): the runner probes
@@ -1542,17 +1554,17 @@ evaluation and records the first stdout line among the reproducibility
 inputs. A driver should answer with one identifying line and exit; one that
 fails or prints nothing is recorded as `version unreported`, never guessed at.
 
-`LERNIE_EXPERIMENT` is a hand-off, not a hook: **nothing in the harness reads
+`LITANY_EXPERIMENT` is a hand-off, not a hook: **nothing in the harness reads
 that variable.** The harness takes its `workflow.yaml` from the workspace's
 config commit (§2.2), never from the environment, so *applying* the experiment
-is the driver's job. The shipped driver does it through `lernie config`, with
+is the driver's job. The shipped driver does it through `litany config`, with
 `$EDITOR` set to copy the experiment over the authoring checkout's
 `workflow.yaml` — the experiment lands as an ordinary config commit, exactly
 the "config diff, no code changes" §9.3 promises (for `baseline` the diff is
 empty and the authoring pass declines: the default is already in force).
 
-`LERNIE_EVAL_REPORT` names a file the driver **may** write with exactly two
-lines — the workspace path, then the agent id — which is what `lernie bundle`
+`LITANY_EVAL_REPORT` names a file the driver **may** write with exactly two
+lines — the workspace path, then the agent id — which is what `litany bundle`
 needs to archive the run if it fails (§9.2). It is the driver's only channel
 back to the runner, and it is also where the run's efficiency metrics come
 from (bl-36fa): a disclosed workspace lets the runner read attempts, tool
@@ -1567,14 +1579,14 @@ Failure to *spawn* the driver, by contrast, is a hard error naming the program.
 
 The fleet demo now lives at `~/ops/fleet` — it was a consumer artifact, not
 part of the binary, and did not belong riding in the harness repo. It showed
-that lernie hosts a five-role agent fleet (coordinator, shepherd, sensor,
+that litany hosts a five-role agent fleet (coordinator, shepherd, sensor,
 builder, steward) entirely as configuration, with no harness change. The five
 harness defects it surfaced (bl-475a, bl-4231, bl-5a1f, bl-a900, bl-e3f5) are
 fixed and pinned as in-repo regression tests.
 
 ## Contributing
 
-The instructions below are for contributors building lernie from source.
+The instructions below are for contributors building litany from source.
 Users installing a release don't need any of this — **[Install](#install)**
 covers the three user-facing routes, only one of which involves a clone.
 
@@ -1609,20 +1621,20 @@ first use — no manual `rustup` step. This is what keeps `fmt-check` and
 | `make fmt-check`      | `cargo fmt --check`                                   |
 | `make schemas`        | Regenerate `schemas/*.json` from the Rust types       |
 | `make new-workspace DEST=<path>` | Create a workspace (bare repo.git + first config commit from `template/`) |
-| `make eval CONFIG=<exp> SUITE=<dir> RUNS=<n> AGENT=<driver-cmd> [RECORD=<out.json>]` | Run the evaluation runner (ARCH §9.3): experiment × suite × N (see **Task suite** above). `AGENT` is required and has no default — the shipped driver is `lernie-eval-agent` (see "Run the suite"), and naming it is deliberate: the driver is an experiment-defining input. `RECORD` saves the evaluation record `agent-eval compare` consumes (bl-36fa). Always an explicit operator command — a live-model eval names its run count and spends money, so it is never CI |
+| `make eval CONFIG=<exp> SUITE=<dir> RUNS=<n> AGENT=<driver-cmd> [RECORD=<out.json>]` | Run the evaluation runner (ARCH §9.3): experiment × suite × N (see **Task suite** above). `AGENT` is required and has no default — the shipped driver is `litany-eval-agent` (see "Run the suite"), and naming it is deliberate: the driver is an experiment-defining input. `RECORD` saves the evaluation record `agent-eval compare` consumes (bl-36fa). Always an explicit operator command — a live-model eval names its run count and spends money, so it is never CI |
 | `make check`          | `fmt-check` + `lint` + `coverage` + `test-install`    |
 | `make ci`             | Alias for `check`                                     |
-| `make smoke`          | Live-wire smoke test: one real `lernie prompt` against the shipped defaults (override with `SMOKE_PROVIDER`/`SMOKE_MODEL`); the default needs a `bz` anthropic credential and spends money; NOT part of `check` |
+| `make smoke`          | Live-wire smoke test: one real `litany prompt` against the shipped defaults (override with `SMOKE_PROVIDER`/`SMOKE_MODEL`); the default needs a `bz` anthropic credential and spends money; NOT part of `check` |
 | `make install-hooks`  | Point git at `.githooks/`                             |
-| `make install-bz`     | Install the provider adapter `bz` on your `PATH` at the version Cargo.toml pins (ARCH §4.4); a no-op when the `bz` there already matches. For *running* lernie — the tests feed themselves (below) |
+| `make install-bz`     | Install the provider adapter `bz` on your `PATH` at the version Cargo.toml pins (ARCH §4.4); a no-op when the `bz` there already matches. For *running* litany — the tests feed themselves (below) |
 | `make brazen-pin`     | Print that pinned version and nothing else — CI keys its `bz` cache on it so no workflow file names a version |
-| `make install` [`INSTALL_PREFIX=<p>` `LERNIE_HOME=<h>`] | Release-build; drop `lernie`/`agent-eval` into `$INSTALL_PREFIX/bin` (default: `~/.local/bin`); install the provider adapter `bz` via `make install-bz` at the version Cargo.toml pins (the ARCH §4.4 version pin — the number's one home); then invoke `lernie prime` to found the harness root — config root (default `~/.config/lernie`) with a default `models.yaml` and an empty `workflows/` templates dir, data root (default `~/.local/share/lernie`) with the `tools/`/`skills/` pools and the `workspaces/` tree — seed-if-absent (ARCH §2.2); `LERNIE_HOME` collapses both |
-| `make uninstall` [`INSTALL_PREFIX=<p>` `LERNIE_HOME=<h>`] | Remove the installed binaries; leaves the harness homes (config + data roots) in place |
+| `make install` [`INSTALL_PREFIX=<p>` `LITANY_HOME=<h>`] | Release-build; drop `litany`/`agent-eval` into `$INSTALL_PREFIX/bin` (default: `~/.local/bin`); install the provider adapter `bz` via `make install-bz` at the version Cargo.toml pins (the ARCH §4.4 version pin — the number's one home); then invoke `litany prime` to found the harness root — config root (default `~/.config/litany`) with a default `models.yaml` and an empty `workflows/` templates dir, data root (default `~/.local/share/litany`) with the `tools/`/`skills/` pools and the `workspaces/` tree — seed-if-absent (ARCH §2.2); `LITANY_HOME` collapses both |
+| `make uninstall` [`INSTALL_PREFIX=<p>` `LITANY_HOME=<h>`] | Remove the installed binaries; leaves the harness homes (config + data roots) in place |
 
 ### The pinned adapter under test
 
 The e2e tests exec the **real** `bz` (against a mock HTTP endpoint, not a
-provider), and lernie's load-time version guard (ARCH §4.4) demands the
+provider), and litany's load-time version guard (ARCH §4.4) demands the
 pinned version *exactly*. The pin's one home is the `brazen = "=<version>"`
 line in `Cargo.toml`.
 
@@ -1640,7 +1652,7 @@ which looks nothing like "someone else installed a binary" and everything
 like a regression you just wrote.
 
 **The cure.** `make test` and `make coverage` do not use the `PATH` `bz` at
-all. They depend on `$XDG_CACHE_HOME/lernie/bz/<pin>/bin/bz` — installed
+all. They depend on `$XDG_CACHE_HOME/litany/bz/<pin>/bin/bz` — installed
 from crates.io on first use — and put that directory *first* on `PATH` for
 the run, so the tests always exercise the pin **this** tree names, whatever
 the machine's `bz` happens to be. The version comes from `BRAZEN_PIN` in the
@@ -1661,7 +1673,7 @@ Two consequences worth knowing:
   `CARGO_INSTALL_ROOT` at a per-worktree root under `target/`, so the pinned
   `bz` lands there and `~/.cargo/bin/bz` is never touched by a test run.
 - **Runtime resolution is unchanged.** This is test determinism only —
-  `lernie` itself still resolves the adapter per ARCH §4.4 (the `models.yaml`
+  `litany` itself still resolves the adapter per ARCH §4.4 (the `models.yaml`
   `adapter:` override, else a binding-injected target, else `bz` on `PATH`),
   and `make install` still puts the pinned `bz` on your `PATH` for real use.
 
@@ -1814,8 +1826,8 @@ unreachable `origin` warns without failing the commit, and a repo with no
 <mudbungie@gmail.com>`, and no `Co-Authored-By` trailers — it was normalized to
 that on 2026-07-26. `tests/commit_hygiene.rs` keeps it that way, but only on a
 machine that asks for it: the test arms itself on the presence of
-`$XDG_CONFIG_HOME/lernie/enforce-commit-identity` (default
-`~/.config/lernie/enforce-commit-identity`), an empty marker file **outside** the
+`$XDG_CONFIG_HOME/litany/enforce-commit-identity` (default
+`~/.config/litany/enforce-commit-identity`), an empty marker file **outside** the
 repo. Absent — the default in public CI and in every clone — the test returns
 without asserting anything.
 
@@ -1825,7 +1837,7 @@ committer is neither `mudbungie <mudbungie@gmail.com>` nor
 commit as it), on any `Co-Authored-By` trailer, and on any mention of a
 throwaway or personal address in an identity or a message. The policy lives in
 the marker, not in the code: `rm` it and the guard is off, with no code edit and
-no flag. Create it with `touch ~/.config/lernie/enforce-commit-identity`.
+no flag. Create it with `touch ~/.config/litany/enforce-commit-identity`.
 
 ## License
 

@@ -5,8 +5,8 @@
 # Anthropic SSE), so it can never catch a shipped default that fails on the
 # real provider — which is exactly how the fake worker model id
 # `claude-sonnet-4-7` shipped unnoticed (bl-3157). This script makes the
-# first real model call: `lernie new` scaffolds a throwaway workspace, then
-# one live `lernie prompt` runs against the SHIPPED defaults (worker role,
+# first real model call: `litany new` scaffolds a throwaway workspace, then
+# one live `litany prompt` runs against the SHIPPED defaults (worker role,
 # provider `anthropic`, model `claude-sonnet-5`) through the real `bz` data
 # plane. It is deliberately NOT part of `make check` or the close gate: it
 # needs a configured provider credential and spends money.
@@ -17,12 +17,12 @@
 #
 # Provider/model override: set BOTH `SMOKE_PROVIDER` and `SMOKE_MODEL`
 # (both-or-neither; one alone is a usage error) to run the same live
-# `lernie prompt` against any `bz` provider row instead of the shipped
+# `litany prompt` against any `bz` provider row instead of the shipped
 # default. Unset leaves today's behavior byte-for-byte. The override is
 # laid into the throwaway config root through the same front door a real
 # install uses — a `providers.yaml` override in `<config-root>/template/`
 # (the bl-e795 config-root override; the role assignment is the whole
-# model binding, bl-35e2) — so no new `lernie` flag or verb exists. Local
+# model binding, bl-35e2) — so no new `litany` flag or verb exists. Local
 # ollama needs no credential, only a served model:
 #   make smoke SMOKE_PROVIDER=local  SMOKE_MODEL=<a-pulled-ollama-model>
 #   make smoke SMOKE_PROVIDER=codex  SMOKE_MODEL=gpt-5.4
@@ -37,10 +37,10 @@
 # `content_delta` — proof a model on the wire actually answered.
 #
 # Inputs (set by the `make smoke` recipe):
-#   LERNIE_BIN               the freshly built lernie binary (absolute)
+#   LITANY_BIN               the freshly built litany binary (absolute)
 #   SMOKE_PROVIDER/SMOKE_MODEL  optional override target (both or neither)
 #
-# The harness root the workspace scaffolds against is founded by `lernie
+# The harness root the workspace scaffolds against is founded by `litany
 # prime` (ARCH §2.2) from assets EMBEDDED in that binary — the same front
 # door `make install` uses — so this smoke exercises the shipped install
 # path end to end (prime -> new -> prompt), not a hand-copied source tree.
@@ -50,7 +50,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
       GIT_PREFIX GIT_COMMON_DIR GIT_ALTERNATE_OBJECT_DIRECTORIES 2>/dev/null || true
 
-: "${LERNIE_BIN:?set LERNIE_BIN}"
+: "${LITANY_BIN:?set LITANY_BIN}"
 
 # Provider/model override (both-or-neither). Unset => the shipped default,
 # byte-for-byte. One alone is a usage error — half an override would
@@ -72,13 +72,13 @@ fi
 
 fail() { echo "smoke: FAIL — $1" >&2; echo "  (workspace kept for inspection: $ROOT)" >&2; exit 1; }
 
-ROOT="$(mktemp -d "${TMPDIR:-/tmp}/lernie-smoke.XXXXXX")"
+ROOT="$(mktemp -d "${TMPDIR:-/tmp}/litany-smoke.XXXXXX")"
 HOME_DIR="$ROOT/home"
 WS="$ROOT/ws"
 
 # When an override is set, lay it into the throwaway config root BEFORE
-# `lernie prime`, through the front door a real install already uses — no
-# new `lernie` flag or verb. One config file selects the worker's target:
+# `litany prime`, through the front door a real install already uses — no
+# new `litany` flag or verb. One config file selects the worker's target:
 # per-repo `providers.yaml` names the role's provider ROW + model id
 # (config-commit control, overridable via `<config-root>/template/`, the
 # bl-e795 override). That assignment is the whole binding (bl-35e2): the
@@ -102,19 +102,19 @@ fi
 # what a ready installation carries (models.yaml + tool/skill pools, ARCH
 # §2.2), seeded from assets embedded in the binary. This is exactly what
 # `make install` does, so `make smoke` covers the real shipped path.
-export LERNIE_HOME="$HOME_DIR"
-"$LERNIE_BIN" prime || fail "lernie prime exited non-zero"
+export LITANY_HOME="$HOME_DIR"
+"$LITANY_BIN" prime || fail "litany prime exited non-zero"
 
 echo "smoke: scaffolding a throwaway workspace ($WS)" >&2
-"$LERNIE_BIN" new "$WS" >/dev/null || fail "lernie new exited non-zero"
+"$LITANY_BIN" new "$WS" >/dev/null || fail "litany new exited non-zero"
 
-echo "smoke: one live 'lernie prompt' against $TARGET" >&2
+echo "smoke: one live 'litany prompt' against $TARGET" >&2
 set +e
-ID="$("$LERNIE_BIN" prompt "$WS" 'Reply with exactly one word: pong')"
+ID="$("$LITANY_BIN" prompt "$WS" 'Reply with exactly one word: pong')"
 PROMPT_EXIT=$?
 set -e
-[ "$PROMPT_EXIT" -eq 0 ] || fail "lernie prompt exited $PROMPT_EXIT (the wire rejected $TARGET)"
-[ -n "$ID" ] || fail "lernie prompt printed no agent id"
+[ "$PROMPT_EXIT" -eq 0 ] || fail "litany prompt exited $PROMPT_EXIT (the wire rejected $TARGET)"
+[ -n "$ID" ] || fail "litany prompt printed no agent id"
 case "$ID" in */*) fail "agent id contains a slash: $ID";; esac
 
 BARE="$WS/repo.git"

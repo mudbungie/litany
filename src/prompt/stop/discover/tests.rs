@@ -38,7 +38,7 @@ fn fixture_with_pgid(pid: i32, fd: u32, pgid: i32) -> (TempDir, PathBuf) {
 /// A `/proc/<pid>/stat` line reporting `pgid` — the one field discovery
 /// reads, in its `proc(5)` position after the parenthesized comm.
 fn stat_line(pid: i32, pgid: i32) -> String {
-    format!("{pid} (lernie) S 1 {pgid} 0 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0\n")
+    format!("{pid} (litany) S 1 {pgid} 0 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0\n")
 }
 
 fn write_stat(proc_root: &Path, pid: i32, pgid: i32) {
@@ -157,7 +157,7 @@ fn read_pgid_errors_on_malformed_stat_no_close_paren() {
     let dir = TempDir::new().unwrap();
     write(
         &dir.path().join("proc").join("1234").join("stat"),
-        "1234 lernie S 1 9999 0\n",
+        "1234 litany S 1 9999 0\n",
     );
     let err = read_pgid(&dir.path().join("proc"), 1234).unwrap_err();
     assert_eq!(err.kind(), io::ErrorKind::InvalidData);
@@ -168,7 +168,7 @@ fn read_pgid_errors_on_truncated_fields() {
     let dir = TempDir::new().unwrap();
     write(
         &dir.path().join("proc").join("1234").join("stat"),
-        "1234 (lernie) S 1\n",
+        "1234 (litany) S 1\n",
     );
     let err = read_pgid(&dir.path().join("proc"), 1234).unwrap_err();
     assert_eq!(err.kind(), io::ErrorKind::InvalidData);
@@ -179,7 +179,7 @@ fn read_pgid_errors_on_unparseable_pgid() {
     let dir = TempDir::new().unwrap();
     write(
         &dir.path().join("proc").join("1234").join("stat"),
-        "1234 (lernie) S 1 not-a-number 0\n",
+        "1234 (litany) S 1 not-a-number 0\n",
     );
     let err = read_pgid(&dir.path().join("proc"), 1234).unwrap_err();
     assert_eq!(err.kind(), io::ErrorKind::InvalidData);

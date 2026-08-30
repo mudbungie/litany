@@ -2,11 +2,11 @@
 //! fork point*).
 //!
 //! Starting an agent *is* creating a branch off a ref (§2.3), so a start
-//! names exactly one ref. `lernie prompt` spells that name two ways, and
+//! names exactly one ref. `litany prompt` spells that name two ways, and
 //! [`resolve`] is the one place either spelling becomes the ref:
 //!
 //! - `--config <name>` — the head of the `config/<name>` lineage (§2.3
-//!   *Fresh start*). The bare name is the vocabulary `lernie config`
+//!   *Fresh start*). The bare name is the vocabulary `litany config`
 //!   already uses; the `config/` prefix is applied at the git boundary
 //!   ([`workspace::config_ref`]), never typed by a user.
 //! - `--from <ref>` — any ref at all, verbatim: a historical commit of

@@ -98,10 +98,10 @@ fn advance_declines_an_escaping_id() {
 fn advance_declines_an_agent_that_does_not_exist() {
     // The existence half of the guard (§2.3), which `advance` lacked:
     // a hop at a name with no `agents/*` ref exited 0 in silence and
-    // left `inbox/<name>/` behind — the orphan `lernie scan` reports as
+    // left `inbox/<name>/` behind — the orphan `litany scan` reports as
     // debris, manufactured by an operator typo.
     let (_h, ws) = fixture::workspace();
-    let (r, ..) = with_fx("lernie", b"", &noop_editor, |fx| {
+    let (r, ..) = with_fx("litany", b"", &noop_editor, |fx| {
         advance::run(
             advance::Args {
                 workspace: ws.clone(),
@@ -112,9 +112,9 @@ fn advance_declines_an_agent_that_does_not_exist() {
     });
     assert_eq!(
         r.unwrap_err().to_string(),
-        "lernie advance: no agent \"ghost\" in this workspace — a hop drives an existing \
+        "litany advance: no agent \"ghost\" in this workspace — a hop drives an existing \
          agent (ARCH §2.3: the `agents/*` refs are the registry); check the id against the \
-         workspace's `agents/*` refs, or start an agent with `lernie prompt` / `lernie dispatch`"
+         workspace's `agents/*` refs, or start an agent with `litany prompt` / `litany dispatch`"
     );
     assert!(
         !ws.join("inbox").join("ghost").exists(),

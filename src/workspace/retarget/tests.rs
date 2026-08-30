@@ -23,9 +23,9 @@ fn config_head(ws: &Path) -> String {
 
 #[test]
 fn the_mark_ref_lives_in_the_shared_per_agent_mark_namespace() {
-    // §9.2's retention delete enumerates `refs/lernie/`, so a mark that
+    // §9.2's retention delete enumerates `refs/litany/`, so a mark that
     // spelled its own root would outlive the agent it belongs to.
-    assert_eq!(retarget_ref("a-b"), "refs/lernie/retarget/a-b");
+    assert_eq!(retarget_ref("a-b"), "refs/litany/retarget/a-b");
 }
 
 #[test]

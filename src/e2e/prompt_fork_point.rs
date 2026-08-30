@@ -57,18 +57,18 @@ fn fixture() -> Fixture {
 }
 
 impl Fixture {
-    /// `lernie prompt <ws> <message> [args…]` through the exec binding.
+    /// `litany prompt <ws> <message> [args…]` through the exec binding.
     fn prompt(&self, message: &str, args: &[&str]) -> std::process::Output {
-        Command::new(crate::test_support::lernie_binary())
+        Command::new(crate::test_support::litany_binary())
             .arg("prompt")
             .arg(&self.ws)
             .arg(message)
             .args(args)
-            .env("LERNIE_HOME", &self.harness)
+            .env("LITANY_HOME", &self.harness)
             .env("BRAZEN_CONFIG", &self.brazen_config)
             .stderr(Stdio::piped())
             .output()
-            .expect("spawn lernie prompt")
+            .expect("spawn litany prompt")
     }
 
     /// The agent id a successful start printed (§2.3 — the verb's one
@@ -77,7 +77,7 @@ impl Fixture {
         let out = self.prompt(message, args);
         assert!(
             out.status.success(),
-            "lernie prompt {args:?}: {}",
+            "litany prompt {args:?}: {}",
             String::from_utf8_lossy(&out.stderr)
         );
         String::from_utf8(out.stdout).unwrap().trim().to_string()

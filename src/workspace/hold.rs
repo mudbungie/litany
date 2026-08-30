@@ -1,4 +1,4 @@
-//! The agent's **hold mark** — `refs/lernie/held/<agent-id>` (ARCH §3.3
+//! The agent's **hold mark** — `refs/litany/held/<agent-id>` (ARCH §3.3
 //! *Tool control*).
 //!
 //! When the configured tool control answers **hold**, the seam parks the
@@ -8,12 +8,12 @@
 //! before execution — nothing at or after it in its step has run." That
 //! assertion is exactly what distinguishes a parked branch from the §6
 //! *one non-replayable state* (a mid-tools crash, where a tool may have
-//! run without committing), so `lernie advance` re-enters the tool
+//! run without committing), so `litany advance` re-enters the tool
 //! window under the mark where it would otherwise decline loudly.
 //!
 //! It lives in the per-agent mark namespace ([`super::MARK_REF_ROOT`],
 //! §2.2) beside `conflicted` / `budget-exhausted` / `abandoned` /
-//! `notify` / `cwd`, so it is reaped with the agent by `lernie delete`
+//! `notify` / `cwd`, so it is reaped with the agent by `litany delete`
 //! (§9.2 enumerates the mark root) and crosses no fork, transfer or
 //! merge. Like [`super::cwd`] it **carries a value**: the ref names a
 //! blob holding one line of JSON ([`Held`]) — the held `tool_use` id,
@@ -36,7 +36,7 @@ use std::path::Path;
 /// Ref-namespace prefix for the hold mark (§3.3 *Tool control*).
 pub const HOLD_REF_PREFIX: &str = "held/";
 
-/// `refs/lernie/held/<agent-id>` — the mark ref for one agent.
+/// `refs/litany/held/<agent-id>` — the mark ref for one agent.
 pub fn hold_ref(agent_id: &str) -> String {
     format!("{MARK_REF_ROOT}{HOLD_REF_PREFIX}{agent_id}")
 }

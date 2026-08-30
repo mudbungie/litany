@@ -50,7 +50,7 @@
 //! the result message → release own lock → spawn a driver at own agent →
 //! exit — names only the self-directed launch, because the recipient-side
 //! one is not the exit protocol's: it is the *deposit's*, the same "a
-//! deposit into a quiescent agent starts a driver" rule `lernie message`
+//! deposit into a quiescent agent starts a driver" rule `litany message`
 //! obeys (Writer/driver totality — a writer deposits, probes, and
 //! launches). The terminal deposit is that writer act, so it rides the
 //! same seam ([`crate::prompt::inbox::probe_and_launch`], not a second
@@ -72,7 +72,7 @@ use crate::config::{Budgets, Workflow};
 use std::path::Path;
 
 /// The whole §2.11 terminal tail — one sequence for both drivers
-/// ([`super::run_exchange`]'s tail and the `lernie advance` hop), so the
+/// ([`super::run_exchange`]'s tail and the `litany advance` hop), so the
 /// two terminal lease releases are literally one code path: finish by
 /// epitaph value ([`finish`]), evaluate the workflow's terminal-lifecycle
 /// bindings (§6 — the epitaph names the event), release the lease through
@@ -112,7 +112,7 @@ pub(super) fn conclude(
 
 /// The §6 budget check at a model-call boundary: tokens/wall/depth derived
 /// live over the tree (no stored counter, PRINCIPLES SSOT). On exhaustion
-/// it writes `refs/lernie/budget-exhausted/<branch>`, deposits a
+/// it writes `refs/litany/budget-exhausted/<branch>`, deposits a
 /// `budget-exhausted` result (the agent did not speak this step, so no
 /// body), and returns `true` so the loop ceases — an ordinary terminal
 /// state (§2.9). `false` continues the loop.
@@ -127,7 +127,7 @@ pub(super) fn budget_exhausted(
     let Some(ex) = budget::check(repo, branch, budgets) else {
         return Ok(false);
     };
-    eprintln!("lernie: budget {ex} on {branch}; stopping (ARCH §6)");
+    eprintln!("litany: budget {ex} on {branch}; stopping (ARCH §6)");
     budget::mark_exhausted(worktree, branch, deps.git).map_err(|source| Error::Git {
         op: "budget-exhausted update-ref",
         source,
@@ -172,7 +172,7 @@ fn finish(
 /// is literal — a launch failure is logged and swallowed, never
 /// propagated: it falls into the accepted crash class (§2.11), where the
 /// stranding is late, not lost, and the next touch (a reprompt, or a
-/// hand-run `lernie scan`) heals it.
+/// hand-run `litany scan`) heals it.
 fn exit_launch(
     workspace: &Path,
     agent_id: &str,
@@ -187,7 +187,7 @@ fn exit_launch(
         return;
     }
     if let Err(e) = deps.launcher.launch(workspace, agent_id) {
-        eprintln!("lernie: exit launch for {agent_id}: {e} (accepted crash class, ARCH §2.11)");
+        eprintln!("litany: exit launch for {agent_id}: {e} (accepted crash class, ARCH §2.11)");
     }
     revive_recipient(workspace, recipient, deps);
 }
@@ -201,16 +201,16 @@ fn exit_launch(
 /// obituary) skips it exactly as the deposit did.
 ///
 /// This is the writer's post-deposit probe, unmodified and unduplicated:
-/// [`inbox::probe_and_launch`] — the seam `lernie message` runs — so a
+/// [`inbox::probe_and_launch`] — the seam `litany message` runs — so a
 /// recipient whose lease is held gets nothing (its own executor drains
 /// at its next boundary, §2.11 Delivery) and a quiescent one gets exactly
-/// one detached `lernie advance`, whose warrant is decided under the
+/// one detached `litany advance`, whose warrant is decided under the
 /// lock like any other driver's.
 fn revive_recipient(workspace: &Path, recipient: Option<&str>, deps: &Deps<'_>) {
     let Some(recipient) = recipient else {
         return;
     };
     if let Err(e) = inbox::probe_and_launch(workspace, recipient, deps.launcher) {
-        eprintln!("lernie: revival launch for {recipient}: {e} (accepted crash class, ARCH §2.11)");
+        eprintln!("litany: revival launch for {recipient}: {e} (accepted crash class, ARCH §2.11)");
     }
 }

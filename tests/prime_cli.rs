@@ -1,5 +1,5 @@
-//! `lernie prime` end-to-end over the real binary (ARCH §2.2). Proves the
-//! exact invocation yog drives — `LERNIE_HOME=<dir> lernie prime` — founds
+//! `litany prime` end-to-end over the real binary (ARCH §2.2). Proves the
+//! exact invocation yog drives — `LITANY_HOME=<dir> litany prime` — founds
 //! a fresh nested home, is idempotent (a second run changes nothing), and
 //! never clobbers a hand-edited `models.yaml`. Product-less per the stdout
 //! one-product convention (ARCH §3.4): stdout stays empty, while the
@@ -12,18 +12,18 @@ use std::process::Command;
 use tempfile::TempDir;
 
 fn prime(home: &Path) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_lernie"))
+    Command::new(env!("CARGO_BIN_EXE_litany"))
         .arg("prime")
-        .env("LERNIE_HOME", home)
+        .env("LITANY_HOME", home)
         .output()
-        .expect("spawn lernie prime")
+        .expect("spawn litany prime")
 }
 
 /// Assert success, an empty stdout, and answer the stderr report so the
 /// caller can read the seed-if-absent split out of it.
 fn assert_ok_quiet(out: &std::process::Output) -> String {
     let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
-    assert!(out.status.success(), "lernie prime failed: {stderr}");
+    assert!(out.status.success(), "litany prime failed: {stderr}");
     assert!(
         out.stdout.is_empty(),
         "prime is product-less; stdout: {}",
@@ -38,11 +38,11 @@ fn prime_founds_a_fresh_nested_home_idempotently() {
     let h = home.path();
 
     // First run founds the substrate — and says so, naming both roots
-    // (collapsed to one by LERNIE_HOME) and what it wrote (bl-7e9e).
+    // (collapsed to one by LITANY_HOME) and what it wrote (bl-7e9e).
     let first = assert_ok_quiet(&prime(h));
     assert!(
-        first.contains(&format!("lernie prime: config root {} —", h.display()))
-            && first.contains(&format!("lernie prime: data root {} —", h.display())),
+        first.contains(&format!("litany prime: config root {} —", h.display()))
+            && first.contains(&format!("litany prime: data root {} —", h.display())),
         "the report names both roots; got {first:?}"
     );
     assert!(
@@ -101,14 +101,14 @@ fn seeded_count(report: &str) -> usize {
 
 #[test]
 fn prime_reports_a_seeding_failure_loudly() {
-    // A `LERNIE_HOME` whose parent is a regular file cannot be created
+    // A `LITANY_HOME` whose parent is a regular file cannot be created
     // (`ENOTDIR`), so seeding fails: the binding prints the uniform
-    // `lernie prime: …` stderr shape and exits non-zero (§3.4).
+    // `litany prime: …` stderr shape and exits non-zero (§3.4).
     let tmp = TempDir::new().unwrap();
     let file = tmp.path().join("not-a-dir");
     fs::write(&file, b"x").unwrap();
     let out = prime(&file.join("home"));
     assert!(!out.status.success(), "seeding under a file must fail");
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("lernie prime:"), "got {stderr:?}");
+    assert!(stderr.contains("litany prime:"), "got {stderr:?}");
 }

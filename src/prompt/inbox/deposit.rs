@@ -21,7 +21,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 /// Ref-namespace prefix for the durable **returned** mark,
-/// `refs/lernie/returned/<child-id>` → the child's terminal ref — written
+/// `refs/litany/returned/<child-id>` → the child's terminal ref — written
 /// by [`deposit_result`] the moment a result message lands (ARCH §2.6,
 /// §8). The fact's one durable home: the message file is consumed by
 /// delivery or by a compaction landing, and even its delivered transcript
@@ -29,9 +29,9 @@ use std::path::{Path, PathBuf};
 /// deposited a result" must outlive every downstream trace, or the §8
 /// sweep re-derives a death for a child that returned cleanly. Shares
 /// [`crate::workspace::MARK_REF_ROOT`], so §9.2 retention recycles it.
-pub const RETURNED_REF_PREFIX: &str = "refs/lernie/returned/";
+pub const RETURNED_REF_PREFIX: &str = "refs/litany/returned/";
 
-/// The child's returned-mark ref, `refs/lernie/returned/<child-id>`.
+/// The child's returned-mark ref, `refs/litany/returned/<child-id>`.
 pub fn returned_ref(child_id: &str) -> String {
     format!("{RETURNED_REF_PREFIX}{child_id}")
 }
@@ -57,7 +57,7 @@ pub enum DepositError {
     /// The returned mark could not be written after the result file
     /// landed. Surfaced loudly: an unmarked return is exactly the state
     /// the §8 sweep would later misread as a silent death.
-    #[error("mark refs/lernie/returned/{child}: {source}")]
+    #[error("mark refs/litany/returned/{child}: {source}")]
     Mark {
         child: String,
         #[source]
@@ -220,7 +220,7 @@ pub fn deposit_result(
     Ok(dir.join(filename))
 }
 
-/// Write the durable returned mark `refs/lernie/returned/<child-id>` at
+/// Write the durable returned mark `refs/litany/returned/<child-id>` at
 /// the child's terminal ref (module docs on [`RETURNED_REF_PREFIX`]).
 fn mark_returned(
     workspace: &Path,

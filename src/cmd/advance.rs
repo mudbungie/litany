@@ -1,4 +1,4 @@
-//! `lernie advance` — one hop of the §6 workflow chain: take the lease,
+//! `litany advance` — one hop of the §6 workflow chain: take the lease,
 //! deliver, step, and hand off the successor exec. The §2.9 preludes
 //! (`become_pgid_leader` + `install_stop_handler`) are the binding's, run
 //! before [`run`] ([`super::prelude`]); the successor `execve` is the
@@ -8,7 +8,7 @@ use super::{Error, Fx, Outcome};
 use crate::prompt::dispatch::advance::cli::{self, AdvanceHandoff};
 use std::path::PathBuf;
 
-/// `lernie advance <workspace> <agent>`.
+/// `litany advance <workspace> <agent>`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to the workspace (conversation repo) root.

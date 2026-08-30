@@ -1,4 +1,4 @@
-//! `lernie config` — author a config commit beyond `lernie new` (ARCH
+//! `litany config` — author a config commit beyond `litany new` (ARCH
 //! §2.2, §2.3): the only act besides `new` that advances a config
 //! branch. The interactive `$EDITOR` hand-off arrives through
 //! [`Fx::editor`](super::Fx::editor); everything else lives in
@@ -10,7 +10,7 @@ use crate::template::authoring::Pass;
 use crate::template::{self, RealGit};
 use std::path::PathBuf;
 
-/// `lernie config <workspace> [<name>] [--from <source>] [--orphan]`.
+/// `litany config <workspace> [<name>] [--from <source>] [--orphan]`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to the workspace (conversation repo) root.

@@ -1,7 +1,7 @@
 //! The resolved shape one step loop runs against (ARCH §4.2, §4.3).
 //!
 //! Held apart from [`super`]'s orchestration because it is data, not
-//! sequence: `lernie prompt` and the `lernie advance` hop build the same
+//! sequence: `litany prompt` and the `litany advance` hop build the same
 //! value from their own config sources (§6 *one struct, two drivers*)
 //! and the loop reads it without knowing which resolved it.
 
@@ -32,7 +32,7 @@ pub(in crate::prompt) struct Resolved<'a> {
     /// at every model-call boundary.
     pub(in crate::prompt) budgets: Budgets,
     /// The full workflow (§6): per-step hooks and lifecycle bindings, the
-    /// same seams `lernie advance` runs (the §6 prompt→advance collapse).
+    /// same seams `litany advance` runs (the §6 prompt→advance collapse).
     pub(in crate::prompt) workflow: &'a Workflow,
     /// The role's §5.2 context-assembly rules (`manifest.yaml`, §2.2);
     /// `None` (no entry for the role) assembles the transcript alone.

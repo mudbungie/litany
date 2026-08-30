@@ -4,7 +4,7 @@
 //!
 //! Moved here from yog `src/names` by the yog bl-aca4 ruling: the moment
 //! *every* creation path must mint on omission — the `dispatch` tool,
-//! `lernie dispatch`, `lernie prompt`, none of which pass through yog —
+//! `litany dispatch`, `litany prompt`, none of which pass through yog —
 //! the mint's one home is beside the uniqueness check it races
 //! ([`super::require_available`]). Yog draws the same function through
 //! the crate it already links (the [`crate::mint`] facade), so preview
@@ -12,7 +12,7 @@
 //!
 //! **Two words, because one does not read as a name** (bl-79a2, operator
 //! ruling 2026-08-16). A lone common noun in a conversation row or a
-//! `lernie list` line reads as a word that happens to be there; the
+//! `litany list` line reads as a word that happens to be there; the
 //! PascalCase pair carries the naming intent in its own shape. The join
 //! has no separator, so the name stays one path component and one
 //! unbroken token — and a name carrying no hyphen can never be misread

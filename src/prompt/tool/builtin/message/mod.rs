@@ -2,15 +2,15 @@
 //!
 //! Stdin is the `tool_use.input` block as JSON: `{ "agent": <string>,
 //! "content": <string> }`. The workspace and the sender arrive via the
-//! `LERNIE_CONV_REPO` and `LERNIE_CONV_BRANCH` env vars the executor
+//! `LITANY_CONV_REPO` and `LITANY_CONV_BRANCH` env vars the executor
 //! sets per §3.3 — the sender is thus **harness-derived, never
 //! model-supplied**, so an agent cannot forge provenance (§2.11).
 //!
-//! The tool deposits through the §3.4 control plane — `lernie message
+//! The tool deposits through the §3.4 control plane — `litany message
 //! <workspace> <agent> <content>` — rather than writing the inbox file
 //! in-process, the same front-door discipline the `dispatch` built-in
 //! follows. The calling agent's id is forwarded to the verb as the
-//! `LERNIE_CONV_BRANCH` of the spawned process, so the verb resolves the
+//! `LITANY_CONV_BRANCH` of the spawned process, so the verb resolves the
 //! deposit's `<sender>` to it. Deposit is synchronous and returns
 //! `{"status":"deposited"}`: it is not a dispatch, creates no branch,
 //! and returns no child address (§2.11).
@@ -54,15 +54,15 @@ pub enum Error {
     StdinRead(#[source] io::Error),
     #[error("missing env var {0:?} (set by the harness per ARCH §3.3)")]
     MissingEnv(&'static str),
-    #[error("spawn lernie message: {0}")]
+    #[error("spawn litany message: {0}")]
     Spawn(#[source] io::Error),
-    #[error("lernie message failed (exit {exit}): {stderr}")]
+    #[error("litany message failed (exit {exit}): {stderr}")]
     MessageExit { exit: i32, stderr: String },
     #[error("write to stdout: {0}")]
     Write(#[source] io::Error),
 }
 
-/// Captured outcome of `lernie message`. Mirrors the dispatch tool's
+/// Captured outcome of `litany message`. Mirrors the dispatch tool's
 /// `DispatchOutput` — we always report exit non-zero as a typed error.
 #[derive(Debug)]
 pub struct SendOutput {
@@ -70,12 +70,12 @@ pub struct SendOutput {
     pub exit: i32,
 }
 
-/// Trait for invoking `lernie message`. Production wires
+/// Trait for invoking `litany message`. Production wires
 /// [`SubprocessSender`]; tests inject a stub that records the deposit
 /// without spawning a subprocess.
 pub trait Sender {
-    /// Run `lernie message <workspace> <agent> <content>` with
-    /// `LERNIE_CONV_BRANCH=<sender>` so the verb attributes the deposit
+    /// Run `litany message <workspace> <agent> <content>` with
+    /// `LITANY_CONV_BRANCH=<sender>` so the verb attributes the deposit
     /// to the calling agent.
     fn send(
         &self,
@@ -86,8 +86,8 @@ pub trait Sender {
     ) -> Result<SendOutput, io::Error>;
 }
 
-/// Production [`Sender`] — re-enters the `lernie` command surface as
-/// `lernie message`. The exe is the binding-injected driver target
+/// Production [`Sender`] — re-enters the `litany` command surface as
+/// `litany message`. The exe is the binding-injected driver target
 /// (`cmd::Fx::driver_target`, §2.11) — never `current_exe`, which under
 /// a linked host names the host binary.
 pub struct SubprocessSender {
@@ -96,7 +96,7 @@ pub struct SubprocessSender {
 
 impl SubprocessSender {
     /// Re-enter `exe` — the injected driver target in production, a
-    /// stand-in in tests that avoid spawning the real `lernie`.
+    /// stand-in in tests that avoid spawning the real `litany`.
     pub fn with_exe(exe: PathBuf) -> Self {
         Self { exe }
     }
@@ -125,7 +125,7 @@ impl Sender for SubprocessSender {
 }
 
 /// Pure entry point: parse stdin, read the harness env, deposit through
-/// `sender`, write `{status: deposited}` to `stdout`. The `lernie tool
+/// `sender`, write `{status: deposited}` to `stdout`. The `litany tool
 /// message` shim wires this to the live process's stdio plus
 /// [`super::dispatch::ProcessEnv`] + [`SubprocessSender`].
 pub fn run<R: Read, W: Write>(

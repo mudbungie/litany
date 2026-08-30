@@ -170,14 +170,14 @@ fn budget_exhaustion_at_the_boundary_terminates_without_a_model_call() {
     let out = run(ws.path(), AGENT, None, &deps, &mut || Ok(cfg.clone())).unwrap();
     assert!(matches!(out, AdvanceOutcome::Terminal));
     // Budget exhaustion — asserted on the disk record it writes, not a
-    // carried payload: the `refs/lernie/budget-exhausted/<branch>` marker
+    // carried payload: the `refs/litany/budget-exhausted/<branch>` marker
     // ref was updated at the boundary before any model call, and §2.11
     // pin 2 held — budget-exhausted never relaunches.
     assert!(git.runs.borrow().iter().any(|(_, args)| {
         args.first().map(String::as_str) == Some("update-ref")
             && args
                 .get(1)
-                .is_some_and(|r| r.starts_with("refs/lernie/budget-exhausted/"))
+                .is_some_and(|r| r.starts_with("refs/litany/budget-exhausted/"))
     }));
     assert!(rec.invocations.borrow().is_empty());
 }

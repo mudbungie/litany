@@ -1,4 +1,4 @@
-//! The agent's **working-directory mark** — `refs/lernie/cwd/<agent-id>`
+//! The agent's **working-directory mark** — `refs/litany/cwd/<agent-id>`
 //! (ARCH §3.3 *Working directory*).
 //!
 //! An agent's working directory is one mutable per-agent fact: its
@@ -6,7 +6,7 @@
 //! last set. This module is that fact's one home. It lives in the
 //! per-agent **mark** namespace ([`super::MARK_REF_ROOT`], §2.2) beside
 //! `conflicted` / `budget-exhausted` / `abandoned` / `notify`, so it is
-//! reaped with the agent by `lernie delete` (§9.2 enumerates the mark
+//! reaped with the agent by `litany delete` (§9.2 enumerates the mark
 //! root, never a list of kinds), it crosses no fork and no transfer
 //! (marks are keyed by agent id and nothing merges them), and it is not
 //! context (§5.1 — the agent learns its cwd from the tool result, not
@@ -24,7 +24,7 @@
 //! read back wrong (PRINCIPLES "Decline illegal operations").
 //!
 //! **The mark has two writers, and one validation.** The agent's own `cd`
-//! built-in writes it mid-run; `lernie prompt --cwd` / `lernie dispatch
+//! built-in writes it mid-run; `litany prompt --cwd` / `litany dispatch
 //! --cwd` seed it at creation, before the agent's first step (ARCH §3.3,
 //! §2.5). Both reach a directory through [`resolve`], so a path is
 //! refused in one voice wherever it was named — a second set of rules for
@@ -40,7 +40,7 @@ use thiserror::Error;
 /// Ref-namespace prefix for the working-directory mark (§3.3).
 pub const CWD_REF_PREFIX: &str = "cwd/";
 
-/// `refs/lernie/cwd/<agent-id>` — the mark ref for one agent.
+/// `refs/litany/cwd/<agent-id>` — the mark ref for one agent.
 pub fn cwd_ref(agent_id: &str) -> String {
     format!("{MARK_REF_ROOT}{CWD_REF_PREFIX}{agent_id}")
 }

@@ -1,5 +1,5 @@
 //! The workspace scan's derivations (ARCH §2.11 *Crashes are a failure
-//! class*, §8 — the `lernie scan` operator verb).
+//! class*, §8 — the `litany scan` operator verb).
 //!
 //! Pure and read-only over the workspace: branch enumeration, the
 //! live-executor probe, the returned/never-deposited derivation across a
@@ -54,7 +54,7 @@ pub(super) fn is_driven(workspace: &Path, branch: &str) -> Result<bool, ScanErro
 }
 
 /// Has the child `child` returned a result to `parent`? The durable
-/// answer is the **returned mark** `refs/lernie/returned/<child>` that
+/// answer is the **returned mark** `refs/litany/returned/<child>` that
 /// every result deposit writes ([`crate::prompt::inbox::deposit::RETURNED_REF_PREFIX`])
 /// — the message file and even its delivered transcript entry are
 /// consumable (a compaction landing removes the trigger without a

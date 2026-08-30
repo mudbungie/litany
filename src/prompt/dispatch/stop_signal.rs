@@ -1,7 +1,7 @@
 //! Executor-side SIGTERM catch (ARCH §2.9 step 3).
 //!
 //! When a stop is issued the whole harness process group is signalled —
-//! `lernie stop` does `kill(-pgid, SIGTERM)` (`stop::cascade`), so the
+//! `litany stop` does `kill(-pgid, SIGTERM)` (`stop::cascade`), so the
 //! provider adapter (`bz`) and every tool subprocess receive their *own*
 //! SIGTERM delivery and die at once, `bz` installing no handler so its
 //! `response.json` closes without a trailing `end` (the §2.9 stop
@@ -35,7 +35,7 @@ extern "C" fn on_sigterm(_signo: libc::c_int) {
     SIGTERM_FLAG.store(true, Ordering::SeqCst);
 }
 
-/// Install [`on_sigterm`] for `SIGTERM`, once per process (`lernie
+/// Install [`on_sigterm`] for `SIGTERM`, once per process (`litany
 /// prompt` at top-of-main, beside `stop::become_pgid_leader`). Idempotent
 /// — a second call is a no-op.
 pub fn install() {
@@ -50,7 +50,7 @@ pub fn install() {
 }
 
 /// The process-wide flag, for the production [`Deps::stop`] wiring in the
-/// `lernie prompt` bin. Tests inject their own flag instead.
+/// `litany prompt` bin. Tests inject their own flag instead.
 pub fn flag() -> &'static AtomicBool {
     &SIGTERM_FLAG
 }

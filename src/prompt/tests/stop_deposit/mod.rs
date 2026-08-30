@@ -227,7 +227,7 @@ fn stop_during_tool_execution_deposits_stopped_and_skips_compaction() {
     assert!(deposited_result(repo.path()).contains("epitaph: stopped"));
     // The exit settled its own window first (§2.9 step 3): the felled
     // invocation is answered in band, so the branch tip is a *paired*
-    // tail — `lernie advance` reads `ModelCallDue`, not the §6 unpaired
+    // tail — `litany advance` reads `ModelCallDue`, not the §6 unpaired
     // decline, and a deposit revives this agent by the ordinary path.
     let worktree = crate::workspace::agent_worktree(repo.path(), "ct-1-deadbeef");
     let settled = std::fs::read_to_string(worktree.join("messages/003-tool.json")).unwrap();

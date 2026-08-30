@@ -5,7 +5,7 @@
 use std::path::Path;
 
 /// Inputs to a child dispatch. Built the same way by the dispatch
-/// built-in and the `lernie dispatch` CLI regardless of the target role.
+/// built-in and the `litany dispatch` CLI regardless of the target role.
 pub struct ChildDispatchRequest<'a> {
     /// Workspace repository root. Used for the child's worktree path
     /// (sibling under `agents/`, §2.2), for soul resolution
@@ -41,13 +41,13 @@ pub struct ChildDispatchRequest<'a> {
     /// The ref the child forks off (ARCH §2.3). `None` is the ordinary
     /// child dispatch off the parent's tip (§2.5); `Some(ref)` forks off
     /// another — a verifier off the worker's terminal ref (§6 gate), or
-    /// `lernie dispatch --from <ref>` (§7.2) — while the child id stays
+    /// `litany dispatch --from <ref>` (§7.2) — while the child id stays
     /// `<parent>-<sub>` (return address unchanged). Either way the
     /// child's **governing config commit derives from this ref** (§2.2
     /// fork-back-in): its ancestry begins here.
     pub fork_point: Option<&'a str>,
     /// The **working directory** the caller seeded for the child (§3.3,
-    /// `lernie dispatch --cwd`), already resolved to an absolute
+    /// `litany dispatch --cwd`), already resolved to an absolute
     /// directory by [`crate::workspace::cwd::resolve`]. Written to the
     /// child's own mark before the fork, so its first tool call already
     /// runs there. `None` — every harness-initiated dispatch, the

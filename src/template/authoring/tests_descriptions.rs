@@ -1,6 +1,6 @@
-//! Snapshot-time validation failures (bl-e3f5), through `lernie config`'s
+//! Snapshot-time validation failures (bl-e3f5), through `litany config`'s
 //! later-commit path — split out of `tests.rs` to keep it under the
-//! 300-line cap. Mirrors `template::tests_descriptions`, the `lernie new`
+//! 300-line cap. Mirrors `template::tests_descriptions`, the `litany new`
 //! case: both verbs call the same [`crate::template::descriptions::snapshot`].
 
 use super::tests::{workspace, write_files};
@@ -11,7 +11,7 @@ use std::fs;
 
 #[test]
 fn malformed_skill_frontmatter_declines_naming_the_file_no_commit() {
-    // The same YAML plain-scalar trap as `lernie new` (bl-e3f5): `author`
+    // The same YAML plain-scalar trap as `litany new` (bl-e3f5): `author`
     // must decline before `edit` even runs, name the offending pool file,
     // and move nothing.
     let (holder, ws) = workspace();

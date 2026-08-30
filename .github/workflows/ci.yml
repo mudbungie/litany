@@ -28,8 +28,8 @@ jobs:
 
       - name: Configure git identity
         run: |
-          git config --global user.email "ci@lernie.local"
-          git config --global user.name "lernie CI"
+          git config --global user.email "ci@litany.local"
+          git config --global user.name "litany CI"
 
       - name: Install pinned Rust toolchain
         # rust-toolchain.toml is the single source of the pin (channel +
@@ -85,7 +85,7 @@ jobs:
         # would fail the version guard, and a cold miss costs one cargo
         # install. Two homes, both pin-derived and both populated by `make
         # ci` itself, so neither needs an install step here:
-        #   - ~/.cache/lernie/bz/<pin> is what the TEST targets exec (the
+        #   - ~/.cache/litany/bz/<pin> is what the TEST targets exec (the
         #     Makefile's BZ_TEST_ROOT — pin-keyed, put first on PATH so the
         #     e2e tests never depend on the ambient `bz`, README "The
         #     pinned adapter under test"). `make coverage` installs it.
@@ -96,7 +96,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: |
-            ~/.cache/lernie/bz
+            ~/.cache/litany/bz
             ~/.cargo/bin/bz
           key: ${{ runner.os }}-bz-homes-${{ steps.brazen.outputs.pin }}
 

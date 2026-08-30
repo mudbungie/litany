@@ -35,12 +35,12 @@ pub fn is_component(name: &str) -> bool {
 }
 
 /// A declined agent id (ARCH §2.3), rendered inside the verb's uniform
-/// `lernie <verb>: <error>` failure line (§3.4).
+/// `litany <verb>: <error>` failure line (§3.4).
 #[derive(Debug, thiserror::Error)]
 #[error(
     "agent id {0:?} is not a single path component — an agent id is its branch name, \
      the hyphenated descent `<a>-<b>-…` (ARCH §2.3); pass the id exactly as \
-     `lernie prompt` / `lernie dispatch` printed it"
+     `litany prompt` / `litany dispatch` printed it"
 )]
 pub struct NotAnAgentId(String);
 
@@ -87,7 +87,7 @@ mod tests {
             ".",
             "..",
             "../../victim/pwned",
-            "/etc/lernie",
+            "/etc/litany",
             "a\\b",
             "a\0b",
         ] {

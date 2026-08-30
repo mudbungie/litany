@@ -8,7 +8,7 @@ use std::io;
 use std::path::PathBuf;
 
 /// A [`Launcher`] that records its launches instead of spawning a real
-/// `lernie advance`. `fail` makes `launch` return an error so the
+/// `litany advance`. `fail` makes `launch` return an error so the
 /// post-deposit error arm is exercised deterministically.
 pub(super) struct RecordingLauncher {
     pub(super) invocations: RefCell<Vec<(PathBuf, String)>>,

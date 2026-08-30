@@ -1,4 +1,4 @@
-//! Descriptions-always producer, end-to-end through `lernie new`
+//! Descriptions-always producer, end-to-end through `litany new`
 //! (ARCH §3.3). A populated data-root pool must produce a committed
 //! `descriptions/**` tree in the workspace's first config commit
 //! (`config/default`, §2.2), so a downstream branch's tools composer
@@ -26,13 +26,13 @@ fn scrub_git_env(cmd: &mut Command) {
     }
 }
 
-fn lernie_bin() -> PathBuf {
-    PathBuf::from(env!("CARGO_BIN_EXE_lernie"))
+fn litany_bin() -> PathBuf {
+    PathBuf::from(env!("CARGO_BIN_EXE_litany"))
 }
 
 #[test]
 fn descriptions_are_snapshotted_from_the_pool_and_committed() {
-    // A populated pool under LERNIE_HOME (which collapses both roots):
+    // A populated pool under LITANY_HOME (which collapses both roots):
     // one tool schema and one skill frontmatter.
     let home = TempDir::new().unwrap();
     let data = home.path();
@@ -47,15 +47,15 @@ fn descriptions_are_snapshotted_from_the_pool_and_committed() {
 
     let holder = TempDir::new().unwrap();
     let dest = holder.path().join("conv");
-    let mut cmd = Command::new(lernie_bin());
+    let mut cmd = Command::new(litany_bin());
     scrub_git_env(&mut cmd);
     let out = cmd
         .arg("new")
         .arg(&dest)
-        .env("LERNIE_HOME", data)
-        .env("GIT_AUTHOR_NAME", "lernie-test")
+        .env("LITANY_HOME", data)
+        .env("GIT_AUTHOR_NAME", "litany-test")
         .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
-        .env("GIT_COMMITTER_NAME", "lernie-test")
+        .env("GIT_COMMITTER_NAME", "litany-test")
         .env("GIT_COMMITTER_EMAIL", "test@example.invalid")
         // A fixture identity is not this machine's, and a global
         // `core.hooksPath` hook that enforces one would refuse every
@@ -65,7 +65,7 @@ fn descriptions_are_snapshotted_from_the_pool_and_committed() {
         .env("GIT_CONFIG_KEY_0", "core.hooksPath")
         .env("GIT_CONFIG_VALUE_0", "/dev/null")
         .output()
-        .expect("invoke lernie binary");
+        .expect("invoke litany binary");
     assert!(
         out.status.success(),
         "{}",
@@ -101,7 +101,7 @@ fn descriptions_are_snapshotted_from_the_pool_and_committed() {
 
 #[test]
 fn an_unseeded_harness_root_is_founded_by_new_so_descriptions_are_never_empty() {
-    // The papercut: `lernie new` against a data root nobody primed used
+    // The papercut: `litany new` against a data root nobody primed used
     // to exit 0 with a config commit carrying no `descriptions/` at all,
     // so every agent forked off it saw an empty toolset (ARCH §3.3
     // descriptions-always). `new` now founds the root through prime's
@@ -110,15 +110,15 @@ fn an_unseeded_harness_root_is_founded_by_new_so_descriptions_are_never_empty() 
     let home = TempDir::new().unwrap();
     let holder = TempDir::new().unwrap();
     let dest = holder.path().join("ws");
-    let mut cmd = Command::new(lernie_bin());
+    let mut cmd = Command::new(litany_bin());
     scrub_git_env(&mut cmd);
     let out = cmd
         .arg("new")
         .arg(&dest)
-        .env("LERNIE_HOME", home.path())
-        .env("GIT_AUTHOR_NAME", "lernie-test")
+        .env("LITANY_HOME", home.path())
+        .env("GIT_AUTHOR_NAME", "litany-test")
         .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
-        .env("GIT_COMMITTER_NAME", "lernie-test")
+        .env("GIT_COMMITTER_NAME", "litany-test")
         .env("GIT_COMMITTER_EMAIL", "test@example.invalid")
         // A fixture identity is not this machine's, and a global
         // `core.hooksPath` hook that enforces one would refuse every
@@ -128,7 +128,7 @@ fn an_unseeded_harness_root_is_founded_by_new_so_descriptions_are_never_empty() 
         .env("GIT_CONFIG_KEY_0", "core.hooksPath")
         .env("GIT_CONFIG_VALUE_0", "/dev/null")
         .output()
-        .expect("invoke lernie binary");
+        .expect("invoke litany binary");
     assert!(
         out.status.success(),
         "{}",

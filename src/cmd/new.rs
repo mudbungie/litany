@@ -1,10 +1,10 @@
-//! `lernie new` — create a workspace and author its first config commit
+//! `litany new` — create a workspace and author its first config commit
 //! (ARCH §2.2). The descriptions-always snapshot (§3.3) means the
 //! data-root pools are resolved at creation, so `roots` is always needed.
 //!
 //! Because the pools are an *input* to the first config commit, `new`
 //! **founds the harness root first**, through the very routine
-//! [`lernie prime`](crate::install::prime) runs (§2.2) — not a copy of
+//! [`litany prime`](crate::install::prime) runs (§2.2) — not a copy of
 //! it. `prime` is seed-if-absent throughout and therefore idempotent, so
 //! founding here is a no-op on a primed install and needs no flag: the
 //! unseeded data root stops being a special case, and `new` can no
@@ -18,7 +18,7 @@ use crate::prompt::{IdGen, NanoIdGen};
 use crate::template::{self, RealGit};
 use std::path::PathBuf;
 
-/// `lernie new [<path>]`.
+/// `litany new [<path>]`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to create the workspace at; defaults to a fresh

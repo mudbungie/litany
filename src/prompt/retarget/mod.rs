@@ -27,7 +27,7 @@
 //! answers the target commit. No new stored fact anywhere.
 //!
 //! **The user act is a ref mark, so the single-writer rule is untouched.**
-//! `lernie retarget` writes `refs/lernie/retarget/<agent-id>`
+//! `litany retarget` writes `refs/litany/retarget/<agent-id>`
 //! ([`crate::workspace::retarget`]); the agent's **own executor** consumes
 //! it at the next `advance` step boundary, exactly where the compaction
 //! landing runs. §2.3 holds verbatim: the branch still advances by one
@@ -69,12 +69,12 @@ pub enum Outcome {
     NoOp,
     /// Git had to write conflict markers during the replay — the landing
     /// is aborted, the branch restored bit-for-bit, and
-    /// `refs/lernie/conflicted/<agent-id>` marked at the branch's own tip
+    /// `refs/litany/conflicted/<agent-id>` marked at the branch's own tip
     /// (§2.6 decline). Carries the offending paths for the operator line.
     Conflicted(Vec<String>),
 }
 
-/// Everything `lernie retarget` refuses **before** the mark is written
+/// Everything `litany retarget` refuses **before** the mark is written
 /// (§3.4), returning the target config commit — or `None` when that commit
 /// already governs the agent, which is a clean no-op rather than an error.
 /// Nothing here writes, so a refusal leaves no debris at all: the same

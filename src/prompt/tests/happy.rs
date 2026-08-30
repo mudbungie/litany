@@ -78,7 +78,7 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
         "---\nfrom: user\ndeposited_at: iso-1\n---\nhello"
     );
     assert_eq!(request["max_tokens"], 4096);
-    // `stream` is not set by lernie — brazen's default governs (§4.4).
+    // `stream` is not set by litany — brazen's default governs (§4.4).
     // The typed request serializes an unset Option as JSON `null`.
     assert!(request["stream"].is_null());
 

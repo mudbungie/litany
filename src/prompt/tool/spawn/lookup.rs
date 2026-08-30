@@ -1,4 +1,4 @@
-//! The §3.3 second resolution hop: `lernie-tool-<name>` on `PATH`.
+//! The §3.3 second resolution hop: `litany-tool-<name>` on `PATH`.
 //!
 //! Split from [`super`] so the lookup — a trait, its production
 //! implementation, and the two functions behind it — sits apart from the
@@ -14,7 +14,7 @@ use std::path::PathBuf;
 /// indirection: its target is injected, not looked up.
 pub trait PathLookup {
     /// PATH lookup for the externalized tool binary
-    /// (`lernie-tool-<name>`), the second hop in §3.3 resolution.
+    /// (`litany-tool-<name>`), the second hop in §3.3 resolution.
     fn which_on_path(&self, prefixed_name: &str) -> Option<PathBuf>;
 }
 

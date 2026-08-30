@@ -25,7 +25,7 @@ pub fn suite_revision(dir: &Path) -> Option<String> {
 /// inherited `GIT_*` redirection is scrubbed: the eval may itself run
 /// under a git hook, and a leaked `GIT_DIR` would silently report some
 /// *other* repository's revision as the suite's (the same trap the
-/// shipped driver scrubs before exec'ing `lernie`).
+/// shipped driver scrubs before exec'ing `litany`).
 fn git(dir: &Path, args: &[&str]) -> Option<String> {
     let mut cmd = Command::new("git");
     cmd.args(args).current_dir(dir).stdin(Stdio::null());

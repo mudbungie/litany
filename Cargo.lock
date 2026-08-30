@@ -1141,32 +1141,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
-name = "lernie"
-version = "0.0.11"
-dependencies = [
- "brazen",
- "chrono",
- "clap",
- "httpmock",
- "include_dir",
- "libc",
- "schemars",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "syn 2.0.117",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "lernie-eval-agent"
-version = "0.1.0"
-dependencies = [
- "tempfile",
-]
-
-[[package]]
 name = "levenshtein"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1192,6 +1166,32 @@ name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
+
+[[package]]
+name = "litany"
+version = "0.0.1"
+dependencies = [
+ "brazen",
+ "chrono",
+ "clap",
+ "httpmock",
+ "include_dir",
+ "libc",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "syn 2.0.117",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "litany-eval-agent"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+]
 
 [[package]]
 name = "litemap"

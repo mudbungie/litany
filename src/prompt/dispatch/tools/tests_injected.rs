@@ -57,7 +57,7 @@ fn hosted<'a>(
     root: &'a Path,
     clock: &'a dyn crate::prompt::Clock,
 ) -> SpawnTool<'a> {
-    SpawnTool::new(root, clock, Path::new("lernie")).with_injection(Some(host))
+    SpawnTool::new(root, clock, Path::new("litany")).with_injection(Some(host))
 }
 
 #[test]

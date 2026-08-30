@@ -1,9 +1,9 @@
-//! End-to-end test for `lernie advance` (ARCH §6): the reprompt chain
-//! and the exec baton, over real subprocesses and real `bz`. Flow: `lernie prompt` answers "ping" and quiesces. `lernie message`
+//! End-to-end test for `litany advance` (ARCH §6): the reprompt chain
+//! and the exec baton, over real subprocesses and real `bz`. Flow: `litany prompt` answers "ping" and quiesces. `litany message`
 //! deposits a reprompt and — the §2.11 probe finding the lease free —
-//! detach-spawns `lernie advance`, which delivers the deposit and steps.
+//! detach-spawns `litany advance`, which delivers the deposit and steps.
 //! The model call returns `tool_use`, so the hop runs the bash tool and
-//! **exec's its successor** with the lock fd riding `LERNIE_LOCK_FD`
+//! **exec's its successor** with the lock fd riding `LITANY_LOCK_FD`
 //! (§6 exec baton); the successor adopts the lease, finds the tail
 //! user-side, and steps to the final response — whose exit protocol
 //! launches one last driver that finds nothing due (§2.11 pin 1).
@@ -21,8 +21,8 @@ use tempfile::TempDir;
 
 use super::poll;
 
-fn lernie_bin() -> std::path::PathBuf {
-    crate::test_support::lernie_binary()
+fn litany_bin() -> std::path::PathBuf {
+    crate::test_support::litany_binary()
 }
 
 const HAPPY_SSE: &str = concat!(
@@ -111,15 +111,15 @@ roles:
 ";
 
 fn scaffold(dest: &Path, harness: &Path) {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("new")
         .arg(dest)
-        .env("LERNIE_HOME", harness)
+        .env("LITANY_HOME", harness)
         .output()
-        .expect("spawn lernie new");
+        .expect("spawn litany new");
     assert!(
         out.status.success(),
-        "lernie new: {}",
+        "litany new: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     // Config-commit amendment (§2.2): point roles at the fixture row,
@@ -160,44 +160,44 @@ fn message_launches_a_detached_advance_chain_that_batons_through_tools() {
     let dest = holder.path().join("conv");
     scaffold(&dest, &harness);
 
-    // Exchange 1: `lernie prompt` answers and quiesces. Its exit launch
+    // Exchange 1: `litany prompt` answers and quiesces. Its exit launch
     // spawns a real driver, which finds nothing due and exits silently
     // (§2.11 pin 1) — the recursion terminator, live.
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("prompt")
         .arg(&dest)
         .arg("ping")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .env("BRAZEN_CONFIG", &brazen_config)
         .output()
-        .expect("spawn lernie prompt");
+        .expect("spawn litany prompt");
     assert!(
         out.status.success(),
-        "lernie prompt: {}",
+        "litany prompt: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     let conv = String::from_utf8(out.stdout).unwrap().trim().to_string();
 
     // Exchange 2: the reprompt is a message (§2.4). The deposit probe
-    // finds the lease free and detach-spawns `lernie advance`; the verb
+    // finds the lease free and detach-spawns `litany advance`; the verb
     // returns immediately — delivery and stepping continue in the driver.
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("message")
         .arg(&dest)
         .arg(&conv)
         .arg("again")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .env("BRAZEN_CONFIG", &brazen_config)
         .output()
-        .expect("spawn lernie message");
+        .expect("spawn litany message");
     assert!(
         out.status.success(),
-        "lernie message: {}",
+        "litany message: {}",
         String::from_utf8_lossy(&out.stderr)
     );
 
     // The chain: deliver (003-user) → step 2 (004 tool_use) → bash tool
-    // (005-tool) → exec successor with the lease riding LERNIE_LOCK_FD →
+    // (005-tool) → exec successor with the lease riding LITANY_LOCK_FD →
     // step 3 (006 final response).
     let messages = dest.join("agents").join(&conv).join("messages");
     wait_for(&dest, &messages.join("003-user.md"));
@@ -233,18 +233,18 @@ fn message_launches_a_detached_advance_chain_that_batons_through_tools() {
 
 #[test]
 fn advance_verb_surfaces_an_unusable_workspace_loudly() {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .args(["advance", "/no/such/workspace", "20260101-a1"])
         .output()
-        .expect("spawn lernie advance");
+        .expect("spawn litany advance");
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("lernie advance"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("litany advance"));
 }
 
 #[test]
 fn advance_on_a_name_with_no_agent_ref_refuses_and_mints_no_inbox() {
     // A real workspace and an id that names no agent: the §2.3
-    // existence guard refuses in the `lernie message` voice, exit 1 —
+    // existence guard refuses in the `litany message` voice, exit 1 —
     // and, because the guard runs ahead of the lease, `inbox/<name>/`
     // is never created. Before the guard this exited 0 in silence and
     // left the orphan directory behind.
@@ -254,22 +254,22 @@ fn advance_on_a_name_with_no_agent_ref_refuses_and_mints_no_inbox() {
     write_global_models(&harness);
     let dest = holder.path().join("ws");
     scaffold(&dest, &harness);
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .args(["advance"])
         .arg(&dest)
         .arg("ghost")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .output()
-        .expect("spawn lernie advance");
+        .expect("spawn litany advance");
     assert_eq!(out.status.code(), Some(1));
     assert!(out.stdout.is_empty(), "a refusal is stderr-only");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stderr.trim_end().ends_with(
-            "lernie advance: no agent \"ghost\" in this workspace — a hop drives an existing \
+            "litany advance: no agent \"ghost\" in this workspace — a hop drives an existing \
              agent (ARCH §2.3: the `agents/*` refs are the registry); check the id against \
-             the workspace's `agents/*` refs, or start an agent with `lernie prompt` / \
-             `lernie dispatch`"
+             the workspace's `agents/*` refs, or start an agent with `litany prompt` / \
+             `litany dispatch`"
         ),
         "{stderr}"
     );

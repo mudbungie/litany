@@ -1,4 +1,4 @@
-//! Tests for the `lernie scan` workspace sweep (ARCH §2.11 *Crashes are
+//! Tests for the `litany scan` workspace sweep (ARCH §2.11 *Crashes are
 //! a failure class*, §8), split
 //! by axis so each file stays under the repo's per-file line cap.
 //!
@@ -52,7 +52,7 @@ pub(super) struct StubGit {
     tips: HashMap<String, String>,
     fail_op: Option<&'static str>,
     invocations: RefCell<Vec<Vec<String>>>,
-    /// The durable returned marks (`refs/lernie/returned/<child>`, §8):
+    /// The durable returned marks (`refs/litany/returned/<child>`, §8):
     /// pre-scripted via [`Self::marked`] and written through `update-ref`
     /// by the sweep's own deposit, read back through `show-ref`.
     marks: RefCell<HashMap<String, String>>,
@@ -82,7 +82,7 @@ impl StubGit {
     pub(super) fn marked(self, child: &str, sha: &str) -> Self {
         self.marks
             .borrow_mut()
-            .insert(format!("refs/lernie/returned/{child}"), sha.to_string());
+            .insert(format!("refs/litany/returned/{child}"), sha.to_string());
         self
     }
     /// Was an `ls-tree` ever issued against `agents/<branch>`? The

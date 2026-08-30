@@ -4,7 +4,7 @@
 //! private module is unreachable, and a `pub fn` anywhere down a chain of
 //! `pub mod`s is public API wherever in the tree it lives. So the checker
 //! starts at the crate roots (`src/lib.rs`, and the exec binding's
-//! `src/bin/lernie/main.rs`), walks every `mod` declaration — file-based
+//! `src/bin/litany/main.rs`), walks every `mod` declaration — file-based
 //! and inline alike — and carries two bits down each edge: whether the
 //! whole chain is `pub` (externally reachable), and whether any ancestor
 //! is `#[cfg(test)]` (compiled only under test, hence never public).
@@ -57,7 +57,7 @@ pub fn crate_graph() -> Rc<Vec<Module>> {
 /// every module in it is non-public; it is walked only so that
 /// [`source_files`] reachability is total over `src/`.
 pub fn binding_graph() -> Vec<Module> {
-    walk(root().join("src/bin/lernie/main.rs"), "bin", false)
+    walk(root().join("src/bin/litany/main.rs"), "bin", false)
 }
 
 /// The one module at `path` (panics if the graph has no such module).

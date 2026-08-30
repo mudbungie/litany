@@ -8,15 +8,15 @@
 //! and the voice rather than each keeping a copy of both.
 //!
 //! The last two are the same guard for the other name a start takes:
-//! §2.3 makes *any ref* a legal fork point, so `lernie prompt --from`
-//! and `lernie dispatch --from` decline an absent one here, and
-//! `lernie prompt --config` / `lernie config --from` decline an absent
+//! §2.3 makes *any ref* a legal fork point, so `litany prompt --from`
+//! and `litany dispatch --from` decline an absent one here, and
+//! `litany prompt --config` / `litany config --from` decline an absent
 //! config lineage by naming the lineages that do exist
 //! ([`crate::name::pool`]) — the refusal carries the answer to "then
 //! what may I name?".
 //!
 //! The existence half is not universal, and the exception says why the
-//! rule holds: `lernie delete` (§9.2) guards the layout and the id's
+//! rule holds: `litany delete` (§9.2) guards the layout and the id's
 //! *shape* but admits an id no ref answers to, because absence is the
 //! postcondition it establishes — the other five decline an absent agent
 //! precisely because their act would silently do nothing.
@@ -26,7 +26,7 @@ use super::{GitRunner, Path, PathBuf, agent_ref, repo_git};
 /// Does the agent exist? — `git rev-parse --verify refs/heads/agents/<id>`
 /// against the bare repo (§2.3: the ref namespace *is* the registry, so
 /// existence is a query, never a stored fact). The one home of the
-/// question; the verbs ask it through [`require_agent`], `lernie stop`
+/// question; the verbs ask it through [`require_agent`], `litany stop`
 /// as a plain predicate (via [`crate::prompt::stop::inspector`]). A
 /// non-zero exit is the answer `false`, which also covers an id git
 /// refuses as a ref name.
@@ -46,7 +46,7 @@ pub fn agent_exists(workspace: &Path, agent_id: &str, git: &dyn GitRunner) -> bo
 #[derive(Debug, thiserror::Error)]
 #[error(
     "no agent {id:?} in this workspace — {reason}; check the id against the workspace's \
-     `agents/*` refs, or start an agent with `lernie prompt` / `lernie dispatch`"
+     `agents/*` refs, or start an agent with `litany prompt` / `litany dispatch`"
 )]
 pub struct UnknownAgent {
     id: String,
@@ -119,8 +119,8 @@ pub fn require_ref(
 
 /// A config lineage the workspace does not have, and the failure of the
 /// query that would have found it (§2.3). One home for the decline every
-/// verb that takes a *bare lineage name* shares — `lernie config --from
-/// <source>`, `lernie prompt --config <name>` — so both name the pool of
+/// verb that takes a *bare lineage name* shares — `litany config --from
+/// <source>`, `litany prompt --config <name>` — so both name the pool of
 /// lineages that do exist instead of reporting git plumbing or the
 /// `config/` prefix the CLI otherwise hides.
 #[derive(Debug, thiserror::Error)]
@@ -161,11 +161,11 @@ pub enum LayoutError {
          control files at the repo root); the current layout is one repo per workspace — \
          `<workspace>/repo.git` (bare) with `config/*` branches and `agents/*` refs \
          (ARCH §2.2). Pre-v1 clean break (§10): no migration — create a fresh workspace \
-         with `lernie new` and re-author its config"
+         with `litany new` and re-author its config"
     )]
     OldLayout(PathBuf),
     /// No `repo.git` and no old-layout signature: not a workspace.
-    #[error("{0} is not a workspace (no repo.git) — create one with `lernie new` (ARCH §2.2)")]
+    #[error("{0} is not a workspace (no repo.git) — create one with `litany new` (ARCH §2.2)")]
     NotAWorkspace(PathBuf),
 }
 

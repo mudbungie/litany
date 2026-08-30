@@ -24,12 +24,12 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use tempfile::TempDir;
 
-fn lernie_bin() -> PathBuf {
-    crate::test_support::lernie_binary()
+fn litany_bin() -> PathBuf {
+    crate::test_support::litany_binary()
 }
 
 /// Forces the §3.3 second hop to miss, so resolution falls through to
-/// the injected driver target — here the cargo-built `lernie` binary.
+/// the injected driver target — here the cargo-built `litany` binary.
 /// The harness root is kept empty (the first hop misses too), and PATH
 /// is short-circuited here so the test never depends on the live env.
 struct NoPath;
@@ -60,8 +60,8 @@ impl Fixture {
     }
 }
 
-fn executor<'a>(harness: &'a Path, clock: &'a SystemClock, lernie: &'a Path) -> SpawnTool<'a> {
-    SpawnTool::new(harness, clock, lernie).with_path_lookup(Box::new(NoPath))
+fn executor<'a>(harness: &'a Path, clock: &'a SystemClock, litany: &'a Path) -> SpawnTool<'a> {
+    SpawnTool::new(harness, clock, litany).with_path_lookup(Box::new(NoPath))
 }
 
 #[test]
@@ -69,8 +69,8 @@ fn bash_through_executor_returns_stdout_and_lands_disk_record() {
     let fixture = Fixture::new();
 
     let clock = SystemClock;
-    let lernie = lernie_bin();
-    let exec = executor(fixture.harness_path(), &clock, &lernie);
+    let litany = litany_bin();
+    let exec = executor(fixture.harness_path(), &clock, &litany);
     let outcome = exec
         .execute(
             ToolCall {
@@ -110,7 +110,7 @@ fn bash_through_executor_returns_stdout_and_lands_disk_record() {
 #[test]
 fn bash_writes_land_in_the_agents_worktree_not_the_launchers_cwd() {
     // The §3.3 *Working directory* contract, end to end through the real
-    // `lernie tool bash` re-entry: the shell the built-in forks inherits
+    // `litany tool bash` re-entry: the shell the built-in forks inherits
     // the cwd the executor pinned, so `> out.txt` lands on the agent's
     // branch. Before the pin it landed in whatever directory the harness
     // process was launched from — the operator's shell (bl-2503).
@@ -118,8 +118,8 @@ fn bash_writes_land_in_the_agents_worktree_not_the_launchers_cwd() {
     let launcher_cwd = std::env::current_dir().expect("cwd");
 
     let clock = SystemClock;
-    let lernie = lernie_bin();
-    let exec = executor(fixture.harness_path(), &clock, &lernie);
+    let litany = litany_bin();
+    let exec = executor(fixture.harness_path(), &clock, &litany);
     let outcome = exec
         .execute(
             ToolCall {
@@ -157,8 +157,8 @@ fn bash_failure_states_its_exit_code_and_marks_stderr() {
     let fixture = Fixture::new();
 
     let clock = SystemClock;
-    let lernie = lernie_bin();
-    let exec = executor(fixture.harness_path(), &clock, &lernie);
+    let litany = litany_bin();
+    let exec = executor(fixture.harness_path(), &clock, &litany);
     let outcome = exec
         .execute(
             ToolCall {

@@ -1,6 +1,6 @@
 //! The workflow binding interpreter (ARCH §6 "The binding interpreter").
 //!
-//! `lernie advance` *is* the interpreter (§6): one hop derives its
+//! `litany advance` *is* the interpreter (§6): one hop derives its
 //! circumstance from disk and runs the bindings that match, holding no
 //! cursor. This module is the terminal-lifecycle seam of that evaluation
 //! — when a hop's step reached a terminal event, the epitaph names a
@@ -10,11 +10,11 @@
 //! The shipped executor covers the two git-native **ref-mark** actions,
 //! the same pattern as the §2.6 `budget-exhausted` / `conflicted` marks
 //! and read (never pushed) by the frontend (§3.5): `mark_abandoned`
-//! writes `refs/lernie/abandoned/<agent-id>` — a *non-derivable policy
+//! writes `refs/litany/abandoned/<agent-id>` — a *non-derivable policy
 //! assertion* ("this stopped branch will not be retried", distinct from
 //! the derivable `stopped` classification, so it is a fact with a home,
 //! not a mirror of one, `docs/PRINCIPLES.md` Single source of truth) —
-//! and `notify_ui` writes `refs/lernie/notify/<agent-id>`, the mark a
+//! and `notify_ui` writes `refs/litany/notify/<agent-id>`, the mark a
 //! frontend surfaces as a user-facing notification. Every other action
 //! in the closed set is declined loudly here ([`Error::ActionUnsupported`])
 //! rather than silently dropped: its executor is a tracked follow-on of
@@ -29,10 +29,10 @@ use std::path::Path;
 
 /// Ref prefix for the `mark_abandoned` action (ARCH §6): a git-native,
 /// per-agent-id policy mark at the branch tip.
-const ABANDONED_REF_PREFIX: &str = "refs/lernie/abandoned/";
+const ABANDONED_REF_PREFIX: &str = "refs/litany/abandoned/";
 /// Ref prefix for the `notify_ui` action (ARCH §6, §3.5): a git-native,
 /// per-agent-id user-facing-notification mark at the branch tip.
-const NOTIFY_REF_PREFIX: &str = "refs/lernie/notify/";
+const NOTIFY_REF_PREFIX: &str = "refs/litany/notify/";
 
 /// The lifecycle event a branch's *own* terminal names, by epitaph value
 /// (ARCH §6 "Circumstance is derived from disk"; §2.6 — code branches on
@@ -203,11 +203,11 @@ mod tests {
         let runs = git.runs.borrow();
         assert_eq!(
             runs[0],
-            vec!["update-ref", "refs/lernie/abandoned/a-b", "HEAD"]
+            vec!["update-ref", "refs/litany/abandoned/a-b", "HEAD"]
         );
         assert_eq!(
             runs[1],
-            vec!["update-ref", "refs/lernie/notify/a-b", "HEAD"]
+            vec!["update-ref", "refs/litany/notify/a-b", "HEAD"]
         );
     }
 

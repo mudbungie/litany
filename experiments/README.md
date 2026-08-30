@@ -20,7 +20,7 @@ pass@1 (with 95% Wilson intervals) and pass@5.
 Copy an existing `workflow.yaml`, edit the bindings (ARCH §6), and drop it
 under a new `experiments/<name>/`. No code changes are needed — a new
 experiment is deployable in under 60 seconds end-to-end (v0.10). The
-`workflow.yaml` schema is the same one `lernie` reads from a config commit
+`workflow.yaml` schema is the same one `litany` reads from a config commit
 (ARCH §2.2); see `template/workflow.yaml` for the annotated reference.
 
 ## Shipped experiments

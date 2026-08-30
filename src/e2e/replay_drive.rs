@@ -1,8 +1,8 @@
 //! End-to-end proof that a **replayed workspace is drivable** (ARCH
 //! §9.2): bundle a live run, replay it into an isolated scratch
-//! workspace, and drive the scratch with the ordinary verbs — `lernie
+//! workspace, and drive the scratch with the ordinary verbs — `litany
 //! prompt` forks a fresh root off the config lineage that rode the
-//! bundle, and `lernie message` + the launched driver advance the
+//! bundle, and `litany message` + the launched driver advance the
 //! replayed agent on its governing config commit (§2.2).
 //!
 //! Without the governing lineage in the bundle the scratch repo names no
@@ -25,8 +25,8 @@ use super::prompt_end_to_end::{
     HAPPY_SSE, scaffold_repo, write_brazen_config, write_global_models,
 };
 
-fn lernie_bin() -> PathBuf {
-    crate::test_support::lernie_binary()
+fn litany_bin() -> PathBuf {
+    crate::test_support::litany_binary()
 }
 
 /// The harness root, brazen config, and workspace every case starts
@@ -55,18 +55,18 @@ fn fixture(endpoint: &str) -> Fixture {
 }
 
 impl Fixture {
-    /// Run a `lernie` verb with the harness root and the mock wire wired
+    /// Run a `litany` verb with the harness root and the mock wire wired
     /// in, asserting success and returning trimmed stdout.
-    fn lernie(&self, args: &[&str]) -> String {
-        let out = Command::new(lernie_bin())
+    fn litany(&self, args: &[&str]) -> String {
+        let out = Command::new(litany_bin())
             .args(args)
-            .env("LERNIE_HOME", &self.harness)
+            .env("LITANY_HOME", &self.harness)
             .env("BRAZEN_CONFIG", &self.brazen_config)
             .output()
-            .expect("spawn lernie");
+            .expect("spawn litany");
         assert!(
             out.status.success(),
-            "lernie {args:?}: {}",
+            "litany {args:?}: {}",
             String::from_utf8_lossy(&out.stderr)
         );
         String::from_utf8(out.stdout).unwrap().trim().to_string()
@@ -75,15 +75,15 @@ impl Fixture {
     /// One live run, bundled and replayed: returns the scratch
     /// workspace and the agent id it carries.
     fn run_bundle_replay(&self) -> (PathBuf, String) {
-        let agent = self.lernie(&["prompt", self.ws.to_str().unwrap(), "ping"]);
+        let agent = self.litany(&["prompt", self.ws.to_str().unwrap(), "ping"]);
         let arch = self.holder.path().join("arch");
-        self.lernie(&[
+        self.litany(&[
             "bundle",
             self.ws.to_str().unwrap(),
             &agent,
             arch.to_str().unwrap(),
         ]);
-        let scratch = self.lernie(&["replay", arch.to_str().unwrap()]);
+        let scratch = self.litany(&["replay", arch.to_str().unwrap()]);
         (PathBuf::from(scratch), agent)
     }
 }
@@ -133,7 +133,7 @@ fn a_replayed_workspace_takes_a_fresh_prompt() {
     // A fresh root forks off that head and drives to a final response —
     // the replayed workspace is an ordinary workspace (replay is not a
     // mode, §2.3).
-    let fresh = fx.lernie(&["prompt", scratch.to_str().unwrap(), "ping again"]);
+    let fresh = fx.litany(&["prompt", scratch.to_str().unwrap(), "ping again"]);
     assert_ne!(fresh, archived);
     let transcript = scratch.join("agents").join(&fresh).join("messages");
     assert!(transcript.join("001-user.md").exists());
@@ -167,7 +167,7 @@ fn a_replayed_agent_advances_on_its_governing_config() {
     // And the verb-level proof: a message into the replayed agent's
     // inbox launches a driver that delivers and steps — the hop that
     // used to die with "no config/* ancestor for agents/<id>".
-    fx.lernie(&["message", scratch.to_str().unwrap(), &agent, "again"]);
+    fx.litany(&["message", scratch.to_str().unwrap(), &agent, "again"]);
     let transcript = scratch.join("agents").join(&agent).join("messages");
     wait_for(&scratch, &transcript.join("003-user.md"));
     let landed = poll::until(&scratch, || {

@@ -11,9 +11,9 @@ use crate::template::{GitRunner, RealGit, scaffold};
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
-/// A real workspace under a fresh tempdir: the whole of `lernie new` —
+/// A real workspace under a fresh tempdir: the whole of `litany new` —
 /// found the harness root, then scaffold (§2.2 *Founding is a step of
-/// `lernie new`*). Founding is what makes the first config commit's
+/// `litany new`*). Founding is what makes the first config commit's
 /// `descriptions/**` describe the tools the shipped `providers.yaml`
 /// grants (§3.3), so a fixture that skipped it would author the one
 /// state `new` cannot reach. No template override. Returns

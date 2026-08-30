@@ -194,7 +194,7 @@ fn an_ungranted_tool_is_declined_before_the_control_is_consulted() {
     let rig = Rig::new("agent-order");
     let control = control_script(
         rig.ws.path(),
-        "touch \"$LERNIE_CONV_REPO/consulted\"\necho '{\"verdict\":\"pass\"}'",
+        "touch \"$LITANY_CONV_REPO/consulted\"\necho '{\"verdict\":\"pass\"}'",
     );
     let mut resolution = Resolution::new();
     gated(&mut resolution, &control);

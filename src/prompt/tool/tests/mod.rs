@@ -25,8 +25,8 @@
 //!   tools*) — a test embedder that declares a tool and routes it,
 //!   asserted to be indistinguishable downstream from a spawned one.
 //! - [`bash_tool`], [`read_file_tool`]: end-to-end through the
-//!   cargo-built `lernie` binary (the §3.3 third hop), injected as the
-//!   driver target via [`crate::test_support::lernie_binary`].
+//!   cargo-built `litany` binary (the §3.3 third hop), injected as the
+//!   driver target via [`crate::test_support::litany_binary`].
 
 mod bash_tool;
 mod batch;

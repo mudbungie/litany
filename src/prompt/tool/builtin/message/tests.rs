@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use tempfile::TempDir;
 
-/// HashMap-backed [`EnvLookup`] so tests pin `LERNIE_CONV_REPO` /
-/// `LERNIE_CONV_BRANCH` without touching (racy) process env.
+/// HashMap-backed [`EnvLookup`] so tests pin `LITANY_CONV_REPO` /
+/// `LITANY_CONV_BRANCH` without touching (racy) process env.
 struct StubEnv(HashMap<&'static str, OsString>);
 impl EnvLookup for StubEnv {
     fn get(&self, key: &str) -> Option<OsString> {
@@ -69,7 +69,7 @@ impl Sender for FailSender {
 struct ErrSender;
 impl Sender for ErrSender {
     fn send(&self, _w: &Path, _a: &str, _c: &str, _s: &str) -> Result<SendOutput, io::Error> {
-        Err(io::Error::new(io::ErrorKind::NotFound, "no lernie binary"))
+        Err(io::Error::new(io::ErrorKind::NotFound, "no litany binary"))
     }
 }
 
@@ -97,7 +97,7 @@ fn happy_path_forwards_args_and_writes_deposited() {
     assert_eq!(invocations[0].0, repo.path());
     assert_eq!(invocations[0].1, "p1-child");
     assert_eq!(invocations[0].2, "steer left");
-    // Sender identity is the harness-set LERNIE_CONV_BRANCH, not model
+    // Sender identity is the harness-set LITANY_CONV_BRANCH, not model
     // input — un-forgeable provenance (§2.11).
     assert_eq!(invocations[0].3, "p1");
 }
@@ -132,7 +132,7 @@ fn missing_conv_repo_env_surfaces_missingenv() {
     let env = StubEnv(m);
     let err = run(&mut stdin, &mut stdout, &env, &StubSender::default()).unwrap_err();
     match err {
-        Error::MissingEnv(name) => assert_eq!(name, "LERNIE_CONV_REPO"),
+        Error::MissingEnv(name) => assert_eq!(name, "LITANY_CONV_REPO"),
         other => panic!("expected MissingEnv, got {other}"),
     }
 }
@@ -147,7 +147,7 @@ fn missing_conv_branch_env_surfaces_missingenv() {
     let env = StubEnv(m);
     let err = run(&mut stdin, &mut stdout, &env, &StubSender::default()).unwrap_err();
     match err {
-        Error::MissingEnv(name) => assert_eq!(name, "LERNIE_CONV_BRANCH"),
+        Error::MissingEnv(name) => assert_eq!(name, "LITANY_CONV_BRANCH"),
         other => panic!("expected MissingEnv, got {other}"),
     }
 }
@@ -164,7 +164,7 @@ fn non_utf8_branch_env_surfaces_missingenv() {
     let env = StubEnv(m);
     let err = run(&mut stdin, &mut stdout, &env, &StubSender::default()).unwrap_err();
     match err {
-        Error::MissingEnv(name) => assert_eq!(name, "LERNIE_CONV_BRANCH"),
+        Error::MissingEnv(name) => assert_eq!(name, "LITANY_CONV_BRANCH"),
         other => panic!("expected MissingEnv, got {other}"),
     }
 }
@@ -253,7 +253,7 @@ fn subprocess_sender_with_exe_reports_nonzero() {
 
 #[test]
 fn subprocess_sender_with_exe_surfaces_missing_binary() {
-    let s = SubprocessSender::with_exe(PathBuf::from("/no/such/lernie-binary"));
+    let s = SubprocessSender::with_exe(PathBuf::from("/no/such/litany-binary"));
     let err = s.send(Path::new("/tmp"), "a", "c", "p1").unwrap_err();
     assert_eq!(err.kind(), io::ErrorKind::NotFound);
 }

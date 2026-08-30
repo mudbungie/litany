@@ -5,7 +5,7 @@
 //! `verifier_approve: [deliver_result]`) plus a `souls/verifier.md`
 //! authored into the config — no code path is special-cased to it.
 //!
-//! The flow is driven through the ordinary `lernie advance` hop three
+//! The flow is driven through the ordinary `litany advance` hop three
 //! times, each a distinct agent: (1) the gating parent interprets the
 //! worker's return and dispatches the verifier off the worker's terminal
 //! ref, holding delivery; (2) the verifier steps and its stub model

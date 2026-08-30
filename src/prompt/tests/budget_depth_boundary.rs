@@ -1,7 +1,7 @@
 //! The §6 depth boundary at the model-call boundary ("The depth
 //! boundary"): `max_depth` is the deepest *allowed* depth, so exhaustion
 //! is strict — `depth(agent) > max_depth`. These two tests are the
-//! off-by-one, driven through the real child hop (`lernie advance`) with
+//! off-by-one, driven through the real child hop (`litany advance`) with
 //! one fixed agent and the ceiling moved around it: at exactly
 //! `max_depth` the agent makes its model call; one deeper it makes none.
 //! `budget_enforcement.rs` covers the same boundary on the token axis;
@@ -59,7 +59,7 @@ fn depth_equal_to_max_depth_is_allowed_and_the_agent_makes_its_model_call() {
     assert!(
         !git.runs.borrow().iter().any(|(_, args)| {
             args.iter()
-                .any(|a| a.starts_with("refs/lernie/budget-exhausted/"))
+                .any(|a| a.starts_with("refs/litany/budget-exhausted/"))
         }),
         "no exhaustion marker at the ceiling"
     );
@@ -89,7 +89,7 @@ fn depth_one_over_max_depth_exhausts_before_any_model_call() {
         git.runs.borrow().iter().any(|(_, args)| args
             == &vec![
                 "update-ref".to_string(),
-                format!("refs/lernie/budget-exhausted/{CHILD}"),
+                format!("refs/litany/budget-exhausted/{CHILD}"),
                 "HEAD".to_string(),
             ]),
         "the git-native exhaustion marker (§6); got {:?}",

@@ -3,11 +3,11 @@
 //!
 //! A parent root and one dispatched child, each blocked in its own model
 //! call against a stalling mock, each holding its own inbox-directory
-//! lock fd (§2.11) and its own process group (§2.9 — `lernie prompt`
-//! `setpgid`s, a launched `lernie advance` is `setsid`-detached). Two
+//! lock fd (§2.11) and its own process group (§2.9 — `litany prompt`
+//! `setpgid`s, a launched `litany advance` is `setsid`-detached). Two
 //! executors, two groups, one prefix in the id namespace.
 //!
-//! - `lernie stop --stop-children` walks that namespace — the
+//! - `litany stop --stop-children` walks that namespace — the
 //!   descendants of `<agent>` are exactly the inbox directories prefixed
 //!   `<agent>-`, one scan reaching every depth — and folds the child's
 //!   group into the same SIGTERM sweep. Both executors take the §2.9
@@ -19,14 +19,14 @@
 //!   on-disk stop signature — and, being a child, its deposit is
 //!   observable in the parent's inbox rather than the root no-op the
 //!   sibling `stop_cli.rs` tests see.
-//! - A bare `lernie stop` (no flag) does **not** fell the child: the
+//! - A bare `litany stop` (no flag) does **not** fell the child: the
 //!   agent-boundary promise. Parent and child are separate agents, not a
 //!   process hierarchy, so the kernel group signal cannot leak across
 //!   and no CLI-level walk is performed.
 
 use super::poll;
 use super::stop_common::{
-    HAPPY_SSE, lernie_bin, poll_for_conv_branch_with_diag, poll_for_path, reap, scaffold_repo,
+    HAPPY_SSE, litany_bin, poll_for_conv_branch_with_diag, poll_for_path, reap, scaffold_repo,
     spawn_prompt, write_brazen_config, write_global_models,
 };
 use crate::prompt::inbox::inbox_dir;
@@ -89,9 +89,9 @@ fn poll_until_no_holder(dest: &Path, agent: &str) {
     );
 }
 
-/// `lernie stop <dest> <agent> [--stop-children]` through the CLI.
+/// `litany stop <dest> <agent> [--stop-children]` through the CLI.
 fn run_stop(dest: &Path, agent: &str, stop_children: bool) {
-    let mut cmd = Command::new(lernie_bin());
+    let mut cmd = Command::new(litany_bin());
     cmd.arg("stop").arg(dest).arg(agent);
     if stop_children {
         cmd.arg("--stop-children");
@@ -100,10 +100,10 @@ fn run_stop(dest: &Path, agent: &str, stop_children: bool) {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
-        .expect("spawn lernie stop");
+        .expect("spawn litany stop");
     assert!(
         out.status.success(),
-        "lernie stop: {}",
+        "litany stop: {}",
         String::from_utf8_lossy(&out.stderr)
     );
 }
@@ -126,9 +126,9 @@ fn assert_no_terminal_end(path: &Path) {
 /// A parent root and one dispatched child, both blocked in a model call
 /// against a mock that never answers within the test's life.
 ///
-/// The child is started through the front door — `lernie dispatch worker`
+/// The child is started through the front door — `litany dispatch worker`
 /// (§3.4), the same fork-plus-deposit the model's `dispatch` tool takes
-/// (§2.5) — whose deposit launches the child's ordinary driver, `lernie
+/// (§2.5) — whose deposit launches the child's ordinary driver, `litany
 /// advance`, detached into its own process group. Driving a real
 /// `dispatch` tool call through the model would exercise the identical
 /// primitive one indirection further out.
@@ -156,23 +156,23 @@ fn live_family() -> Family {
     let parent = poll_for_conv_branch_with_diag(&dest, &mut prompt);
     poll_for_path(&dest, &step_response(&dest, &parent));
 
-    // Fork the child off the live parent. `lernie dispatch` is
+    // Fork the child off the live parent. `litany dispatch` is
     // writer-shaped (§2.1) — it forks, deposits, launches, and exits — so
     // its own exit leaves the child executor as the only live process on
     // the child branch.
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .args(["dispatch", "worker"])
         .arg(&dest)
         .arg(&parent)
         .arg("--goal")
         .arg("hold a model call open")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .env("BRAZEN_CONFIG", &brazen_config)
         .output()
-        .expect("spawn lernie dispatch");
+        .expect("spawn litany dispatch");
     assert!(
         out.status.success(),
-        "lernie dispatch worker: {}",
+        "litany dispatch worker: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     let child = String::from_utf8(out.stdout).unwrap().trim().to_owned();
@@ -238,7 +238,7 @@ fn stop_children_fells_the_live_child_executor() {
     );
 }
 
-/// A bare `lernie stop` stops at the agent boundary: the parent dies, the
+/// A bare `litany stop` stops at the agent boundary: the parent dies, the
 /// child keeps running. Without this the cascade could be a kernel-group
 /// side effect rather than the opt-in CLI-level walk §2.9 specifies.
 #[test]
@@ -254,7 +254,7 @@ fn bare_stop_leaves_the_live_child_running() {
     );
     poll_until_no_holder(&fam.dest, &fam.parent);
 
-    // The sweep is over — `lernie stop` returned and the parent has been
+    // The sweep is over — `litany stop` returned and the parent has been
     // reaped — so any signal the child was going to receive has been
     // delivered. It is still driving its branch.
     assert_eq!(

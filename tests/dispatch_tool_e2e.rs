@@ -1,10 +1,10 @@
 //! End-to-end test for the v0.4 Phase 2 `dispatch` built-in.
 //!
-//! Drives the production `lernie tool dispatch` shim with the env vars
-//! the executor sets (ARCH §3.3): `LERNIE_CONV_REPO` pointing at a
-//! freshly-scaffolded conv-repo, `LERNIE_CONV_BRANCH` pointing at a
+//! Drives the production `litany tool dispatch` shim with the env vars
+//! the executor sets (ARCH §3.3): `LITANY_CONV_REPO` pointing at a
+//! freshly-scaffolded conv-repo, `LITANY_CONV_BRANCH` pointing at a
 //! fabricated parent branch. The dispatch tool is expected to spawn
-//! `lernie dispatch worker` (Phase 1's CLI), capture the new sub-branch
+//! `litany dispatch worker` (Phase 1's CLI), capture the new sub-branch
 //! name, and emit `{"status":"in_progress","handle":"<sub-branch>"}`
 //! on its own stdout. Asserts the §2.5 "Async work uses handles"
 //! contract on a real subprocess tree, not a stub.
@@ -15,8 +15,8 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use tempfile::TempDir;
 
-fn lernie_bin() -> &'static str {
-    env!("CARGO_BIN_EXE_lernie")
+fn litany_bin() -> &'static str {
+    env!("CARGO_BIN_EXE_litany")
 }
 
 const INHERITED_GIT_ENV: &[&str] = &[
@@ -48,15 +48,15 @@ fn git_run(dest: &Path, args: &[&str]) {
 }
 
 fn scaffold_repo(dest: &Path, harness: &Path) {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("new")
         .arg(dest)
-        .env("LERNIE_HOME", harness)
+        .env("LITANY_HOME", harness)
         .output()
-        .expect("spawn lernie new");
+        .expect("spawn litany new");
     assert!(
         out.status.success(),
-        "lernie new: {}",
+        "litany new: {}",
         String::from_utf8_lossy(&out.stderr)
     );
 }
@@ -88,29 +88,29 @@ fn dispatch_tool_returns_handle_and_spawns_worker_branch() {
     let parent_branch = "p1-conv";
     fabricate_parent(&repo, parent_branch);
 
-    // Run `lernie tool dispatch` with the env shape the executor sets.
+    // Run `litany tool dispatch` with the env shape the executor sets.
     let input = serde_json::json!({
         "role": "worker",
         "goal": "summarize the parent branch's commits"
     })
     .to_string();
-    let mut child = Command::new(lernie_bin())
+    let mut child = Command::new(litany_bin())
         .args(["tool", "dispatch"])
-        .env("LERNIE_HOME", &harness)
-        .env("LERNIE_CONV_REPO", &repo)
-        .env("LERNIE_CONV_BRANCH", parent_branch)
+        .env("LITANY_HOME", &harness)
+        .env("LITANY_CONV_REPO", &repo)
+        .env("LITANY_CONV_BRANCH", parent_branch)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("spawn lernie tool dispatch");
+        .expect("spawn litany tool dispatch");
     child
         .stdin
         .as_mut()
         .unwrap()
         .write_all(input.as_bytes())
         .unwrap();
-    let out = child.wait_with_output().expect("wait lernie tool dispatch");
+    let out = child.wait_with_output().expect("wait litany tool dispatch");
     assert!(
         out.status.success(),
         "exit={:?} stderr={}",
@@ -154,23 +154,23 @@ fn dispatch_tool_surfaces_unknown_role_as_nonzero_with_stderr_message() {
     fabricate_parent(&repo, "p1");
 
     let input = serde_json::json!({ "role": "verifier", "goal": "g" }).to_string();
-    let mut child = Command::new(lernie_bin())
+    let mut child = Command::new(litany_bin())
         .args(["tool", "dispatch"])
-        .env("LERNIE_HOME", &harness)
-        .env("LERNIE_CONV_REPO", &repo)
-        .env("LERNIE_CONV_BRANCH", "p1")
+        .env("LITANY_HOME", &harness)
+        .env("LITANY_CONV_REPO", &repo)
+        .env("LITANY_CONV_BRANCH", "p1")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("spawn lernie tool dispatch");
+        .expect("spawn litany tool dispatch");
     child
         .stdin
         .as_mut()
         .unwrap()
         .write_all(input.as_bytes())
         .unwrap();
-    let out = child.wait_with_output().expect("wait lernie tool dispatch");
+    let out = child.wait_with_output().expect("wait litany tool dispatch");
     assert!(!out.status.success(), "expected non-zero exit");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(

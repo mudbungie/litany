@@ -21,7 +21,7 @@
 //! "Runs a shell command and returns its output." It answers the
 //! question somewhere else, by injecting an `<environment_context>`
 //! block (cwd, shell, date, timezone) and a sandbox-mode developer
-//! message ahead of the request. lernie injects no such frame — a
+//! message ahead of the request. litany injects no such frame — a
 //! branch's assembled body is its goal, soul and transcript, all
 //! operator-authored (§5.1) — so the tool definition is the only place
 //! left that can state it, and it must: **local**, **non-interactive**,
@@ -130,9 +130,9 @@ fn the_bash_schema_keeps_the_one_string_command_and_repeats_the_contract() {
     // harness gpt-5.x is tuned against — declares `shell_command` with
     // `command` as a *single string* ("Shell script to run in the
     // user's default shell"), not the argv array its retired `shell`
-    // tool used, so lernie's one-string shape is already the shape
-    // those models see. Its extra params are ones lernie cannot honour:
-    // `workdir` has no lernie meaning because the cwd is not a
+    // tool used, so litany's one-string shape is already the shape
+    // those models see. Its extra params are ones litany cannot honour:
+    // `workdir` has no litany meaning because the cwd is not a
     // per-tool-call parameter at all — it is one mutable fact about the
     // agent, moved by an explicit `cd` tool call and read at every spawn
     // (§3.3 *Working directory*), so a per-tool-call override would be a

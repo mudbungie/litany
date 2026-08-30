@@ -196,7 +196,7 @@ fn executor_sets_conv_repo_and_conv_branch_env_vars_on_tool_subprocess() {
     let root = HarnessRoot::new();
     root.install(
         "echoenv",
-        r#"printf "%s\n%s" "${LERNIE_CONV_REPO:-}" "${LERNIE_CONV_BRANCH:-}""#,
+        r#"printf "%s\n%s" "${LITANY_CONV_REPO:-}" "${LITANY_CONV_BRANCH:-}""#,
     );
     let clock = FixedClock::default();
     let step = StepDir::new();
@@ -232,6 +232,6 @@ fn executor_sets_conv_repo_and_conv_branch_env_vars_on_tool_subprocess() {
     );
 
     // Sanity: pin the constant names so a rename trips this test.
-    assert_eq!(ENV_CONV_REPO, "LERNIE_CONV_REPO");
-    assert_eq!(ENV_CONV_BRANCH, "LERNIE_CONV_BRANCH");
+    assert_eq!(ENV_CONV_REPO, "LITANY_CONV_REPO");
+    assert_eq!(ENV_CONV_BRANCH, "LITANY_CONV_BRANCH");
 }

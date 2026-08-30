@@ -1,4 +1,4 @@
-//! End-to-end `lernie config` (ARCH §2.2, §3.4): the shipped verb drives
+//! End-to-end `litany config` (ARCH §2.2, §3.4): the shipped verb drives
 //! the authoring core through the `$EDITOR` hand-off. A scripted editor
 //! stands in for the interactive one — it writes a file into the
 //! authoring checkout it is handed — so the whole bin seam is exercised:
@@ -9,13 +9,13 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-fn lernie_bin() -> &'static str {
-    env!("CARGO_BIN_EXE_lernie")
+fn litany_bin() -> &'static str {
+    env!("CARGO_BIN_EXE_litany")
 }
 
 /// Git env vars a hook-invoked test may inherit; scrub them so the
 /// spawned `git` operates on the fixture, not the outer repo (the same
-/// discipline `lernie`'s own `RealGit` applies).
+/// discipline `litany`'s own `RealGit` applies).
 const INHERITED_GIT_ENV: &[&str] = &[
     "GIT_DIR",
     "GIT_WORK_TREE",
@@ -55,46 +55,46 @@ fn editor_writing(dir: &Path, name: &str, rel: &str, content: &str) -> std::path
 }
 
 fn run_config(ws: &Path, home: &Path, editor: &Path, extra: &[&str]) {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("config")
         .arg(ws)
         .args(extra)
-        .env("LERNIE_HOME", home)
+        .env("LITANY_HOME", home)
         .env("EDITOR", editor)
         .output()
-        .expect("spawn lernie config");
+        .expect("spawn litany config");
     assert!(
         out.status.success(),
-        "lernie config {extra:?}: {}",
+        "litany config {extra:?}: {}",
         String::from_utf8_lossy(&out.stderr)
     );
 }
 
-/// `lernie config` expected to decline: returns its stderr, asserting a
+/// `litany config` expected to decline: returns its stderr, asserting a
 /// non-zero exit.
 fn run_config_declining(ws: &Path, home: &Path, editor: &Path, extra: &[&str]) -> String {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("config")
         .arg(ws)
         .args(extra)
-        .env("LERNIE_HOME", home)
+        .env("LITANY_HOME", home)
         .env("EDITOR", editor)
         .output()
-        .expect("spawn lernie config");
+        .expect("spawn litany config");
     assert!(
         !out.status.success(),
-        "lernie config {extra:?} must decline"
+        "litany config {extra:?} must decline"
     );
     String::from_utf8_lossy(&out.stderr).trim().to_string()
 }
 
 fn new_workspace(ws: &Path, home: &Path) {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("new")
         .arg(ws)
-        .env("LERNIE_HOME", home)
+        .env("LITANY_HOME", home)
         .output()
-        .expect("spawn lernie new");
+        .expect("spawn litany new");
     assert!(
         out.status.success(),
         "{}",
@@ -158,7 +158,7 @@ fn config_verb_advances_forks_and_orphans_via_editor() {
     let stderr = run_config_declining(&ws, &home, &ed, &["x", "--from", "nosuch"]);
     assert_eq!(
         stderr,
-        "lernie config: no config lineage \"nosuch\" in this workspace — \
+        "litany config: no config lineage \"nosuch\" in this workspace — \
          existing lineages: default, scratch, strict"
     );
     assert!(!ws.join(".config-author").exists());

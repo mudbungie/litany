@@ -23,7 +23,7 @@ use std::sync::atomic::AtomicBool;
 use tempfile::TempDir;
 
 /// Force the §3.3 second hop to miss so `bash` resolves at the third —
-/// the cargo-built `lernie` binary as the injected driver target.
+/// the cargo-built `litany` binary as the injected driver target.
 struct NoPath;
 
 impl PathLookup for NoPath {
@@ -56,10 +56,10 @@ fn a_bash_write_lands_in_the_worktree_and_rides_the_tool_commit() {
     std::fs::create_dir_all(&step_dir).unwrap();
 
     let empty_data_root = TempDir::new().unwrap();
-    let lernie = crate::test_support::lernie_binary();
+    let litany = crate::test_support::litany_binary();
     let clock = SystemClock;
     let exec =
-        SpawnTool::new(empty_data_root.path(), &clock, &lernie).with_path_lookup(Box::new(NoPath));
+        SpawnTool::new(empty_data_root.path(), &clock, &litany).with_path_lookup(Box::new(NoPath));
     let outcome = exec
         .execute(
             ToolCall {

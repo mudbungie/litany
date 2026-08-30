@@ -1,6 +1,6 @@
 //! Forced-retry integration (ARCH §12 v0.6 criterion, §2.10, §4.4).
 //!
-//! Drives real `lernie prompt` → real `bz` against a mock endpoint that
+//! Drives real `litany prompt` → real `bz` against a mock endpoint that
 //! returns HTTP 529 (overloaded) on the first hit and a clean Anthropic
 //! SSE stream on the second. Asserts the harness-owned retry loop
 //! re-invoked `bz`: `response.json` carries exactly TWO attempt segments
@@ -17,8 +17,8 @@ use std::process::{Command, Stdio};
 use std::thread;
 use tempfile::TempDir;
 
-fn lernie_bin() -> std::path::PathBuf {
-    crate::test_support::lernie_binary()
+fn litany_bin() -> std::path::PathBuf {
+    crate::test_support::litany_binary()
 }
 
 /// Env vars that, when inherited, override `-C <repo>` and redirect a
@@ -104,12 +104,12 @@ fn write_brazen_config(dir: &Path, endpoint: &str) -> std::path::PathBuf {
 }
 
 fn scaffold(dest: &Path, harness: &Path) {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("new")
         .arg(dest)
-        .env("LERNIE_HOME", harness)
+        .env("LITANY_HOME", harness)
         .output()
-        .expect("spawn lernie new");
+        .expect("spawn litany new");
     assert!(
         out.status.success(),
         "{}",
@@ -153,18 +153,18 @@ fn retryable_529_then_clean_writes_two_segments_and_completes() {
     let dest = holder.path().join("conv");
     scaffold(&dest, &harness);
 
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("prompt")
         .arg(&dest)
         .arg("ping")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .env("BRAZEN_CONFIG", &brazen_config)
         .stderr(Stdio::piped())
         .output()
-        .expect("spawn lernie prompt");
+        .expect("spawn litany prompt");
     assert!(
         out.status.success(),
-        "lernie prompt: {}",
+        "litany prompt: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     let conv_id = String::from_utf8(out.stdout).unwrap().trim().to_string();

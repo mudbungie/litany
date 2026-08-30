@@ -1,12 +1,12 @@
 # Design: cryptographic agent attestation (bl-c3c5)
 
-**Ruling: a small prover-side capability in lernie; every verifier-side
-component refused from lernie.** An agent gets a keypair minted at its fork,
+**Ruling: a small prover-side capability in litany; every verifier-side
+component refused from litany.** An agent gets a keypair minted at its fork,
 announced in its assembled context, and usable only through an
 executor-mediated sign tool — so the only public-key assertions an agent can
 ever emit are its own. Everything that *checks* those assertions (log
 extraction, key indexing, verification) belongs to a different trust domain
-by construction and is never lernie code. This is a design record: the
+by construction and is never litany code. This is a design record: the
 feature is deliberately unscheduled (§9), and the document exists so the
 trust analysis is not re-derived when a deployment wants it.
 
@@ -75,14 +75,14 @@ load-bearing*); used nowhere else until an implementation exists.
   calling agent, and only for the calling agent (§2).
 - **Inference log** — the record a provider, gateway, or compliance store
   retains of model-call requests and responses ("inference" in the
-  TAXONOMY §1 sense; "gateway" in the TAXONOMY §2 sense). lernie does not
+  TAXONOMY §1 sense; "gateway" in the TAXONOMY §2 sense). litany does not
   write it, read it, or depend on it existing; §3 is about what falls out
   when a deployment has one.
 - **Witness** — the role the inference log plays for attestation: an
   append-only record of the announcement (and of every signing act) held by
   a party the workspace does not control.
 
-## 2. Prover side: keys, announcement, sign tool — lernie, and small
+## 2. Prover side: keys, announcement, sign tool — litany, and small
 
 **Key lifecycle.** The executor mints the agent key at the fork, beside the
 dispatch artifacts. Private keys live at the workspace root *outside every
@@ -145,9 +145,9 @@ machine, and every claim in this document is scoped to that.
 
 ## 3. The witness: what a retained inference log makes true
 
-lernie's side of §2 is complete without this section. But where model calls
+litany's side of §2 is complete without this section. But where model calls
 transit a gateway or provider that retains them — the normal corporate
-posture — two things become true with zero additional lernie mechanism:
+posture — two things become true with zero additional litany mechanism:
 
 1. **The binding is registered with a third party.** The announcement rides
    the system slot, so every retained model call carries
@@ -175,17 +175,17 @@ the evidence is the witness, not the workspace. Local git state is the
 working copy of history; the log is the archival one. One fact, one
 authoritative home each era (PRINCIPLES, *Single source of truth*).
 
-## 4. Verifier side: emphatically not lernie
+## 4. Verifier side: emphatically not litany
 
 The scheme works *because* the checker is not the machine being attested.
-Folding any of the following into lernie would reintroduce the sole-witness
+Folding any of the following into litany would reintroduce the sole-witness
 problem §3 eliminates:
 
 - **Extraction service** — parses retained inference logs for announcements,
   producing a key index: `pubkey → (agent id, workspace, credential, time)`.
   The index is a rebuildable projection of the logs, never authoritative —
   lose it and re-parse (PRINCIPLES, *Single source of truth*). Owned by
-  whoever owns the logs; one per compliance domain, serving every lernie
+  whoever owns the logs; one per compliance domain, serving every litany
   deployment in it.
 - **Verification** — barely a service: a stateless check taking
   `(artifact, assertion, index)` and answering which agent, which workspace,
@@ -193,7 +193,7 @@ problem §3 eliminates:
   away. A CLI or library, run by the party that wants convincing.
 
 Division of labor, stated as the brazen division is (ARCHITECTURE §4.4):
-lernie is the prover and owns key custody and signing; the organization is
+litany is the prover and owns key custody and signing; the organization is
 the verifier and owns logs, indexing, and judgment. They meet only at the
 announcement format — a narrow interface neither side can drift alone,
 because the witness holds every version ever emitted.
@@ -203,7 +203,7 @@ because the witness holds every version ever emitted.
 Where an organization wants signatures to chain to its own root, the
 workspace key is certified by an organizational intermediate. That is a
 deployment act (operator-run, like `bz --login` — ARCHITECTURE §4.4's trust
-posture), not a lernie verb: lernie signs with whatever workspace key exists
+posture), not a litany verb: litany signs with whatever workspace key exists
 and never knows whether it is certified. The severability test passes:
 deleting the corporate chain deletes a deployment file, not a line of code.
 
@@ -219,7 +219,7 @@ hierarchy does not add trust; it makes the boundary that already existed
 The gate "a merge requires an assertion over the reviewed sha from an agent
 key *different from* the author's, both announced under the same workspace
 key" is mechanically checkable — a predicate over data, sittable in a tool
-control (TAXONOMY §4) or any deployment's merge policy, with no new lernie
+control (TAXONOMY §4) or any deployment's merge policy, with no new litany
 surface.
 
 Be precise about what it proves. It cannot prove the review was rigorous
@@ -239,7 +239,7 @@ in the reviewer's soul and gates.
   key (§5) is deployment config; no CA verb, no cert store, no chain walker.
 - **No key material in any worktree, ever.** Structural (§2): keys live
   outside worktree territory, so they cannot become context or be committed.
-- **No verifier-side code in lernie** (§4). No log parsing, no index, no
+- **No verifier-side code in litany** (§4). No log parsing, no index, no
   verification verb.
 - **No resident PKI process.** Keys are files; signing happens inside the
   executor's step; nothing daemonizes (PRINCIPLES, *Regenerability*).
@@ -263,7 +263,7 @@ Prover side: keygen at fork (microseconds, Ed25519), one stable system-slot
 sentence (tens of tokens, cache-friendly), one in-process tool, one
 frontmatter field on deposits. No new config key is required for the base
 case; the sign tool is granted per role like every tool. The verifier side
-costs lernie nothing, which is the point.
+costs litany nothing, which is the point.
 
 ## 9. Status
 

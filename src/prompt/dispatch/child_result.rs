@@ -266,7 +266,7 @@ pub(super) fn deliver_result(
 /// never a transcript entry).
 ///
 /// A replay git could not resolve is **declined** by [`compactor::land`]
-/// — aborted and marked at `refs/lernie/conflicted/<compactor-id>` — and
+/// — aborted and marked at `refs/litany/conflicted/<compactor-id>` — and
 /// reported here for the operator; a pass another landing overtook is
 /// **superseded** and reported without a mark (not a defect — the next
 /// checkpoint trigger fires afresh). The trigger message is consumed in
@@ -280,14 +280,14 @@ fn land_compaction(
 ) -> Result<(), Error> {
     match compactor::land(worktree, agent_id, &cr.child_id, git)? {
         compactor::LandOutcome::Conflicted(paths) => eprintln!(
-            "lernie: compaction landing [{}] declined — git could not replay {} \
-             (marked refs/lernie/conflicted/{}, ARCH §2.6); the branch continues uncompacted",
+            "litany: compaction landing [{}] declined — git could not replay {} \
+             (marked refs/litany/conflicted/{}, ARCH §2.6); the branch continues uncompacted",
             cr.child_id,
             paths.join(", "),
             cr.child_id,
         ),
         compactor::LandOutcome::Superseded => eprintln!(
-            "lernie: compaction landing [{}] superseded — a compaction landed since \
+            "litany: compaction landing [{}] superseded — a compaction landed since \
              its fork point (ARCH §2.6); the branch continues",
             cr.child_id,
         ),

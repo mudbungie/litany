@@ -1,4 +1,4 @@
-//! The workspace scan behind the operator verb `lernie scan` (ARCH
+//! The workspace scan behind the operator verb `litany scan` (ARCH
 //! §2.11 *Crashes are a failure class*, §8).
 //!
 //! The scan compensates for crash-rate events, so it runs at operator
@@ -99,7 +99,7 @@ pub enum ScanError {
 
 /// What one [`scan`] did, for the §8 health metrics and for tests. All
 /// three are derived on the fly — nothing is stored (PRINCIPLES SSOT).
-/// `Display` is the operator-facing summary `lernie scan` prints.
+/// `Display` is the operator-facing summary `litany scan` prints.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ScanReport {
     /// §8 silent-death candidates, *by id*, in enumeration order: every
@@ -125,7 +125,7 @@ pub struct ScanReport {
 /// silent-death sweep, then the inbox flush. `git` reads the branch and
 /// transcript state against the bare `<workspace>/repo.git` (§2.2);
 /// `launcher` is the injected driver launcher (production is the
-/// [`super::AdvanceLauncher`] detached `lernie advance` spawn, §2.11),
+/// [`super::AdvanceLauncher`] detached `litany advance` spawn, §2.11),
 /// so the whole decision logic is testable with launches captured.
 pub fn scan(
     workspace: &std::path::Path,
@@ -143,15 +143,15 @@ pub fn scan(
     Ok(report)
 }
 
-/// The `lernie scan <workspace>` entry (§2.11, §3.4): run [`scan`] with
+/// The `litany scan <workspace>` entry (§2.11, §3.4): run [`scan`] with
 /// the real deps (`git`, clock, and the [`AdvanceLauncher`] detached
-/// `lernie advance` spawn) wired in. An operator verb is loud, not
+/// `litany advance` spawn) wired in. An operator verb is loud, not
 /// best-effort: errors propagate to a non-zero exit rather than being
 /// swallowed — the operator invoked the sweep and is owed its outcome.
 /// Mirrors the [`super::cli_run`] production-wiring convenience for
-/// `lernie message`. `driver_target` is the running-binary path the
+/// `litany message`. `driver_target` is the running-binary path the
 /// exec binding injects (`cmd::Fx::driver_target`, §3.4) for the
-/// detached `lernie advance` launches; the library resolves none itself.
+/// detached `litany advance` launches; the library resolves none itself.
 pub fn cli_run(
     workspace: &std::path::Path,
     driver_target: &std::path::Path,

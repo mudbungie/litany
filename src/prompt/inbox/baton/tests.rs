@@ -137,7 +137,7 @@ fn successor_command_publishes_an_inheritable_fd() {
     let lease = try_acquire(&dir).unwrap().expect("free");
     let fd = lease.as_raw_fd();
     let cmd =
-        super::successor_command(Path::new("/usr/bin/lernie"), ws.path(), "a1", lease).unwrap();
+        super::successor_command(Path::new("/usr/bin/litany"), ws.path(), "a1", lease).unwrap();
     // Close-on-exec cleared: the one deliberate inheritance (§6).
     assert!(!cloexec_of(fd));
     let args: Vec<_> = cmd.get_args().map(|a| a.to_os_string()).collect();
@@ -147,7 +147,7 @@ fn successor_command_publishes_an_inheritable_fd() {
         .get_envs()
         .find(|(k, _)| *k == OsStr::new(LOCK_FD_ENV))
         .and_then(|(_, v)| v.map(|v| v.to_os_string()))
-        .expect("LERNIE_LOCK_FD published");
+        .expect("LITANY_LOCK_FD published");
     assert_eq!(published, OsStr::new(&fd.to_string()));
     // SAFETY: reclaim the deliberately leaked lease fd.
     drop(unsafe { File::from_raw_fd(fd) });

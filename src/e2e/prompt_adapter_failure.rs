@@ -2,7 +2,7 @@
 //! says why (ARCH §2.3 step record, §4.4).
 //!
 //! **Absent.** The first real command of every user who did not install
-//! from the repo — neither `cargo install lernie` nor the release
+//! from the repo — neither `cargo install litany` nor the release
 //! tarball lays `bz` down. Asserted through the real binary on a `PATH`
 //! carrying `git` and no `bz` at all: the refusal must name the adapter,
 //! the pin, and the command that installs it, with the errno trailing.
@@ -47,21 +47,21 @@ fn a_missing_bz_names_the_adapter_the_pin_and_the_install_command() {
     let dest = holder.path().join("conv");
     scaffold_repo(&dest, &harness);
 
-    let out = Command::new(crate::test_support::lernie_binary())
+    let out = Command::new(crate::test_support::litany_binary())
         .arg("prompt")
         .arg(&dest)
         .arg("ping")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .env("PATH", path_without_bz(holder.path()))
         .output()
-        .expect("spawn lernie prompt");
+        .expect("spawn litany prompt");
     assert_eq!(out.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&out.stderr);
     // The whole thread back to the fix, in the version guard's voice:
     // the verb prefix, the binary, the section, and the command — with
     // the errno trailing as detail rather than standing alone.
     assert!(
-        stderr.contains("lernie prompt: provider adapter \"bz\" not found (ARCH §4.4 —"),
+        stderr.contains("litany prompt: provider adapter \"bz\" not found (ARCH §4.4 —"),
         "{stderr}"
     );
     assert!(
@@ -88,14 +88,14 @@ fn a_bz_that_dies_at_startup_surfaces_its_stderr() {
     let brazen_config = holder.path().join("brazen.toml");
     fs::write(&brazen_config, "this is not = valid toml [[[\n").unwrap();
 
-    let out = Command::new(crate::test_support::lernie_binary())
+    let out = Command::new(crate::test_support::litany_binary())
         .arg("prompt")
         .arg(&dest)
         .arg("ping")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .env("BRAZEN_CONFIG", &brazen_config)
         .output()
-        .expect("spawn lernie prompt");
+        .expect("spawn litany prompt");
     assert!(!out.status.success(), "a dead adapter is not a success");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("malformed config"), "{stderr}");

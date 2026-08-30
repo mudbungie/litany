@@ -1,4 +1,4 @@
-//! `lernie advance <workspace> <agent>` — the §6 driver verb: one hop
+//! `litany advance <workspace> <agent>` — the §6 driver verb: one hop
 //! of the workflow chain.
 //!
 //! Every §2.11 launch seam spawns this verb (detached, via the injected
@@ -134,8 +134,8 @@ fn warrant(messages: &[Message]) -> Warrant {
 fn report_retarget(agent_id: &str, outcome: Option<retarget::Outcome>) {
     if let Some(retarget::Outcome::Conflicted(paths)) = outcome {
         eprintln!(
-            "lernie: retarget of [{agent_id}] declined — git could not replay {} \
-             (marked refs/lernie/conflicted/{agent_id}, ARCH §2.6); the branch continues \
+            "litany: retarget of [{agent_id}] declined — git could not replay {} \
+             (marked refs/litany/conflicted/{agent_id}, ARCH §2.6); the branch continues \
              on its previous config",
             paths.join(", "),
         );
@@ -201,7 +201,7 @@ pub(in crate::prompt) fn run(
     }
 
     // §2.2 *Fork is the freeze*, and its one exit: a retarget mark
-    // (`lernie retarget`, §3.4) lands **here** — at the step boundary,
+    // (`litany retarget`, §3.4) lands **here** — at the step boundary,
     // before anything resolves config — so the step below is the first one
     // the target config governs. Unmarked, which is every agent at every
     // boundary bar one, costs a single ref read.

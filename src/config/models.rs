@@ -8,7 +8,7 @@
 //! retired the table: a role's `providers.yaml` assignment (§4.3) is the
 //! single home of the (provider row, model id) pointer, id validity is
 //! brazen's fact caught at the first live model call (§4.2), and this
-//! file carries only what remains lernie's — which adapter binary to
+//! file carries only what remains litany's — which adapter binary to
 //! run. A leftover `models:` block in an operator's file is ignored on
 //! parse (serde's default for unknown keys), so existing installs load
 //! unchanged.

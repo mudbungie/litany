@@ -67,7 +67,7 @@ fn entries(dir: &Path, root: &str) -> io::Result<Vec<String>> {
     Ok(found)
 }
 
-/// Every `refs/lernie/**` mark ref in the workspace. Enumerated by their
+/// Every `refs/litany/**` mark ref in the workspace. Enumerated by their
 /// shared root rather than by the four kind-prefixes their own modules
 /// spell (§2.6 conflicted, §6 budget-exhausted, §6 abandoned/notify), so
 /// a mark namespace added later is reaped without editing this file.
@@ -78,7 +78,7 @@ pub(super) fn mark_refs(repo: &Path, git: &dyn GitRunner) -> Result<Vec<String>,
             &["for-each-ref", "--format=%(refname)", MARK_REF_ROOT],
         )
         .map_err(|source| DeleteError::Git {
-            op: "for-each-ref refs/lernie/",
+            op: "for-each-ref refs/litany/",
             source,
         })?;
     Ok(out

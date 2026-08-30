@@ -1,5 +1,5 @@
 //! Agent removal — the retention half of ARCH §9.2 (*Retention and GC*),
-//! behind the operator verb `lernie delete`.
+//! behind the operator verb `litany delete`.
 //!
 //! §9.2 already says what removal *is*: "Deleting an expired or archived
 //! agent is deleting its branches; `git gc` prunes whatever objects
@@ -14,7 +14,7 @@
 //! **The target set is the union of the id's homes, not the ref list.**
 //! An agent is five things (§2.2, §2.3, §2.11): an `agents/<id>` ref, a
 //! worktree at `agents/<id>/`, a `steps/<id>/` record tree, an
-//! `inbox/<id>/` mailbox, and any `refs/lernie/<kind>/<id>` marks. The
+//! `inbox/<id>/` mailbox, and any `refs/litany/<kind>/<id>` marks. The
 //! subtree is derived by asking *all five* who is present, so a delete
 //! that died half-way leaves a state the next run completes: whatever
 //! survived is still enumerated, and a run against an agent nothing
@@ -73,7 +73,7 @@ pub struct DeleteReport {
 }
 
 impl std::fmt::Display for DeleteReport {
-    /// One line, in `lernie scan`'s voice: a leading verb phrase naming
+    /// One line, in `litany scan`'s voice: a leading verb phrase naming
     /// the mood and the agent, then `; `-separated `key: count (names)`
     /// fields.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -125,7 +125,7 @@ pub enum DeleteError {
     /// driver.
     #[error(
         "agent {id:?} is being driven — an executor holds its lock at {lock} \
-         (ARCH §2.11); stop it first (`lernie stop`) and delete once it is quiescent"
+         (ARCH §2.11); stop it first (`litany stop`) and delete once it is quiescent"
     )]
     Driven { id: String, lock: PathBuf },
     #[error("probe executor lock at {path}: {source}")]

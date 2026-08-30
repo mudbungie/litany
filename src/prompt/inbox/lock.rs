@@ -46,7 +46,7 @@ use std::path::Path;
 #[derive(Debug)]
 pub struct ExecutorLock {
     // Held solely to keep the fd (and thus the lease) alive; read only
-    // by the §6 exec baton, which publishes the number as LERNIE_LOCK_FD.
+    // by the §6 exec baton, which publishes the number as LITANY_LOCK_FD.
     fd: File,
 }
 
@@ -66,7 +66,7 @@ impl Drop for ExecutorLock {
 
 impl ExecutorLock {
     /// The lease fd's raw number — what the §6 exec baton publishes as
-    /// `LERNIE_LOCK_FD` for the successor hop to adopt. The fd stays
+    /// `LITANY_LOCK_FD` for the successor hop to adopt. The fd stays
     /// owned by the guard; the baton leaks the guard just before exec so
     /// the open file description (and the flock riding it) survives it.
     pub fn as_raw_fd(&self) -> std::os::fd::RawFd {

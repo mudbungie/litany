@@ -1,5 +1,5 @@
-//! The agent's **retarget mark** — `refs/lernie/retarget/<agent-id>`
-//! (ARCH §2.2 *Fork is the freeze*, §3.4 `lernie retarget`).
+//! The agent's **retarget mark** — `refs/litany/retarget/<agent-id>`
+//! (ARCH §2.2 *Fork is the freeze*, §3.4 `litany retarget`).
 //!
 //! Fork is the freeze: an agent's governing config commit is derived from
 //! its branch's ancestry (§2.2), so a config edit after the fork governs
@@ -13,7 +13,7 @@
 //! branch, and no second writer appears — the same shape every other
 //! orthogonal, non-derivable per-agent fact takes ([`super::MARK_REF_ROOT`]
 //! — `conflicted`, `budget-exhausted`, `abandoned`, `notify`, `cwd`), so
-//! it is reaped with the agent by `lernie delete` (§9.2 enumerates the
+//! it is reaped with the agent by `litany delete` (§9.2 enumerates the
 //! mark root) and crosses no fork and no transfer.
 //!
 //! **The mark names a commit, not a value.** `cwd` (§3.3) points at a
@@ -31,7 +31,7 @@ use std::path::Path;
 /// Ref-namespace prefix for the retarget mark (§2.2).
 pub const RETARGET_REF_PREFIX: &str = "retarget/";
 
-/// `refs/lernie/retarget/<agent-id>` — the mark ref for one agent.
+/// `refs/litany/retarget/<agent-id>` — the mark ref for one agent.
 pub fn retarget_ref(agent_id: &str) -> String {
     format!("{MARK_REF_ROOT}{RETARGET_REF_PREFIX}{agent_id}")
 }

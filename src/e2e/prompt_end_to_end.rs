@@ -1,9 +1,9 @@
-//! End-to-end subprocess test for `lernie prompt` over the real
-//! brazen `bz` data plane (ARCH §4.4). Chains `lernie new` (workspace creation) and `lernie prompt` (one
+//! End-to-end subprocess test for `litany prompt` over the real
+//! brazen `bz` data plane (ARCH §4.4). Chains `litany new` (workspace creation) and `litany prompt` (one
 //! root conversation). The model call execs real `bz` (§4.4);
 //! `BRAZEN_CONFIG` points bz at a fixture provider row whose endpoint
 //! is an `httpmock` server returning an Anthropic SSE stream. Env is
-//! set on the `lernie prompt` subprocess, so tests are race-free.
+//! set on the `litany prompt` subprocess, so tests are race-free.
 //! Asserts the branch contract — no terminal compaction (§2.7), the
 //! agent persists on its own ref — and the wire shape: a typed canonical
 //! request on stdin, `v=1` NDJSON with a terminal `end`.
@@ -15,8 +15,8 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use tempfile::TempDir;
 
-fn lernie_bin() -> std::path::PathBuf {
-    crate::test_support::lernie_binary()
+fn litany_bin() -> std::path::PathBuf {
+    crate::test_support::litany_binary()
 }
 
 const INHERITED_GIT_ENV: &[&str] = &[
@@ -97,15 +97,15 @@ roles:
 }
 
 pub fn scaffold_repo(dest: &Path, harness: &Path) {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("new")
         .arg(dest)
-        .env("LERNIE_HOME", harness)
+        .env("LITANY_HOME", harness)
         .output()
-        .expect("spawn lernie new");
+        .expect("spawn litany new");
     assert!(
         out.status.success(),
-        "lernie new: {}",
+        "litany new: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     write_per_repo_roles(dest);
@@ -148,18 +148,18 @@ fn prompt_subcommand_persists_conversation_without_terminal_compaction() {
     let bare = dest.join("repo.git");
     let config_head_before = git_capture(&bare, &["rev-parse", "config/default"]);
 
-    let prompt_out = Command::new(lernie_bin())
+    let prompt_out = Command::new(litany_bin())
         .arg("prompt")
         .arg(&dest)
         .arg("ping")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .env("BRAZEN_CONFIG", &brazen_config)
         .stderr(Stdio::piped())
         .output()
-        .expect("spawn lernie prompt");
+        .expect("spawn litany prompt");
     assert!(
         prompt_out.status.success(),
-        "lernie prompt: {}",
+        "litany prompt: {}",
         String::from_utf8_lossy(&prompt_out.stderr)
     );
 
@@ -232,7 +232,7 @@ fn prompt_subcommand_persists_conversation_without_terminal_compaction() {
             .unwrap()
             .starts_with("<goal>\nping\n</goal>"),
     );
-    // lernie sets no `stream` (brazen default governs, §4.4); the typed
+    // litany sets no `stream` (brazen default governs, §4.4); the typed
     // request serializes the unset Option as JSON `null`.
     assert!(request["stream"].is_null());
 
@@ -267,14 +267,14 @@ fn prompt_subcommand_surfaces_missing_repo() {
     let harness = holder.path().join("harness");
     fs::create_dir_all(&harness).unwrap();
     write_global_models(&harness);
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("prompt")
         .arg(holder.path().join("does-not-exist"))
         .arg("hi")
-        .env("LERNIE_HOME", &harness)
+        .env("LITANY_HOME", &harness)
         .stderr(Stdio::piped())
         .output()
-        .expect("spawn lernie prompt");
+        .expect("spawn litany prompt");
     assert!(!out.status.success(), "expected failure on missing repo");
-    assert!(String::from_utf8_lossy(&out.stderr).contains("lernie prompt"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("litany prompt"));
 }

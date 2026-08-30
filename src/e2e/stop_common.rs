@@ -1,4 +1,4 @@
-//! Shared helpers for the `lernie stop` integration tests
+//! Shared helpers for the `litany stop` integration tests
 //! (`tests/stop_*.rs`). Lives at `tests/stop_common/mod.rs` so cargo
 //! treats it as a module rather than a separate test binary; each
 //! consumer pulls it in with `mod stop_common;`.
@@ -15,8 +15,8 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 
 use super::poll;
 
-pub fn lernie_bin() -> std::path::PathBuf {
-    crate::test_support::lernie_binary()
+pub fn litany_bin() -> std::path::PathBuf {
+    crate::test_support::litany_binary()
 }
 
 const INHERITED_GIT_ENV: &[&str] = &[
@@ -78,7 +78,7 @@ pub fn repo_git(dest: &Path) -> std::path::PathBuf {
 /// shipped core (`crate::template::authoring::author`, `Origin::Advance`)
 /// rather than hand-rolled worktree juggling. The descriptions refresh
 /// reads an absent pool (an empty tree, §3.3), leaving the snapshot
-/// `lernie new` wrote intact and only landing the given edits.
+/// `litany new` wrote intact and only landing the given edits.
 pub fn amend_config(dest: &Path, files: &[(&str, &str)]) {
     let owned: Vec<(String, String)> = files
         .iter()
@@ -103,15 +103,15 @@ pub fn amend_config(dest: &Path, files: &[(&str, &str)]) {
 }
 
 pub fn scaffold_repo(dest: &Path, harness: &Path) {
-    let out = Command::new(lernie_bin())
+    let out = Command::new(litany_bin())
         .arg("new")
         .arg(dest)
-        .env("LERNIE_HOME", harness)
+        .env("LITANY_HOME", harness)
         .output()
-        .expect("spawn lernie new");
+        .expect("spawn litany new");
     assert!(
         out.status.success(),
-        "lernie new: {}",
+        "litany new: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     // Point both roles at the fixture `test` brazen row (§4.3) — a
@@ -152,7 +152,7 @@ pub fn poll_for_conv_branch_with_diag(dest: &Path, prompt_child: &mut Child) -> 
                 let _ = e.read_to_end(&mut buf);
             }
             panic!(
-                "lernie prompt exited early: {status:?}; stderr: {}",
+                "litany prompt exited early: {status:?}; stderr: {}",
                 String::from_utf8_lossy(&buf)
             );
         }
@@ -243,7 +243,7 @@ pub fn reap(dest: &Path, child: &mut Child) -> ExitStatus {
     let _ = child.kill();
     let _ = child.wait();
     panic!(
-        "lernie prompt outlived the stop, with {} untouched for {:?}",
+        "litany prompt outlived the stop, with {} untouched for {:?}",
         dest.display(),
         poll::patience()
     );
@@ -255,16 +255,16 @@ pub fn spawn_prompt(
     brazen_config: &Path,
     user_message: &str,
 ) -> Child {
-    Command::new(lernie_bin())
+    Command::new(litany_bin())
         .arg("prompt")
         .arg(dest)
         .arg(user_message)
-        .env("LERNIE_HOME", harness)
+        .env("LITANY_HOME", harness)
         .env("BRAZEN_CONFIG", brazen_config)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("spawn lernie prompt")
+        .expect("spawn litany prompt")
 }
 
 /// Anthropic-native SSE that resolves to one happy `message_stop`.

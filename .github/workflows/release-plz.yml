@@ -29,7 +29,7 @@ name: Release-plz
 #     any version on main that is not out yet: tags it `v<version>`, cuts a
 #     GitHub Release and publishes it to crates.io. A release only ever ships
 #     a GREEN build — never an untested commit.
-#   * release-binaries — builds the `lernie` binary and attaches its linux-gnu archive to that
+#   * release-binaries — builds the `litany` binary and attaches its linux-gnu archive to that
 #     Release. It runs in the SAME workflow run and `needs:` the release job,
 #     NOT as a separate `on: release` workflow — a Release created by the
 #     default GITHUB_TOKEN cannot trigger another workflow (GitHub's
@@ -61,7 +61,7 @@ name: Release-plz
 #     GitHub Actions to create and approve pull requests" — else the release-pr
 #     job 403s ("GitHub Actions is not permitted to create or approve pull
 #     requests").
-#   * A crates.io TRUSTED PUBLISHER for the `lernie` crate — the model that
+#   * A crates.io TRUSTED PUBLISHER for the `litany` crate — the model that
 #     replaces a stored API token: instead of keeping a long-lived secret in
 #     this repo, crates.io records that one named workflow file in one named
 #     GitHub repo may publish one named crate, and at run time GitHub mints a
@@ -69,8 +69,8 @@ name: Release-plz
 #     workflow, ref). release-plz trades it for a ~30-minute crates.io token
 #     scoped to this crate, so there is no secret in the repo to leak and a
 #     captured token expires in minutes. Configure it at
-#     https://crates.io/crates/lernie/settings -> Trusted Publishing, with
-#     owner `mudbungie`, repository `lernie`, workflow filename
+#     https://crates.io/crates/litany/settings -> Trusted Publishing, with
+#     owner `mudbungie`, repository `litany`, workflow filename
 #     `release-plz.yml`, environment empty — the filename is matched literally
 #     against the OIDC claim, so RENAMING THIS FILE breaks publishing until
 #     the crates.io entry is updated to match.
@@ -80,7 +80,7 @@ name: Release-plz
 #     performs the exchange internally (it implements the same crates.io API
 #     calls as rust-lang/crates-io-auth-action), so that action must NOT also
 #     be added. Caveat: trusted publishing cannot create a crate that does not
-#     exist yet — `lernie` was published manually at 0.0.0, which satisfies it.
+#     exist yet — `litany` was published manually at 0.0.0, which satisfies it.
 #   * RELEASE_PLZ_TOKEN — OPTIONAL fine-grained PAT (contents + pull-requests
 #     write), so the release PR's own commits re-trigger CI. The default
 #     GITHUB_TOKEN cannot trigger workflows from its own pushes; the job falls
@@ -199,7 +199,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract the released tag
         # `releases` is the action's JSON record of what it just released,
-        # e.g. [{"package_name":"lernie","prs":[],"tag":"v0.0.1","version":
+        # e.g. [{"package_name":"litany","prs":[],"tag":"v0.0.1","version":
         # "0.0.1"}]. One crate in this workspace releases, so .[0].tag is it.
         # Via env, not inline interpolation, so the JSON never touches the
         # shell as code.
@@ -210,7 +210,7 @@ jobs:
         run: echo "tag=$(jq -r '.[0].tag' <<<"$RELEASES")" >> "$GITHUB_OUTPUT"
 
   release-binaries:
-    name: lernie x86_64-unknown-linux-gnu
+    name: litany x86_64-unknown-linux-gnu
     needs: release-plz-release
     # Build binaries when a release was just cut, OR for a tag named manually
     # (backfill). `needs` is skipped when the release job was skipped, so this
@@ -245,7 +245,7 @@ jobs:
           git checkout "$tag"
       - uses: dtolnay/rust-toolchain@stable
       # Builds `cargo build --release`, archives the binaries as
-      # lernie-x86_64-unknown-linux-gnu.tar.gz and uploads it to the Release
+      # litany-x86_64-unknown-linux-gnu.tar.gz and uploads it to the Release
       # for the resolved tag. Uploading assets with GITHUB_TOKEN is fine — only
       # *triggering a new workflow* from a token-made event is what GitHub blocks.
       #
@@ -256,12 +256,12 @@ jobs:
       # user got the same README as the landing page. The docs ride with
       # the artifact for the same reason the pin does: reachable from what
       # you downloaded, not only from the repo you did not clone.
-      - name: Build and upload lernie
+      - name: Build and upload litany
         uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: lernie
+          bin: litany
           target: x86_64-unknown-linux-gnu
-          archive: lernie-$target
+          archive: litany-$target
           include: README.md,LICENSE
           ref: refs/tags/${{ steps.tag.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}

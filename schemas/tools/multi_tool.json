@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "multi_tool",
-  "description": "Input schema for the lernie built-in `multi_tool` tool (ARCH §3.3 *The multi-tool*). The harness sends this verbatim as the `input_schema` field of the tool's entry in the model call's `tools: [...]` array.",
+  "description": "Input schema for the litany built-in `multi_tool` tool (ARCH §3.3 *The multi-tool*). The harness sends this verbatim as the `input_schema` field of the tool's entry in the model call's `tools: [...]` array.",
   "type": "object",
   "properties": {
     "invocations": {

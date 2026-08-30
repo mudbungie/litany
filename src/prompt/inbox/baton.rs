@@ -28,7 +28,7 @@ use std::process::Command;
 /// The env var a hop publishes the lock fd number under, read only by
 /// the exec'd successor (§6). Every *other* spawn scrubs it: a launched
 /// driver acquires, only an exec'd successor adopts.
-pub const LOCK_FD_ENV: &str = "LERNIE_LOCK_FD";
+pub const LOCK_FD_ENV: &str = "LITANY_LOCK_FD";
 
 /// Every way adopting a predecessor's lease fd can fail (§6). All are
 /// declined loudly by the caller — never resolved by reacquiring.

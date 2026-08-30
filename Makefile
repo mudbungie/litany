@@ -8,31 +8,31 @@ INSTALL_BIN    := $(INSTALL_PREFIX)/bin
 
 # Harness root (ARCH §2.2): installation-global state, split by XDG
 # lifetime into a config root (hand-edited declarations) and a data root
-# (machine-populated pools). LERNIE_HOME, if set, collapses BOTH to that
+# (machine-populated pools). LITANY_HOME, if set, collapses BOTH to that
 # one directory — at install time and at runtime alike. This mirrors the
 # resolver policy in src/harness_root.rs exactly.
 XDG_CONFIG_HOME    ?= $(HOME)/.config
 XDG_DATA_HOME      ?= $(HOME)/.local/share
-ifdef LERNIE_HOME
-LERNIE_CONFIG_HOME := $(LERNIE_HOME)
-LERNIE_DATA_HOME   := $(LERNIE_HOME)
+ifdef LITANY_HOME
+LITANY_CONFIG_HOME := $(LITANY_HOME)
+LITANY_DATA_HOME   := $(LITANY_HOME)
 else
-LERNIE_CONFIG_HOME := $(XDG_CONFIG_HOME)/lernie
-LERNIE_DATA_HOME   := $(XDG_DATA_HOME)/lernie
+LITANY_CONFIG_HOME := $(XDG_CONFIG_HOME)/litany
+LITANY_DATA_HOME   := $(XDG_DATA_HOME)/litany
 endif
 
 # Binaries that resolve via `PATH`: the harness CLI, the eval runner,
 # and the eval harness driver (README "Run the suite"). The desktop
 # frontend lives in its own repo (yog) and installs from there.
-PATH_BINARIES     := lernie agent-eval lernie-eval-agent
+PATH_BINARIES     := litany agent-eval litany-eval-agent
 # The provider adapter is brazen's `bz` (ARCH §4.4) — one binary for
 # every provider, installed from crates.io at the exact version the
-# lernie crate links (the load-time version guard, §4.4). The pin's one
+# litany crate links (the load-time version guard, §4.4). The pin's one
 # home is the `brazen = "=<pin>"` dependency in Cargo.toml; this derives
 # from it (the code-side guard derives from the same line).
 BRAZEN_PIN        := $(shell sed -n 's/^brazen = "=\([^"]*\)"$$/\1/p' Cargo.toml)
 # The harness-root skeleton (config-lifetime templates + machine-populated
-# pools and trees, ARCH §2.2) is founded by `lernie prime`, invoked below —
+# pools and trees, ARCH §2.2) is founded by `litany prime`, invoked below —
 # the single source of truth for what a ready installation carries. The
 # Makefile no longer enumerates the subdirs or re-copies the pools.
 
@@ -68,7 +68,7 @@ release:
 # XDG_CACHE_HOME, so sibling worktrees share it and only the first pays).
 # Warm, one `stat` — the recipe is a file target, so make skips it outright.
 XDG_CACHE_HOME ?= $(HOME)/.cache
-BZ_TEST_ROOT   := $(XDG_CACHE_HOME)/lernie/bz/$(BRAZEN_PIN)
+BZ_TEST_ROOT   := $(XDG_CACHE_HOME)/litany/bz/$(BRAZEN_PIN)
 BZ_TEST_PATH   := $(BZ_TEST_ROOT)/bin:$(PATH)
 
 $(BZ_TEST_ROOT)/bin/bz:
@@ -78,8 +78,8 @@ $(BZ_TEST_ROOT)/bin/bz:
 
 # Test determinism, second axis: the machine's git configuration.
 #
-# The suite spawns real `git` everywhere — `RealGit`, the `lernie` binary
-# under `lernie new`, and the e2e fixtures — with a synthetic identity
+# The suite spawns real `git` everywhere — `RealGit`, the `litany` binary
+# under `litany new`, and the e2e fixtures — with a synthetic identity
 # (`user.email=t@t`, `GIT_AUTHOR_EMAIL=test@example.invalid`) so a commit
 # a test makes is hermetic. `~/.gitconfig` is machine-global mutable
 # state exactly as `~/.cargo/bin/bz` was: a global `core.hooksPath`, a
@@ -103,7 +103,7 @@ TEST_GIT_ENV    := GIT_CONFIG_GLOBAL=$(TEST_GIT_CONFIG) GIT_CONFIG_SYSTEM=/dev/n
 
 $(TEST_GIT_CONFIG):
 	@mkdir -p $(dir $@)
-	@printf '[user]\n\tname = lernie-test\n\temail = test@lernie.invalid\n' > $@
+	@printf '[user]\n\tname = litany-test\n\temail = test@litany.invalid\n' > $@
 
 test: $(BZ_TEST_ROOT)/bin/bz $(TEST_GIT_CONFIG)
 	$(TEST_GIT_ENV) PATH="$(BZ_TEST_PATH)" cargo test --workspace
@@ -138,7 +138,7 @@ coverage: $(BZ_TEST_ROOT)/bin/bz $(TEST_GIT_CONFIG)
 	  echo "  cargo install cargo-tarpaulin --version $(TARPAULIN_PIN) --locked" >&2; \
 	  exit 1; \
 	fi
-	$(TEST_GIT_ENV) PATH="$(BZ_TEST_PATH)" cargo tarpaulin --workspace --fail-under 100 --skip-clean --out Stdout --exclude-files 'src/bin/*' --exclude-files 'src/bin/lernie/*' --exclude-files 'src/e2e/*' --exclude-files 'crates/*/src/main.rs'
+	$(TEST_GIT_ENV) PATH="$(BZ_TEST_PATH)" cargo tarpaulin --workspace --fail-under 100 --skip-clean --out Stdout --exclude-files 'src/bin/*' --exclude-files 'src/bin/litany/*' --exclude-files 'src/e2e/*' --exclude-files 'crates/*/src/main.rs'
 
 # Regenerate schemas/ from the crate's schema types. The generator is the
 # `config::schemas` module; `make schemas` drives it through the in-crate
@@ -150,15 +150,15 @@ schemas:
 
 new-workspace:
 	@test -n "$(DEST)" || { echo "usage: make new-workspace DEST=<path>"; exit 1; }
-	@cargo run --quiet --bin lernie -- new "$(DEST)"
+	@cargo run --quiet --bin litany -- new "$(DEST)"
 
 # Run the evaluation runner (ARCH §9.3): experiment × suite × N.
-#   make eval CONFIG=baseline SUITE=tests/suite RUNS=5 AGENT=target/debug/lernie-eval-agent
+#   make eval CONFIG=baseline SUITE=tests/suite RUNS=5 AGENT=target/debug/litany-eval-agent
 # AGENT is REQUIRED and has no default: which driver runs the agent under
 # test (the §9.3 agent seam) is an experiment-defining input — a hidden
 # default would silently bind every measurement to it. The shipped driver
-# is `lernie-eval-agent` (built here; installed on PATH by `make install`);
-# it execs `lernie` from PATH per run, so have `make install` done first.
+# is `litany-eval-agent` (built here; installed on PATH by `make install`);
+# it execs `litany` from PATH per run, so have `make install` done first.
 # Any program honouring the contract in README "Run the suite" works.
 # RECORD=<path> (optional) saves the machine-readable evaluation record
 # (bl-36fa) — the input `agent-eval compare <baseline> <candidate>` takes.
@@ -166,9 +166,9 @@ new-workspace:
 eval:
 	@test -n "$(CONFIG)" -a -n "$(AGENT)" || { \
 	  echo "usage: make eval CONFIG=<experiment> SUITE=<dir> RUNS=<n> AGENT=<driver-cmd> [RECORD=<out.json>]"; \
-	  echo "AGENT is required; the shipped driver is lernie-eval-agent (README, \"Run the suite\")"; \
+	  echo "AGENT is required; the shipped driver is litany-eval-agent (README, \"Run the suite\")"; \
 	  exit 1; }
-	@cargo build --quiet -p lernie-eval-agent
+	@cargo build --quiet -p litany-eval-agent
 	@cargo run --quiet -p agent-eval -- run --config "$(CONFIG)" --suite "$(SUITE)" --runs "$(RUNS)" --agent "$(AGENT)" $(if $(RECORD),--record "$(RECORD)")
 
 # The disclosure gate (scripts/leak-rules.sh is the table, leak-scan.sh the
@@ -191,8 +191,8 @@ fmt-check:
 check: fmt-check lint coverage test-install
 
 # `make smoke` — the live-wire smoke test (README "First-run smoke test").
-# The FIRST real model call the project makes: `lernie new` + one live
-# `lernie prompt` against the SHIPPED defaults (worker role, anthropic /
+# The FIRST real model call the project makes: `litany new` + one live
+# `litany prompt` against the SHIPPED defaults (worker role, anthropic /
 # claude-sonnet-5) through the real `bz` data plane, with the verdict read
 # from observable state (exit 0, a committed transcript on the agent ref, a
 # step record with no wire error and real assistant text). Deliberately NOT
@@ -209,8 +209,8 @@ check: fmt-check lint coverage test-install
 # Local ollama needs no credential, only a served model; the credential
 # note applies to the anthropic default alone.
 smoke:
-	@cargo build --quiet --bin lernie
-	@LERNIE_BIN="$(CURDIR)/target/debug/lernie" \
+	@cargo build --quiet --bin litany
+	@LITANY_BIN="$(CURDIR)/target/debug/litany" \
 	 SMOKE_PROVIDER="$(SMOKE_PROVIDER)" SMOKE_MODEL="$(SMOKE_MODEL)" \
 	 bash scripts/smoke.sh
 
@@ -260,7 +260,7 @@ install: release
 	done
 	@$(MAKE) --no-print-directory install-bz
 	@# Found the harness root via the freshly-installed binary (ARCH §2.2):
-	@# `lernie prime` seeds the default models.yaml, the tool/skill pools,
+	@# `litany prime` seeds the default models.yaml, the tool/skill pools,
 	@# and the workflows/ + workspaces/ dirs, seed-if-absent throughout —
 	@# hand-edited config survives, and the seeding lives in one place (the
 	@# verb), not duplicated here. The env below mirrors this Makefile's
@@ -268,26 +268,26 @@ install: release
 	@# It reports both roots and its seed-if-absent split on stderr itself
 	@# (bl-7e9e), so nothing is echoed here: the resolution the verb used is
 	@# the authoritative one, and a second copy could only ever disagree.
-	@LERNIE_HOME='$(LERNIE_HOME)' XDG_CONFIG_HOME='$(XDG_CONFIG_HOME)' XDG_DATA_HOME='$(XDG_DATA_HOME)' "$(INSTALL_BIN)/lernie" prime
+	@LITANY_HOME='$(LITANY_HOME)' XDG_CONFIG_HOME='$(XDG_CONFIG_HOME)' XDG_DATA_HOME='$(XDG_DATA_HOME)' "$(INSTALL_BIN)/litany" prime
 	@$(MAKE) --no-print-directory install-verify
 	@echo
 	@echo "make sure $(INSTALL_BIN) is on your PATH (and that 'bz' resolves there too)."
-	@echo "config root: $(LERNIE_CONFIG_HOME)   data root: $(LERNIE_DATA_HOME)"
-	@echo "  (LERNIE_HOME collapses both; else \$$XDG_CONFIG_HOME / \$$XDG_DATA_HOME)"
+	@echo "config root: $(LITANY_CONFIG_HOME)   data root: $(LITANY_DATA_HOME)"
+	@echo "  (LITANY_HOME collapses both; else \$$XDG_CONFIG_HOME / \$$XDG_DATA_HOME)"
 	@echo "provider endpoints/auth live in brazen's config: bz --dump-config / bz --login."
 	@echo "pick each role's provider row + model id in a repo's providers.yaml (or the"
-	@echo "  $(LERNIE_CONFIG_HOME)/template/ override) — see ARCH §4.3/§4.4."
+	@echo "  $(LITANY_CONFIG_HOME)/template/ override) — see ARCH §4.3/§4.4."
 
-# Smoke-test the freshly installed binaries: `lernie --version` proves the
-# CLI loads, `lernie new` exercises workspace creation (bare repo.git +
+# Smoke-test the freshly installed binaries: `litany --version` proves the
+# CLI loads, `litany new` exercises workspace creation (bare repo.git +
 # first config commit, ARCH §2.2) against a throwaway path. Failure here
 # aborts `make install` with a non-zero exit, since a half-installed
 # harness is worse than none.
 install-verify:
 	@tmp=$$(mktemp -d) && trap "rm -rf $$tmp" EXIT && \
-		"$(INSTALL_BIN)/lernie" --version >/dev/null && \
-		"$(INSTALL_BIN)/lernie" new "$$tmp/test" >/dev/null && \
-		echo "verify: lernie --version + lernie new ok"
+		"$(INSTALL_BIN)/litany" --version >/dev/null && \
+		"$(INSTALL_BIN)/litany" new "$$tmp/test" >/dev/null && \
+		echo "verify: litany --version + litany new ok"
 
 uninstall:
 	@for bin in $(PATH_BINARIES); do \
@@ -312,7 +312,7 @@ promote-changelog:
 	@! grep -q '^## \[$(VERSION)\]' CHANGELOG.md || { echo "CHANGELOG.md already has [$(VERSION)]"; exit 1; }
 	@prev=$$(grep -o -m1 '^## \[[0-9][^]]*\]' CHANGELOG.md | tr -d '#[] '); \
 	test -n "$$prev" || { echo "no previous '## [x.y.z]' heading in CHANGELOG.md"; exit 1; }; \
-	sed -i 's|^## \[Unreleased\]$$|## [Unreleased]\n\n## [$(VERSION)](https://github.com/mudbungie/lernie/compare/v'"$$prev"'...v$(VERSION)) - '"$$(date +%F)"'|' CHANGELOG.md
+	sed -i 's|^## \[Unreleased\]$$|## [Unreleased]\n\n## [$(VERSION)](https://github.com/mudbungie/litany/compare/v'"$$prev"'...v$(VERSION)) - '"$$(date +%F)"'|' CHANGELOG.md
 	@echo "promoted [Unreleased] -> [$(VERSION)]"
 
 clean:

@@ -27,7 +27,7 @@ impl Agent for FakeAgent {
             std::fs::write(d.workdir.join("out.txt"), "done")?;
         }
         if d.prompt.contains("steps") {
-            let step = d.lernie_home.join("steps/fake/001");
+            let step = d.litany_home.join("steps/fake/001");
             std::fs::create_dir_all(&step)?;
             std::fs::write(
                 step.join("response.json"),
@@ -44,7 +44,7 @@ impl Agent for FakeAgent {
             )?;
         }
         let target = d.prompt.contains("bundleable").then(|| BundleTarget {
-            workspace: d.lernie_home.to_path_buf(),
+            workspace: d.litany_home.to_path_buf(),
             agent_id: "fake".to_string(),
         });
         Ok(AgentOutcome { target })

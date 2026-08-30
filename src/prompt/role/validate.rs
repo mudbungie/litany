@@ -11,7 +11,7 @@
 //! truth): this is the one answer to "is this role dispatchable." Both
 //! front doors consult it — the model-facing `dispatch` built-in (§2.5,
 //! projecting [`Invalid`] onto its own typed error) and the
-//! `lernie dispatch <role>` CLI (§3.4, pre-flighting before the fork so
+//! `litany dispatch <role>` CLI (§3.4, pre-flighting before the fork so
 //! a rejected role leaves no branch debris). There is no hard-coded
 //! `worker`/`compactor` list anywhere; the closed vocabulary
 //! `worker`/`compactor`/`verifier` belongs to the §6 workflow
@@ -37,7 +37,7 @@ pub enum Invalid {
     /// The `roles:` block of the governing config's `providers.yaml`
     /// does not list the role. `defined` is the pool that *is* defined,
     /// rendered by [`crate::name::pool`] — the same "name the pool"
-    /// idiom `load_skill` and `lernie tool` decline with.
+    /// idiom `load_skill` and `litany tool` decline with.
     RoleMissing {
         role: String,
         agent: String,

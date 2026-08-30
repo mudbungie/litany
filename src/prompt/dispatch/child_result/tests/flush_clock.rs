@@ -171,7 +171,7 @@ fn a_superseded_compactor_return_lands_nothing_and_is_consumed() {
         fx.git
             .run_capture(
                 &wt,
-                &["rev-parse", &format!("refs/lernie/conflicted/{child}")]
+                &["rev-parse", &format!("refs/litany/conflicted/{child}")]
             )
             .is_err(),
         "an overtaken pass is not a defect"

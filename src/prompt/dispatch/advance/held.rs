@@ -1,4 +1,4 @@
-//! The held-branch entry of a `lernie advance` hop (ARCH §3.3 *Tool
+//! The held-branch entry of a `litany advance` hop (ARCH §3.3 *Tool
 //! control*): resume a tool window the configured control parked.
 //!
 //! A hold mark ([`crate::workspace::hold`]) is checked **before

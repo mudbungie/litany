@@ -35,7 +35,7 @@ pub enum ExperimentError {
 /// erroring if that file does not exist.
 ///
 /// The path is canonicalized: it rides to the harness driver as
-/// `LERNIE_EXPERIMENT` (the `agent` seam), and the driver runs with the
+/// `LITANY_EXPERIMENT` (the `agent` seam), and the driver runs with the
 /// per-run working directory as its cwd — a root-relative path like
 /// `experiments/baseline/workflow.yaml` would name nothing from there.
 /// Canonicalizing also walks the baseline's symlink to the template,

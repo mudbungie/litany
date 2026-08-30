@@ -1,4 +1,4 @@
-//! `lernie prompt` — root-conversation backend (ARCH §2.3).
+//! `litany prompt` — root-conversation backend (ARCH §2.3).
 //!
 //! Each prompt spawns an `agents/<conv-id>` branch off the ref the
 //! start names ([`fork_point`] — a config lineage's head by default,
@@ -118,7 +118,7 @@ pub struct Deps<'a> {
     /// The driver launcher for the §2.11 exit protocol's self-directed
     /// launch, fired after the executor releases its lock on a
     /// final-response exit. Production wires [`inbox::AdvanceLauncher`]
-    /// (the detached `lernie advance` spawn, §2.11/§6); tests inject
+    /// (the detached `litany advance` spawn, §2.11/§6); tests inject
     /// a recording launcher so the launch decision and its ordering are
     /// observable.
     pub launcher: &'a dyn inbox::Launcher,
@@ -173,7 +173,7 @@ pub(crate) fn seed_cwd(
 /// documents ([`pinned_doc`], §2.5) the dispatch commit snapshots beside
 /// `goal.md` and `soul.md`; a pin-less start passes
 /// [`PinnedDocs::none`]. `cwd` is the caller-seeded working directory
-/// (§3.3, `lernie prompt --cwd`), already resolved by
+/// (§3.3, `litany prompt --cwd`), already resolved by
 /// [`crate::workspace::cwd::resolve`]; `None` leaves the mark unset and
 /// the agent works in its worktree.
 #[allow(clippy::too_many_arguments)]

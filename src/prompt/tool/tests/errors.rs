@@ -133,7 +133,7 @@ fn no_worktree_when_the_agents_worktree_is_not_materialized() {
 fn which_in_path_misses_when_no_dir_carries_the_binary() {
     let empty = TempDir::new().unwrap();
     assert_eq!(
-        which_in_path_env("lernie-tool-nope", Some(empty.path().as_os_str())),
+        which_in_path_env("litany-tool-nope", Some(empty.path().as_os_str())),
         None
     );
 }
@@ -156,5 +156,5 @@ fn live_which_in_path_reads_path_env_without_panicking() {
     // typically set, but the wrapper must tolerate it being unset
     // (the `?` short-circuits) without us asserting a specific
     // outcome.
-    let _ = super::super::spawn::lookup::which_in_path("lernie-tool-definitely-not-installed");
+    let _ = super::super::spawn::lookup::which_in_path("litany-tool-definitely-not-installed");
 }
