@@ -26,7 +26,9 @@ name: Release-plz
 #     CHANGELOG.md in the tagged tree is the record. It does not wait on the ci job — it touches
 #     no artifact that CI protects.
 #   * release (`needs: ci`, so only after CI in THIS run is green) — releases
-#     any version on main that is not out yet: tags it `v<version>`, cuts a
+#     any version on main that is not out yet: tags it `litany-v<version>`
+#     (release-plz.toml's `git_tag_name` — the bare `v*` tags belong to the
+#     lernie era before the bl-2f58 rename fence), cuts a
 #     GitHub Release and publishes it to crates.io. A release only ever ships
 #     a GREEN build — never an untested commit.
 #   * release-binaries — builds the `litany` binary and attaches its linux-gnu archive to that
@@ -94,7 +96,7 @@ on:
   workflow_dispatch:
     inputs:
       binaries_tag:
-        description: "Build + upload binaries for this existing tag (e.g. v0.0.1). Leave empty for a normal publish."
+        description: "Build + upload binaries for this existing tag (e.g. litany-v0.0.1). Leave empty for a normal publish."
         required: false
         default: ""
 
@@ -154,7 +156,7 @@ jobs:
     needs: ci
     # Job-level permissions REPLACE the workflow-level block rather than adding
     # to it, so `contents: write` is restated here — the job needs it to push
-    # the `v<version>` tag and cut the GitHub Release. `id-token: write` is the
+    # the `litany-v<version>` tag and cut the GitHub Release. `id-token: write` is the
     # trusted-publishing grant: it lets the job ask GitHub for the signed OIDC
     # token that release-plz trades for a short-lived crates.io token (see the
     # header). It is scoped to this one job — the other jobs never publish.
@@ -199,7 +201,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract the released tag
         # `releases` is the action's JSON record of what it just released,
-        # e.g. [{"package_name":"litany","prs":[],"tag":"v0.0.1","version":
+        # e.g. [{"package_name":"litany","prs":[],"tag":"litany-v0.0.1","version":
         # "0.0.1"}]. One crate in this workspace releases, so .[0].tag is it.
         # Via env, not inline interpolation, so the JSON never touches the
         # shell as code.

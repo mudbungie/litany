@@ -305,14 +305,29 @@ ci: check
 # the PR is the authority, this target just names what it says. Run it in a
 # task worktree and merge to main BEFORE merging the release PR (worktree
 # discipline is CLAUDE.md's; the ordering keeps the tagged tree's changelog
-# already stamped). Refuses a VERSION the file already has, so a re-run is a
+# already stamped). Refuses a VERSION this ERA already has, so a re-run is a
 # no-op failure, not a duplicate section.
+#
+# Both halves are era-aware, and they must stay so (bl-4afc). CHANGELOG.md
+# spans the bl-2f58 rename fence: it carries lernie-era headings 0.0.1 through
+# 0.0.11 AND a litany era that restarted at 0.0.1, so a bare `## [x.y.z]`
+# number names two different releases. The compare URL is what tells them
+# apart — a litany-era heading links into THIS repo, a lernie-era one into
+# `mudbungie/lernie` — so COMPARE_URL below is the era predicate, used once as
+# the duplicate guard and once to read the previous version. A guard on the
+# bare number refused every version up to 0.0.11 forever; a prev-extraction on
+# the bare number would read a lernie-era heading as this era's predecessor.
+COMPARE_URL := https://github.com/mudbungie/litany/compare
+# The tag spelling on this side of the fence, matching release-plz.toml's
+# `git_tag_name = "litany-v{{ version }}"` — the bare `v<version>` tags belong
+# to the lernie era and are already taken. Keep the two in step.
+TAG_PREFIX  := litany-v
 promote-changelog:
 	@test -n "$(VERSION)" || { echo "usage: make promote-changelog VERSION=x.y.z"; exit 1; }
-	@! grep -q '^## \[$(VERSION)\]' CHANGELOG.md || { echo "CHANGELOG.md already has [$(VERSION)]"; exit 1; }
-	@prev=$$(grep -o -m1 '^## \[[0-9][^]]*\]' CHANGELOG.md | tr -d '#[] '); \
-	test -n "$$prev" || { echo "no previous '## [x.y.z]' heading in CHANGELOG.md"; exit 1; }; \
-	sed -i 's|^## \[Unreleased\]$$|## [Unreleased]\n\n## [$(VERSION)](https://github.com/mudbungie/litany/compare/v'"$$prev"'...v$(VERSION)) - '"$$(date +%F)"'|' CHANGELOG.md
+	@! grep -q '^## \[$(VERSION)\]($(COMPARE_URL)/' CHANGELOG.md || { echo "CHANGELOG.md already has a litany-era [$(VERSION)]"; exit 1; }
+	@prev=$$(sed -n 's|^## \[\([0-9][^]]*\)\]($(COMPARE_URL)/.*|\1|p' CHANGELOG.md | head -1); \
+	test -n "$$prev" || { echo "no previous litany-era '## [x.y.z]($(COMPARE_URL)/...)' heading in CHANGELOG.md"; exit 1; }; \
+	sed -i 's|^## \[Unreleased\]$$|## [Unreleased]\n\n## [$(VERSION)]($(COMPARE_URL)/$(TAG_PREFIX)'"$$prev"'...$(TAG_PREFIX)$(VERSION)) - '"$$(date +%F)"'|' CHANGELOG.md
 	@echo "promoted [Unreleased] -> [$(VERSION)]"
 
 clean:

@@ -26,6 +26,29 @@ reaching a release.
 
 ## [Unreleased]
 
+- **the seam inverts: the router answers every tool invocation, and the
+  driver's local executor is deleted.** `route()` returns a `RoutedCapture`
+  rather than an `Option`, so its scope is total — a name the host does not own
+  is a refusal the host renders in band, never a hand-back to the three-hop
+  binary resolution. The binding therefore picks one execution pipeline for the
+  whole process (an installed injection routes every tool; no injection spawns
+  every tool), leaving no per-invocation choice for two adjudication stories to
+  hide behind. The executor still owns everything around the answer — it lands
+  `input.json` and resolves the caller before either backend, then renders the
+  envelope, maps `is_error`, applies the bounded projection and writes
+  `output.json` — and both backends now produce the same `RoutedCapture`, so
+  that is one implementation instead of two that must agree. The exec binding
+  keeps its spawn, priced in `DESIGN_TOOL_INJECTION` §3.4 [bl-a00a]
+- make `promote-changelog` era-aware at the bl-2f58 rename fence. Its duplicate
+  guard matched a bare `## [x.y.z]` heading, which the lernie era already
+  supplies for every number up to 0.0.11 — so it would have refused those
+  litany versions forever — and its compare link named bare `v<prev>...v<version>`
+  tags while litany-era tags are `litany-v<version>` (`release-plz.toml`'s
+  `git_tag_name`), so the link would have pointed at two tags that do not
+  exist. A heading's compare URL is now the era predicate, defined once and
+  used by both the guard and the previous-version read; the workflow header's
+  stale `v<version>` tag spellings are corrected with it [bl-4afc]
+
 ## [0.0.1](https://github.com/mudbungie/litany/compare/v0.0.11...litany-v0.0.1) - 2026-08-29
 
 - **The engine crate is renamed `lernie` → `litany`, and the `lernie` name
