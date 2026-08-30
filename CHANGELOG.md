@@ -26,6 +26,8 @@ reaching a release.
 
 ## [Unreleased]
 
+## [0.0.2](https://github.com/mudbungie/litany/compare/litany-v0.0.1...litany-v0.0.2) - 2026-08-29
+
 - **the seam inverts: the router answers every tool invocation, and the
   driver's local executor is deleted.** `route()` returns a `RoutedCapture`
   rather than an `Option`, so its scope is total — a name the host does not own
