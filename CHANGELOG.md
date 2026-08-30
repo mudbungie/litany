@@ -26,6 +26,26 @@ reaching a release.
 
 ## [Unreleased]
 
+- **gate the image the way the commit is gated: `make image-scan`, and it runs
+  as the last step of `make image`.** `make leak-scan` reads the git index, so
+  nothing had ever read what a `podman push` would publish — the build context
+  as the engine receives it, the base layers, the package index, or the image
+  config. The scan reads three surfaces with the same `scripts/leak-rules.sh`
+  table, sourced and never copied: every file whose bytes differ from the
+  pinned base at that path, that image's `Env`/`Label`/history, and the
+  symlinks in between. The distro floor is **accounted for rather than
+  exempted** — apk's own ownership ledger says which package owns each of the
+  files `apk add` left, and everything else above the base is this repo's.
+  Findings locate and never reprint; unreadable is rejected, not skipped, with
+  the expected binary set derived from the Containerfile's `COPY --from=`
+  destinations instead of typed. Both directions, because a scan that has
+  stopped matching passes everything forever: the self-test layers a fabricated
+  secret into a file, another into an `ENV` and an undeclared binary beside
+  them, and requires all three findings before the real image is scanned. This
+  is the condition the registry ruling came with (yog `docs/DESIGN.md` §10.1):
+  `ghcr.io/mudbungie/litany`, pushed only from the release workflow at tag
+  time, immutable version and digest tags, never a moving `latest`. [bl-f963]
+
 - **ship as an OCI image: `Containerfile`, `make image`, and the XDG roots it
   mounts.** A fourth install route, for a box that takes images rather than
   binaries. Two stages: the build runs under the toolchain

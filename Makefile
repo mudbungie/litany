@@ -1,4 +1,4 @@
-.PHONY: all build release test test-install coverage lint leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image clean
+.PHONY: all build release test test-install coverage lint leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan clean
 
 # Install location for `make install`. Defaults to the XDG-ish user-local
 # convention; override for system-wide installs or packaging:
@@ -345,21 +345,52 @@ promote-changelog:
 # Override with `make image CONTAINER_ENGINE=docker`.
 #
 # IT PUSHES NOTHING, and there is deliberately no `push` target — the same
-# reasoning that keeps `publish` out of this Makefile's hands. Where these
-# images publish is unanswered (yog bl-223f), and a push is not undoable: a tag
-# can move, but the bytes anyone pulled are theirs.
+# reasoning that keeps `publish` out of this Makefile's hands. The registry is
+# now named (`ghcr.io/mudbungie/litany`, yog DESIGN §10.1, operator ruling
+# 2026-08-30) and the push still does not live here: it belongs to the release
+# workflow at tag time, where the publishing identity exists and nowhere else.
+# A push is not undoable — a tag can move, but the bytes anyone pulled are
+# theirs — and a convenience target for an irreversible act is how the act
+# happens by accident.
+#
+# The `:latest` tag applied below is LOCAL, and that is a different act from a
+# published one: a local tag is a convenience on one box nobody else can pull,
+# while a published `latest` is a name whose bytes change under everyone who
+# ever wrote it down. The registry gets the version and the digest, both
+# immutable, and never a moving `latest`.
 IMAGE_NAME       ?= litany
+IMAGE_VERSION    := $(shell sed -n '/^\[package\]/,/^\[/{s/^version *= *"\([^"]*\)".*/\1/p;}' Cargo.toml)
+IMAGE_TAG        := $(IMAGE_NAME):$(IMAGE_VERSION)
 CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
 
 image:
 	@test -n "$(CONTAINER_ENGINE)" || { echo "image: no podman and no docker on PATH" >&2; exit 1; }
-	@version=$$(sed -n '/^\[package\]/,/^\[/{s/^version *= *"\([^"]*\)".*/\1/p;}' Cargo.toml); \
-	test -n "$$version" || { echo "image: no version in Cargo.toml" >&2; exit 1; }; \
-	echo "image: $(notdir $(CONTAINER_ENGINE)) build -> $(IMAGE_NAME):$$version"; \
-	$(CONTAINER_ENGINE) build -f Containerfile \
-	  -t "$(IMAGE_NAME):$$version" -t "$(IMAGE_NAME):latest" . && \
-	$(CONTAINER_ENGINE) image inspect "$(IMAGE_NAME):$$version" \
+	@test -n "$(IMAGE_VERSION)" || { echo "image: no version in Cargo.toml" >&2; exit 1; }
+	@echo "image: $(notdir $(CONTAINER_ENGINE)) build -> $(IMAGE_TAG)"
+	@$(CONTAINER_ENGINE) build -f Containerfile \
+	  -t "$(IMAGE_TAG)" -t "$(IMAGE_NAME):latest" .
+	@$(CONTAINER_ENGINE) image inspect "$(IMAGE_TAG)" \
 	  --format 'image: {{.Id}} {{.Size}} bytes'
+	@$(MAKE) --no-print-directory image-scan
+
+# The image-side disclosure gate (yog DESIGN §10.1's condition on the registry
+# ruling). `make leak-scan` reads the git INDEX; an image is built from inputs
+# no commit has — the build context as the engine receives it, the base layers,
+# the package index, and the image CONFIG — so nothing in the source gate has
+# ever read a byte of what a push would publish.
+#
+# It is a step of `image` and not a target beside it, for the reason the
+# pre-commit hook is not a target beside `commit`: a gate a person has to
+# remember to run is not a gate. Run it alone to re-judge an image already
+# built. `scripts/image-scan.sh` states what it scans and how it isolates the
+# authored content; this target only decides which tag and runs BOTH
+# directions — the planted-secret self-test first, because a scan that has
+# stopped matching passes everything forever, then the real image.
+image-scan:
+	@test -n "$(CONTAINER_ENGINE)" || { echo "image-scan: no podman and no docker on PATH" >&2; exit 1; }
+	@test -n "$(IMAGE_VERSION)" || { echo "image-scan: no version in Cargo.toml" >&2; exit 1; }
+	@CONTAINER_ENGINE=$(CONTAINER_ENGINE) scripts/image-scan.sh --self-test "$(IMAGE_TAG)"
+	@CONTAINER_ENGINE=$(CONTAINER_ENGINE) scripts/image-scan.sh "$(IMAGE_TAG)"
 
 clean:
 	cargo clean

@@ -215,8 +215,65 @@ promises stays exactly those four.
 
 `make image` **pushes nothing**, and there is no `push` target — the
 same reasoning that keeps an irreversible act out of this Makefile's
-reach. Where these images publish is unanswered (yog bl-223f); a tag can
-move, but the bytes anyone pulled are theirs.
+reach. The registry is named (`ghcr.io/mudbungie/litany`, one package
+per repo — yog `docs/DESIGN.md` §10.1, operator ruling 2026-08-30), and
+the push still does not live here: it belongs to the release workflow at
+tag time, where the publishing identity exists and nowhere else. What is
+published is the version tag and the manifest digest, both immutable,
+and never a moving `latest`. `make image` does apply `:latest`, but
+**locally** — a local tag is a convenience on one box nobody else can
+pull, where a published `latest` is a name whose bytes change under
+everyone who ever wrote it down.
+
+#### The image-side disclosure gate
+
+That registry ruling is **conditional**, and `make image-scan` is the
+condition. It runs as the last step of `make image`, so no image exists
+on this box that has not been read.
+
+**It is a second gate and not a reuse of the first.** `make leak-scan`
+reads the git INDEX; an image is built from inputs no commit has — the
+build context as the engine actually receives it, the base image's
+layers, the package index, and the image CONFIG. A push is also less
+recallable than a `cargo publish`: a tag can move, but the bytes anyone
+pulled are theirs.
+
+It reads three surfaces with the **same rule table** the commit gate
+uses (`scripts/leak-rules.sh`, sourced and never copied):
+
+- **The authored filesystem** — every file or symlink whose bytes differ
+  from the pinned base image at that path. Both filesystems are exported
+  and compared here, rather than diffing layer digests: it needs no JSON
+  parser, it works on docker as well as podman, and it is the finer
+  answer, since a file the build rewrote to identical bytes is not
+  authored content.
+- **The distro floor is accounted for, not exempted.** The runtime layer
+  runs `apk add`, which adds thousands of files this repo did not write.
+  apk's own ownership ledger says which package owns each one; a symlink
+  resolving into that set is aliased distro content; everything else
+  above the base is this repo's and is scanned. A path exemption would
+  be an allowlist, and an allowlist is where a leak hides.
+- **The image config** — every `Env`, `Label` and history entry. An
+  `ENV` ships to everyone who pulls whether or not a file holds it, and
+  build arguments echo into history.
+
+The posture the commit gate already fixed carries over unchanged.
+Findings **locate** and never reprint (truncated to twelve characters).
+**Unreadable is rejected, not skipped**: the binaries this build authors
+are `litany` and `bz`, and the expected set is DERIVED from the
+Containerfile's `COPY --from=` destinations rather than typed into the
+scanner — any *other* authored file the rules cannot read is a refusal.
+And **both directions**, because a scan that has stopped matching passes
+everything forever: `make image-scan` first builds a scratch image that
+layers a fabricated secret into a file, another into an `ENV`, and an
+undeclared binary beside them, and requires all three findings, before
+scanning the real image.
+
+What it cannot promise, stated rather than implied: it scans one image,
+on the box that built it, before the push. It does not read what is
+already in the registry, it cannot un-publish a digest, and whoever runs
+the build can bypass it exactly as `--no-verify` bypasses the commit
+hook.
 
 #### What mounts where
 
@@ -1721,6 +1778,8 @@ first use — no manual `rustup` step. This is what keeps `fmt-check` and
 | `make brazen-pin`     | Print that pinned version and nothing else — CI keys its `bz` cache on it so no workflow file names a version |
 | `make install` [`INSTALL_PREFIX=<p>` `LITANY_HOME=<h>`] | Release-build; drop `litany`/`agent-eval` into `$INSTALL_PREFIX/bin` (default: `~/.local/bin`); install the provider adapter `bz` via `make install-bz` at the version Cargo.toml pins (the ARCH §4.4 version pin — the number's one home); then invoke `litany prime` to found the harness root — config root (default `~/.config/litany`) with a default `models.yaml` and an empty `workflows/` templates dir, data root (default `~/.local/share/litany`) with the `tools/`/`skills/` pools and the `workspaces/` tree — seed-if-absent (ARCH §2.2); `LITANY_HOME` collapses both |
 | `make uninstall` [`INSTALL_PREFIX=<p>` `LITANY_HOME=<h>`] | Remove the installed binaries; leaves the harness homes (config + data roots) in place |
+| `make image` [`CONTAINER_ENGINE=docker`] | Build the OCI image from `Containerfile`, tagged `litany:<Cargo.toml version>` and `litany:latest`, then run `image-scan` on it. Pushes nothing (see "As a container image") |
+| `make image-scan` | The image-side disclosure gate: the planted-secret self-test, then the built image's authored layers and config against `scripts/leak-rules.sh`. A step of `image`; run it alone to re-judge an image already built |
 
 ### The pinned adapter under test
 
@@ -1805,6 +1864,15 @@ compiles the extracted tarball.
 
 `crates/agent-eval` is `publish = false`: it is workspace-internal and is not
 part of the published crate at all.
+
+**The image is a second publication channel, and the build context is its
+`exclude` list.** `Containerfile` `COPY`s by name and `.containerignore` keeps
+the rest from being sent at all, so the same question — *what did we ship that
+we did not mean to* — is asked once per channel and answered in two different
+files. Verify a change to the container side with `make image-scan`, which
+reads what the built image actually holds rather than what the `COPY` lines
+promise; it is the analogue of running `cargo package --list` before a
+release, and unlike that one it is a step of `make image` rather than a habit.
 
 ### Pre-commit hook
 
