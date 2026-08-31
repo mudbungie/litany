@@ -38,6 +38,7 @@ pub mod dispatch_cli;
 mod error;
 pub mod fork_point;
 pub mod inbox;
+pub(crate) mod notice;
 mod pin;
 pub mod pinned_doc;
 pub(crate) mod rebase_forward;

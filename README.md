@@ -829,6 +829,14 @@ off-worktree step records, one numbered directory per step, each holding
 `driver.log`: the stderr of every detached driver launched for this
 agent, appended across launches, which is where a driver's declines are
 read (ARCH §2.11 — a `setsid` driver has no terminal to print to).
+Every one of those declines is prefixed **`litany: notice: `** — a
+compaction landing declined or superseded, a budget stop, a launch that
+fell into the accepted crash class, a retarget decline. That prefix is
+the contract for a program capturing this file: a line carrying it
+states what the harness declined or stepped past, and the process
+carried on with its exit code untouched; a line without it, on a
+driver's stream, is the process dying. Grep for it rather than for the
+sentence after it, which is free prose and gets reworded (ARCH §2.11).
 There is **no
 `summary/`** on a branch that never reached a compaction checkpoint
 (step 6) — and no merge commit ever: once a compactor has returned, what

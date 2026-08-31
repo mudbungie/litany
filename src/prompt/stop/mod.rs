@@ -48,6 +48,7 @@
 //! did fell the coverage runner under `make check`.
 
 use crate::prompt::inbox::INBOX_DIR;
+use crate::prompt::notice::notice;
 use crate::template::{GitRunner, RealGit};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -235,7 +236,7 @@ pub fn become_pgid_leader() {
 fn become_pgid_leader_with(setpgid: impl FnOnce() -> libc::c_int) {
     let r = setpgid();
     if r != 0 {
-        eprintln!("litany: setpgid: {}", io::Error::last_os_error());
+        notice!("setpgid: {}", io::Error::last_os_error());
     }
 }
 

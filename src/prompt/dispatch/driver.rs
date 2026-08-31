@@ -29,6 +29,7 @@
 use super::{child_result, drain, transfer};
 use crate::prompt::Error;
 use crate::prompt::inbox;
+use crate::prompt::notice::notice;
 use crate::template::GitRunner;
 use crate::workspace;
 use std::path::Path;
@@ -148,8 +149,8 @@ pub(super) fn reprobe_after_release(
             .filter(|m| !seen.iter().any(|s| s.matches(m)))
             .any(|m| deposit_warrants_launch(&m.path)),
         Err(e) => {
-            eprintln!(
-                "litany: post-release inbox re-read for {agent_id}: {e} \
+            notice!(
+                "post-release inbox re-read for {agent_id}: {e} \
                  (accepted crash class, ARCH §2.11)"
             );
             return;
@@ -159,9 +160,7 @@ pub(super) fn reprobe_after_release(
         return;
     }
     if let Err(e) = inbox::probe_and_launch(workspace, agent_id, launcher) {
-        eprintln!(
-            "litany: post-release launch for {agent_id}: {e} (accepted crash class, ARCH §2.11)"
-        );
+        notice!("post-release launch for {agent_id}: {e} (accepted crash class, ARCH §2.11)");
     }
 }
 

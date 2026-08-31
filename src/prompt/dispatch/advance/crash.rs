@@ -21,6 +21,7 @@
 //! cannot be repaired by appending and stays the §6 loud decline.
 
 use super::super::{assembler, tool_step};
+use crate::prompt::notice::notice;
 use crate::prompt::{Deps, Error};
 use brazen::{Content, Role};
 use std::path::Path;
@@ -65,8 +66,8 @@ pub(super) fn settle_crashed_window(
     if unanswered.is_empty() {
         return Ok(());
     }
-    eprintln!(
-        "litany: settling a crashed tool window on [{agent_id}] — {} unanswered \
+    notice!(
+        "settling a crashed tool window on [{agent_id}] — {} unanswered \
          invocation(s) recorded as died (ARCH §6, bl-4187)",
         unanswered.len()
     );

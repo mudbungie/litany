@@ -85,7 +85,10 @@ pub const STAGING_FILE: &str = "staging.json";
 /// the process whose stderr no operator is watching: a `setsid` driver
 /// has no terminal to inherit, so its declines — a compaction landing
 /// declined or superseded (§2.6), a launch that failed into the accepted
-/// crash class (§2.11) — would otherwise be written to nothing.
+/// crash class (§2.11) — would otherwise be written to nothing. Those
+/// declines are the operator notices of [`crate::prompt::notice`] and
+/// each carries its prefix, which is how a program reading this file
+/// tells them from a death rattle without matching prose (§2.11).
 /// Append-only across launches and across the §6 exec baton (the
 /// successor inherits the open fd), and diagnostic-only like every other
 /// name in this tree: nothing reads it back. Non-numeric, so the step

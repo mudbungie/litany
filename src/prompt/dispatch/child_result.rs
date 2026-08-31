@@ -11,7 +11,8 @@
 //!   The `land_compaction` action is additionally gated on the result's
 //!   **epitaph value** (§2.6/§2.7): only a `final-response` compactor
 //!   lands; any other ending delivers like an ordinary child return
-//!   ([`execute_child`]).
+//!   ([`execute_child`]). The gate and the landing itself live in the
+//!   [`landing`] submodule.
 //! - **A checkpoint flush** ([`run_flush`]): a due `compaction:` clock at a
 //!   step boundary runs `worker_flush` → `dispatch(compactor)`. Its
 //!   machinery lives in the [`flush`] submodule, re-exported here so the
@@ -22,6 +23,7 @@
 //! second pass skips that consumed message. Circumstance is disk-derived.
 
 mod flush;
+mod landing;
 mod verifier;
 
 pub(super) use flush::run_flush;
@@ -228,8 +230,8 @@ fn execute_child(
         }
         Action::GateReturnOn { .. } => Ok(()),
         Action::DeliverResult => deliver_result(worktree, agent_id, cr, deps.git),
-        Action::LandCompaction if landing_qualifies(cr) => {
-            land_compaction(worktree, agent_id, cr, deps.git)
+        Action::LandCompaction if landing::qualifies(cr) => {
+            landing::land(worktree, agent_id, cr, deps.git)
         }
         Action::LandCompaction => deliver_result(worktree, agent_id, cr, deps.git),
         other => Err(Error::ActionUnsupported {
@@ -237,14 +239,6 @@ fn execute_child(
             event: event.as_str(),
         }),
     }
-}
-
-/// Does this compactor return qualify for the compaction landing? Only a
-/// `final-response` epitaph does (§2.6/§2.7 — a compactor that ends on
-/// any other epitaph lands nothing): the epitaph is the pinned manner
-/// of ending, and code branches on its value (§2.6).
-fn landing_qualifies(cr: &ChildResult) -> bool {
-    cr.epitaph == inbox::Epitaph::FinalResponse.as_str()
 }
 
 /// `deliver_result` (§2.6): apply the child's work-product transfer, then
@@ -258,42 +252,6 @@ pub(super) fn deliver_result(
 ) -> Result<(), Error> {
     transfer::apply(worktree, &cr.child_id, &cr.terminal_ref, git)?;
     transcript::deliver_message(worktree, agent_id, &cr.child_id, &cr.path, git)
-}
-
-/// `land_compaction` (§2.6): land the returning compactor's product by
-/// rebase-forward — the compaction base plus the replayed live tail —
-/// then consume the trigger message (the base commit is the record —
-/// never a transcript entry).
-///
-/// A replay git could not resolve is **declined** by [`compactor::land`]
-/// — aborted and marked at `refs/litany/conflicted/<compactor-id>` — and
-/// reported here for the operator; a pass another landing overtook is
-/// **superseded** and reported without a mark (not a defect — the next
-/// checkpoint trigger fires afresh). The trigger message is consumed in
-/// every case: the compactor has returned, and re-reading its result
-/// would re-attempt a landing whose outcome is already recorded.
-fn land_compaction(
-    worktree: &Path,
-    agent_id: &str,
-    cr: &ChildResult,
-    git: &dyn GitRunner,
-) -> Result<(), Error> {
-    match compactor::land(worktree, agent_id, &cr.child_id, git)? {
-        compactor::LandOutcome::Conflicted(paths) => eprintln!(
-            "litany: compaction landing [{}] declined — git could not replay {} \
-             (marked refs/litany/conflicted/{}, ARCH §2.6); the branch continues uncompacted",
-            cr.child_id,
-            paths.join(", "),
-            cr.child_id,
-        ),
-        compactor::LandOutcome::Superseded => eprintln!(
-            "litany: compaction landing [{}] superseded — a compaction landed since \
-             its fork point (ARCH §2.6); the branch continues",
-            cr.child_id,
-        ),
-        compactor::LandOutcome::Landed | compactor::LandOutcome::NoOp => {}
-    }
-    std::fs::remove_file(&cr.path).map_err(Error::Io)
 }
 
 #[cfg(test)]

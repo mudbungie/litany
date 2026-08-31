@@ -26,6 +26,19 @@ reaching a release.
 
 ## [Unreleased]
 
+- **give every operator notice on stderr the stable prefix `litany: notice: `.**
+  A driver's stderr carries two populations a reader cannot tell apart: the
+  Ok-path declines (a compaction landing declined or superseded, a budget stop,
+  an accepted-crash launch note, a retarget decline, a settled crashed tool
+  window, a budget-refused procedure dispatch, a `setpgid` that did not take)
+  and whatever a dying process writes on its way out. A consumer capturing
+  `steps/<agent>/driver.log` had to separate them by matching the prose, which
+  broke on every rewording. The prefix is the contract — a line carrying it
+  means the process continued and its exit code is untouched — and the sentence
+  after it stays free prose. One home (`src/prompt/notice.rs`), one emitter
+  (`notice!`), so a site cannot misspell or forget it. Exit codes and a verb's
+  own confirmation to a present operator are unchanged. [bl-9495]
+
 - **record the compactor-pair ruling in `docs/DESIGN_TOOL_INJECTION.md` §7:
   the host answers `write_summary` / `mark_for_deletion` itself, as engine
   acts.** The bullet had listed three candidates and read as open long after

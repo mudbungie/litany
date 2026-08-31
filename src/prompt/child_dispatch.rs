@@ -64,6 +64,7 @@ use super::subagent::{SpawnRequest, spawn_subagent_branch};
 use super::{Error, PER_REPO_PROVIDERS_FILE, SOULS_DIR, WORKFLOW_FILE};
 use crate::config::{PerRepoProviders, Workflow};
 use crate::prompt::inbox::{self, Launcher};
+use crate::prompt::notice::notice;
 use crate::prompt::{budget, dispatch};
 use crate::template::GitRunner;
 use crate::workspace;
@@ -244,7 +245,7 @@ pub fn run_procedure(
 ) -> Result<(), Error> {
     match run(req, git, clock, id_gen, launcher, rng) {
         Err(refused @ Error::DispatchRefused { .. }) => {
-            eprintln!("litany: {refused}");
+            notice!("{refused}");
             Ok(())
         }
         other => other.map(drop),

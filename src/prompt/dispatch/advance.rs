@@ -39,6 +39,7 @@ mod tests;
 
 use super::{assembler, child_result, driver, terminal};
 use crate::prompt::inbox::{self, ExecutorLock};
+use crate::prompt::notice::notice;
 use crate::prompt::resolve::WorkerConfig;
 use crate::prompt::{Deps, Error, retarget};
 use crate::workspace::hold;
@@ -133,8 +134,8 @@ fn warrant(messages: &[Message]) -> Warrant {
 /// nothing else surfaces.
 fn report_retarget(agent_id: &str, outcome: Option<retarget::Outcome>) {
     if let Some(retarget::Outcome::Conflicted(paths)) = outcome {
-        eprintln!(
-            "litany: retarget of [{agent_id}] declined — git could not replay {} \
+        notice!(
+            "retarget of [{agent_id}] declined — git could not replay {} \
              (marked refs/litany/conflicted/{agent_id}, ARCH §2.6); the branch continues \
              on its previous config",
             paths.join(", "),

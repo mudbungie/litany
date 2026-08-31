@@ -69,6 +69,7 @@ use super::super::inbox::{self, Epitaph};
 use super::super::{Deps, Error};
 use super::result_deposit::{self, deposit_terminal};
 use crate::config::{Budgets, Workflow};
+use crate::prompt::notice::notice;
 use std::path::Path;
 
 /// The whole §2.11 terminal tail — one sequence for both drivers
@@ -127,7 +128,7 @@ pub(super) fn budget_exhausted(
     let Some(ex) = budget::check(repo, branch, budgets) else {
         return Ok(false);
     };
-    eprintln!("litany: budget {ex} on {branch}; stopping (ARCH §6)");
+    notice!("budget {ex} on {branch}; stopping (ARCH §6)");
     budget::mark_exhausted(worktree, branch, deps.git).map_err(|source| Error::Git {
         op: "budget-exhausted update-ref",
         source,
@@ -187,7 +188,7 @@ fn exit_launch(
         return;
     }
     if let Err(e) = deps.launcher.launch(workspace, agent_id) {
-        eprintln!("litany: exit launch for {agent_id}: {e} (accepted crash class, ARCH §2.11)");
+        notice!("exit launch for {agent_id}: {e} (accepted crash class, ARCH §2.11)");
     }
     revive_recipient(workspace, recipient, deps);
 }
@@ -211,6 +212,6 @@ fn revive_recipient(workspace: &Path, recipient: Option<&str>, deps: &Deps<'_>) 
         return;
     };
     if let Err(e) = inbox::probe_and_launch(workspace, recipient, deps.launcher) {
-        eprintln!("litany: revival launch for {recipient}: {e} (accepted crash class, ARCH §2.11)");
+        notice!("revival launch for {recipient}: {e} (accepted crash class, ARCH §2.11)");
     }
 }
