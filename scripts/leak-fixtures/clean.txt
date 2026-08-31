@@ -12,6 +12,7 @@ let q = Path::new("/home/op/x/../y");
 let r = Path::new("/Users/x/dev/yog");
 the wall leaf <world>/walls/home/brazen/ is not anyone's home directory
 "toolu_01" and "msg_1" are the house test ids
+"session_01" is one too, and claude.ai/code/ names no id at all
 password = "<redacted>"
 api_key: "${ANTHROPIC_API_KEY}"
 token = "test-token"

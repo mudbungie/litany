@@ -26,6 +26,8 @@ reaching a release.
 
 ## [Unreleased]
 
+- **the disclosure gate reads the agent-session URL form, and the ruling that bans it is stated where the published-text rules live.** `session-artifact` gained two alternatives — the missing bare-id prefix and the code-session URL path shape, which catches an id under that path whatever its prefix — each with its own fixture line, so a dead alternative cannot hide behind a live one, and `clean.txt` gained the near-miss that must keep not firing. The form was found in a pull-request body on the seat repository, where it is permanent (the forge serves `refs/pull/<n>/head` forever) and where the rule table, a near-byte-identical port shared by four repositories, read it as clean. `AGENTS.md` now carries the standing ruling: pull-request titles and bodies, issue text, review comments and release notes never carry an agent-session URL or a conversation identifier, and the harness convention of appending one to a pull-request body is overridden here — no gate can reach a pull-request body, so that half is the author's [bl-1408]
+
 ## [0.0.3](https://github.com/mudbungie/litany/compare/litany-v0.0.2...litany-v0.0.3) - 2026-08-30
 
 - **cross-produce the macOS artifacts from the same container line as the

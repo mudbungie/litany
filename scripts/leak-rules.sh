@@ -108,8 +108,24 @@ WHY[personal-email]='an email address. Use a documentation address (u@example.co
 PATTERN[quoted-dialogue]='^[[:space:]>*_#-]*(Human|Assistant|Claude|ChatGPT|Copilot|Gemini|Codex)[*_]{0,2}[[:space:]]*:[[:space:]]+[^[:space:]]'
 WHY[quoted-dialogue]='transcribed dialogue attributed to a speaker. A conversation is private content — cite the conclusion, do not paste the exchange.'
 
-PATTERN[session-artifact]='(msg|toolu|asst|thread|run|req)_[A-Za-z0-9]{20,}|chatcmpl-[A-Za-z0-9]{20,}|"(parentUuid|sessionId|leafUuid|isSidechain)"'
-WHY[session-artifact]='a real agent-session artifact (a vendor resource id, or a Claude Code transcript key). Session transcripts are conversation content — they do not belong in a published crate.'
+# (bl-9fbe below is the seat's ball, where the finding was filed; this port
+# landed as bl-1408. The rule text is byte-identical across the four tables;
+# this table spells it as an array entry, which is its own pre-existing
+# divergence, not this one.)
+# THE URL IS THE FORM THAT ACTUALLY LEAKED (bl-9fbe; operator ruling
+# 2026-08-30, "ban them, no reason to allow it"). The one published instance
+# was not a bare id in a file — it was a vendor code-session URL in a
+# pull-request BODY, put there by harness convention and permanent because
+# the forge serves `refs/pull/<n>/head` forever. Two alternatives close it
+# and each owns its own fixture line, so neither can hide behind the other:
+# `session` joins the resource-prefix list, which catches the bare id
+# wherever it is written, and the code-session URL path shape catches an id
+# under that path whatever its prefix — the half a prefix list can never be
+# complete over. Both stay self-immune the way the header above requires: the
+# prefix is followed here by `)` and the path by a bracket expression.
+
+PATTERN[session-artifact]='(msg|toolu|asst|thread|run|req|session)_[A-Za-z0-9]{20,}|chatcmpl-[A-Za-z0-9]{20,}|"(parentUuid|sessionId|leafUuid|isSidechain)"|claude\.ai/code/[A-Za-z0-9_-]{16,}'
+WHY[session-artifact]='a real agent-session artifact (a vendor resource id, a Claude Code transcript key, or an agent-session URL). Session transcripts are conversation content — they do not belong in a published crate, and by operator ruling no session URL belongs in the published text of this repository at all.'
 
 # The path rule. Not a content rule: what is wrong with `.env` is that it
 # exists at all, whatever is in it.
