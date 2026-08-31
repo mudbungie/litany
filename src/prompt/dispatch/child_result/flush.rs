@@ -166,6 +166,7 @@ mod tests {
             seconds_since_checkpoint: 0,
             flush_requested: false,
             is_compactor: false,
+            compaction_in_flight: false,
         }
     }
     /// Scripted `rev-parse` answer; `None` fails the capture.

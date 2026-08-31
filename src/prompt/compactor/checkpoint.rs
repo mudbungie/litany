@@ -21,7 +21,7 @@
 //! "Since the last checkpoint" is derived from git, never stored
 //! (`docs/PRINCIPLES.md` Single source of truth).
 //!
-//! # Two invariants on eligibility
+//! # Three invariants on eligibility
 //!
 //! **The clock starts at the branch's own founding commit.** A branch is
 //! forked off its parent's tip and inherits the parent's whole history
@@ -48,8 +48,18 @@
 //! commit ([`crate::prompt::role::derive`] — the single authoritative
 //! home for an agent's role), so the exclusion costs no new state.
 //!
-//! Either invariant alone stops the runaway cascade of bl-a9eb (yog
-//! bl-ebbd); both are stated because they are different facts.
+//! **A compaction already in flight is a checkpoint that has fired.**
+//! The two above bound *which branches* may be compacted; this one
+//! bounds *when* a branch that may be is due, and it is a case neither
+//! of them reaches — a branch legitimately eligible, firing the same
+//! checkpoint again because the answer to its last firing has not come
+//! back. The whole argument, and the residual it leaves, is
+//! [`inflight`]'s.
+//!
+//! Either of the first two alone stops the runaway cascade of bl-a9eb
+//! (yog bl-ebbd); all three are stated because they are different facts.
+
+mod inflight;
 
 use super::Error;
 use crate::config::{CompactionConfig, CompactionTrigger};
@@ -93,17 +103,27 @@ pub struct CheckpointState {
     /// compaction-eligible set at any commit count, elapsed time, or
     /// elected flush (module docs, §2.7).
     pub is_compactor: bool,
+    /// A compaction this branch dispatched has not come back — a
+    /// compactor child of it carries no returned mark ([`inflight`]).
+    /// The checkpoint it answers has already fired, so firing again
+    /// buys a second pass over the same span that cannot land (module
+    /// docs, §2.7).
+    pub compaction_in_flight: bool,
 }
 
 /// Whether a checkpoint is due this boundary (§2.6, §2.7) — the one home
 /// of compaction eligibility. `None` config — no configured trigger —
-/// never compacts (§2.7), and **a compactor is never eligible** whatever
-/// the config says (module docs: it is the compaction, not a subject of
-/// one). Otherwise the trigger kind selects the predicate; a `None`/`0`
-/// `n` (guarded out at config load, §6) is never due, so a malformed
-/// config fails closed rather than compacting every step.
+/// never compacts (§2.7). Two facts about the branch answer ahead of the
+/// config and under **every** trigger, the agent-elected flush included:
+/// **a compactor is never eligible** (module docs: it is the compaction,
+/// not a subject of one), and **a branch with a compaction in flight is
+/// not due** (its checkpoint has already fired; a second pass over the
+/// same span cannot land). Otherwise the trigger kind selects the
+/// predicate; a `None`/`0` `n` (guarded out at config load, §6) is never
+/// due, so a malformed config fails closed rather than compacting every
+/// step.
 pub fn due(cfg: Option<&CompactionConfig>, state: &CheckpointState) -> bool {
-    if state.is_compactor {
+    if state.is_compactor || state.compaction_in_flight {
         return false;
     }
     let Some(cfg) = cfg else {
@@ -143,6 +163,7 @@ pub fn state(
         flush_requested,
         is_compactor: role::derive(worktree, "HEAD", agent_id, git)?.as_deref()
             == Some(super::COMPACTOR_ROLE),
+        compaction_in_flight: inflight::compaction_in_flight(worktree, agent_id, git)?,
     })
 }
 

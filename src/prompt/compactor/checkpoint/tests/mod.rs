@@ -26,6 +26,7 @@ fn st(commits: u32, seconds: u64, flush: bool) -> CheckpointState {
         seconds_since_checkpoint: seconds,
         flush_requested: flush,
         is_compactor: false,
+        compaction_in_flight: false,
     }
 }
 
@@ -88,6 +89,30 @@ fn a_compactor_is_never_compaction_eligible() {
         assert!(!due(Some(&c), &compactor), "{:?}", c.intermediate.trigger);
         // The same state on a non-compactor branch *is* due, so the
         // exclusion is the only thing suppressing it.
+        assert!(due(Some(&c), &st(9999, 9999, true)));
+    }
+}
+
+#[test]
+fn a_branch_with_a_compaction_in_flight_is_never_due() {
+    // bl-b9f0: the checkpoint this branch is standing on has already
+    // fired and its answer has not come back. Firing again buys a
+    // second full model loop over the same span that the landing then
+    // refuses as superseded (§2.6) — so the suppression holds under
+    // every trigger, the agent-elected flush included, exactly as the
+    // compactor exclusion does.
+    let waiting = CheckpointState {
+        compaction_in_flight: true,
+        ..st(9999, 9999, true)
+    };
+    for c in [
+        cfg(CompactionTrigger::EveryNCommits, Some(1)),
+        cfg(CompactionTrigger::EveryTSeconds, Some(1)),
+        cfg(CompactionTrigger::OnFlush, None),
+    ] {
+        assert!(!due(Some(&c), &waiting), "{:?}", c.intermediate.trigger);
+        // The same branch with nothing in flight *is* due, so the
+        // suppressor is the only thing holding it.
         assert!(due(Some(&c), &st(9999, 9999, true)));
     }
 }

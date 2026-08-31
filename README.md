@@ -845,12 +845,21 @@ returns by depositing a result message at the address its epitaph names
    commit, or its last compaction base if that is newer; never a stored
    counter, and never the inherited history a fork brings with it). A
    compactor is excluded from the eligible set outright: it *is* the
-   compaction, not a subject of one. When it is due, the
+   compaction, not a subject of one. So is a branch whose **last
+   checkpoint has not answered yet** — a compactor it dispatched that
+   carries no returned mark — because the clock measures from a landing
+   and a dispatched pass has landed nothing, so without that the next
+   boundary would fire the same checkpoint again and pay for a second
+   full model loop over the same span. When it is due, the
    `worker_flush: dispatch(compactor)` binding forks a compactor off the
    **compaction point** — the branch tip, or `HEAD~keep_recent` behind
    it when the config retains a recent tail (§2.6, §6) — and the branch
    keeps stepping straight through it; no quiescence is imposed. Omit
-   the `compaction:` block and the branch never compacts.
+   the `compaction:` block and the branch never compacts. Should two
+   passes ever race to the same `summary/<NNN>.md` anyway, the **late
+   lander is refused**: the first landing rebases its compaction point
+   away, the second cannot prove its own point is still reachable, and
+   it is superseded — nothing is overwritten and nothing is versioned.
 7. **Terminal return (§2.6, §2.3 step 5).** Every terminal event —
    normal completion (`final-response`), budget exhaustion
    (`budget-exhausted`, §6), and stop (`stopped`, §2.9 — the executor's

@@ -250,3 +250,13 @@ fn state_tags_a_root_lookup_failure_with_its_op() {
     let err = state(dir.path(), "p1", 0, false, &FailOn("--max-parents=0")).unwrap_err();
     assert_eq!(op_of(err), "checkpoint root rev-list");
 }
+
+#[test]
+fn state_tags_an_in_flight_enumeration_failure_with_its_op() {
+    // bl-b9f0: the in-flight read is the registry query (§8's enumeration
+    // seam, asked from the worktree), and a failure there is loud like
+    // every other step of the derivation rather than a silent `false`.
+    let dir = TempDir::new().unwrap();
+    let err = state(dir.path(), "p1", 0, false, &FailOn("for-each-ref")).unwrap_err();
+    assert_eq!(op_of(err), "checkpoint in-flight for-each-ref");
+}

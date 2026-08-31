@@ -105,9 +105,19 @@ pub fn agent_ref(agent_id: &str) -> String {
 /// recorded). The workspace keeps exactly two registries, and both are
 /// this one query: the ref namespace *is* the registry.
 fn ref_names(workspace: &Path, prefix: &str, git: &dyn GitRunner) -> io::Result<Vec<String>> {
+    ref_names_at(&repo_git(workspace), prefix, git)
+}
+
+/// [`ref_names`] read from **any checkout onto the workspace's object
+/// store** rather than from the bare repo — an agent's worktree is one,
+/// and refs are shared across every worktree of a repository, so the
+/// answer is identical. The one derivation with two entry points, so a
+/// caller that already holds a worktree needs no workspace path to ask
+/// the registry a question (`compactor::checkpoint::inflight`).
+fn ref_names_at(dir: &Path, prefix: &str, git: &dyn GitRunner) -> io::Result<Vec<String>> {
     let pattern = format!("refs/heads/{prefix}");
     let out = git.run_capture(
-        &repo_git(workspace),
+        dir,
         &["for-each-ref", "--format=%(refname:short)", &pattern],
     )?;
     Ok(out
@@ -125,6 +135,13 @@ fn ref_names(workspace: &Path, prefix: &str, git: &dyn GitRunner) -> io::Result<
 /// except main".
 pub fn agent_ids(workspace: &Path, git: &dyn GitRunner) -> io::Result<Vec<String>> {
     ref_names(workspace, AGENT_REF_PREFIX, git)
+}
+
+/// [`agent_ids`] asked from a checkout rather than from the workspace
+/// root ([`ref_names_at`]) — same registry, same answer, no workspace
+/// path required.
+pub(crate) fn agent_ids_at(dir: &Path, git: &dyn GitRunner) -> io::Result<Vec<String>> {
+    ref_names_at(dir, AGENT_REF_PREFIX, git)
 }
 
 /// Enumerate the workspace's config lineage names: every `config/*` ref,

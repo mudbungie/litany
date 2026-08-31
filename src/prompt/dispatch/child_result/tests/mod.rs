@@ -191,5 +191,6 @@ fn workflow(yaml: &str) -> Workflow {
 
 mod cases;
 mod flush_clock;
+mod flush_inflight;
 mod gate;
 mod resolve_role;

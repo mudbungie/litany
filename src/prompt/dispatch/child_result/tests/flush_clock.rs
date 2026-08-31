@@ -134,6 +134,97 @@ fn run_flush_skips_a_due_clock_whose_span_sits_inside_the_retained_tail() {
 }
 
 #[test]
+fn two_compactors_racing_to_one_summary_path_refuse_the_late_lander() {
+    // bl-b9f0's collision half, and the answer ARCH's contract already
+    // implies: **refuse the late lander**, never version the path and
+    // never last-write. Two compactors forked off the same point each
+    // number their summary `001` — each `next_seq` scans a directory the
+    // other's write is not in — so if both landed, the second base would
+    // silently overwrite the first's summary with a view of a span that
+    // had already been squashed away. It cannot: the first landing
+    // rebases the compaction point out of the branch, and the second
+    // pass then cannot prove its own point is still reachable, so it is
+    // superseded, lands nothing, and is not marked a defect (§2.6).
+    use super::super::{has_pending_result, interpret_pending};
+    use super::returned_child;
+    let (_h, ws) = fixture::workspace();
+    let parent = "20260101-g9";
+    fixture::spawn_root(&ws, parent);
+    let fx = Fx::new();
+    let first = returned_child(
+        &ws,
+        parent,
+        "compactor",
+        "compact",
+        ("summary/001.md", "the first pass's view\n"),
+        &fx,
+    );
+    let second = returned_child(
+        &ws,
+        parent,
+        "compactor",
+        "compact",
+        ("summary/001.md", "the second pass's view\n"),
+        &fx,
+    );
+    assert_ne!(first, second, "two distinct passes");
+
+    let wt = agent_worktree(&ws, parent);
+    let wf = workflow("events: {}\n");
+    // Both results are pending; one interpretation pass lands the first
+    // and meets the second already overtaken.
+    interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+
+    // Exactly one compaction base on the branch: the loser landed nothing.
+    // Which pass wins is the inbox read order and is not the subject —
+    // that exactly one does, and that the surviving summary is its
+    // author's text verbatim rather than either an overwrite or a merge,
+    // is.
+    let bases = fx
+        .git
+        .run_capture(
+            &wt,
+            &[
+                "log",
+                "--format=%s",
+                "-E",
+                "--grep",
+                "^compaction base \\[",
+                "HEAD",
+            ],
+        )
+        .unwrap();
+    let subjects: Vec<&str> = bases.lines().filter(|l| !l.trim().is_empty()).collect();
+    assert_eq!(subjects.len(), 1, "one base, not two: {subjects:?}");
+    let winner = subjects[0]
+        .trim_start_matches("compaction base [")
+        .trim_end_matches(']');
+    let expected = if winner == first {
+        "the first pass's view\n"
+    } else {
+        assert_eq!(winner, second, "{subjects:?}");
+        "the second pass's view\n"
+    };
+    assert_eq!(
+        std::fs::read_to_string(wt.join("summary/001.md")).unwrap(),
+        expected,
+        "the landed summary is its own author's, never the late lander's"
+    );
+    // Superseded is not a defect: neither pass is marked conflicted, and
+    // both triggers are consumed (re-reading one would re-attempt a
+    // settled outcome).
+    for id in [&first, &second] {
+        assert!(
+            fx.git
+                .run_capture(&wt, &["rev-parse", &format!("refs/litany/conflicted/{id}")])
+                .is_err(),
+            "an overtaken pass is not a defect: {id}"
+        );
+    }
+    assert!(!has_pending_result(&ws, parent).unwrap(), "both consumed");
+}
+
+#[test]
 fn a_superseded_compactor_return_lands_nothing_and_is_consumed() {
     // §2.6 superseded at the interpreter: a landing sits inside the
     // returning compactor's replay span (another pass overtook it), so
