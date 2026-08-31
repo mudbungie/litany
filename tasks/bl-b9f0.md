@@ -9,6 +9,10 @@ tags = ["compaction"]
 [[blockers]]
 id = "bl-34e9"
 on = "close"
+
+[[blockers]]
+id = "bl-c815"
+on = "close"
 +++
 `prompt/compactor/checkpoint.rs` evaluates the trigger at each step boundary
 against a checkpoint reference that is "the newest of {its dispatch commit, its
