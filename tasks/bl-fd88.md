@@ -1,7 +1,8 @@
 +++
 title = "alignment: the rule and the ruling read against the spec docs"
 created = 1788146886
-updated = 1788146886
+updated = 1788146990
+claimant = "OrderCensor"
 parent = "bl-1408"
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
