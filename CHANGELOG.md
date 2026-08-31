@@ -26,6 +26,22 @@ reaching a release.
 
 ## [Unreleased]
 
+- **cross-produce the macOS artifacts from the same container line as the
+  Linux image: `make mac-artifact` emits the `aarch64-apple-darwin` `litany`
+  and the `bz` at the pin.** The toolchain is `zig cc` via `cargo-zigbuild`,
+  both pinned (zig by version and sha256); osxcross is refused because Apple's
+  *Xcode and Apple SDKs Agreement* forbids both redistributing the SDK (§2.7)
+  and running any part of it on non-Apple-branded hardware (§2.5), so there is
+  no lawful operator-supplied-path version of that arrangement either. The
+  cross toolchain ships libSystem and no framework stubs, which cost one
+  dependency edge and gained a smaller graph: `chrono` narrows from `clock` to
+  `now` — the crate uses `Utc` only — dropping `iana-time-zone` and four other
+  crates from the lockfile, and with them the CoreFoundation link that had
+  made the build unportable. `scripts/mac-verify.sh` reads each produced
+  Mach-O (architecture, filetype, `LC_BUILD_VERSION`, code signature, every
+  `LC_LOAD_DYLIB`) rather than trusting the build, and refuses five malformed
+  inputs first; nothing is executed, and the README says exactly what that
+  leaves proven. [bl-c2b9]
 - **decline a compactor's nomination of `goal.md`, `soul.md` or `name`, the
   same way the dispatch entry is already declined.** A compactor writes its own
   three at its dispatch commit, so nominating one afterwards is a deletion

@@ -1,0 +1,170 @@
+# The macOS artifacts, cross-produced from a Linux container.
+#
+# This is NOT an image anybody installs. `Containerfile` builds the Linux image
+# — the unit of install for a box that takes containers (README "As a container
+# image"). This file builds two FILES: the `aarch64-apple-darwin` `litany` and
+# the `bz` at the pin, carried out of a scratch layer so `create`/`cp` can lift
+# them onto the host. Nothing here is ever pushed, and the runtime reasoning
+# that governs the other file — what the engine execs, what mounts where — has
+# no meaning for an artifact.
+#
+# BOTH BINARIES, for the reason the image ships both: `bz` is not optional, the
+# install table says every route needs it, litany resolves it on PATH and a
+# load-time guard rejects any `bz` whose version differs from the pin. A mac
+# artifact that was only the engine would be an install route that cannot
+# answer a prompt.
+#
+# WHY IT EXISTS. A mac binary that comes off somebody's laptop is a binary
+# nobody can reproduce and nothing gates. This puts it on the same line as the
+# Linux image: the same digest-pinned base, the same toolchain pin read out of
+# `rust-toolchain.toml`, the same `--locked` dependency answer the gate judged,
+# and the same `brazen` pin read out of `Cargo.toml`.
+#
+# ---------------------------------------------------------------------------
+# THE TOOLCHAIN IS `zig cc`, AND osxcross IS REFUSED. This is the load-bearing
+# decision of the file and it was made on licence, not on taste.
+#
+# osxcross cross-compiles for macOS by driving Apple's own SDK, which it does
+# not ship and cannot ship. The Xcode and Apple SDKs Agreement forbids the
+# arrangement twice over, and either clause alone would be enough:
+#
+#   2.7  "The grants set forth in this Agreement do not permit You to, and You
+#         agree not to, install, use or run the Apple Software or Apple
+#         Services on any non-Apple-branded computer or device, or to enable
+#         others to do so. ... You agree not to rent, lease, lend, upload to or
+#         host on any website or server, sell, redistribute, or sublicense the
+#         Apple Software and Apple Services, in whole or in part, or to enable
+#         others to do so."
+#
+#   2.5  "You may not alter the Apple Software or Services in any way in such
+#         copy, e.g., You are expressly prohibited from separately using the
+#         Apple SDKs or attempting to run any part of the Apple Software on
+#         non-Apple-branded hardware."
+#
+# The first says the SDK may never sit in this repository nor in any layer that
+# is published; the second says an operator-supplied SDK, mounted at build time
+# and never committed, is ALSO outside the grant, because the builder is not
+# Apple-branded hardware. So this is not a case of holding the SDK at arm's
+# length with a build argument — the whole arm is refused, and a Containerfile
+# that took an SDK path would be inviting the operator into a term they cannot
+# satisfy on a Linux box.
+#
+# zig acquires nothing from Apple. It ships ONE darwin stub of its own,
+# `lib/libc/darwin/libSystem.tbd`, in its own distribution and under its own
+# licence; no Apple agreement is accepted anywhere on this path.
+#
+# THE LIMIT THAT COMES WITH IT: zig ships libSystem and NO framework stubs —
+# not CoreFoundation, not AppKit, and no `libobjc`. A crate graph that links
+# only libSystem crosses cleanly; one that links any Apple framework fails at
+# the link step with "unable to find framework", and there is no lawful way to
+# supply the frameworks on a Linux builder. This graph had exactly one such
+# edge and it is gone: `chrono`'s `clock` feature pulled `iana-time-zone`,
+# which links CoreFoundation on darwin, and this crate uses `Utc` only, so the
+# feature is `now` and five crates left the lockfile with it. That line in
+# `Cargo.toml` is load-bearing for this file — widening it back to `clock` un-
+# ports the mac build.
+#
+# AND IT IS A C TOOLCHAIN, DELIBERATELY. The house posture bans the openssl and
+# aws-lc classes to stop a C toolchain arriving IMPLICITLY, through a
+# dependency edge nobody reviewed. This one arrives explicitly, in a file that
+# argues for it, pinned by version and sha256, in a build stage that is
+# discarded. The posture is against the accident, not against the compiler.
+# ---------------------------------------------------------------------------
+
+# Stage 1 — build. The same digest-pinned base as `Containerfile`, so the mac
+# artifacts and the Linux image are compiled by one rustc.
+FROM docker.io/library/rust:1.95.0-alpine3.22@sha256:064dfc925d68d1a63f4fd2871bd7dc6e6ea56692989a487185855d62885d90aa AS build
+
+# `musl-dev` for the host side of the build scripts that compile C; `curl`,
+# `tar` and `xz` to fetch and unpack the pinned zig.
+RUN apk add --no-cache musl-dev curl tar xz
+
+# The toolchain pin has ONE home — rust-toolchain.toml — and the `FROM` line
+# above is a second statement of the same fact, so it can drift. This is the
+# same check `Containerfile` runs, for the same reason, and it is copied to
+# /pin rather than into the build directory because a rust-toolchain.toml in
+# the working directory sends every later cargo through rustup's shim, which
+# would try to DOWNLOAD the toolchain into an image that already has it.
+COPY rust-toolchain.toml /pin/rust-toolchain.toml
+RUN set -eu; \
+    pin=$(sed -n 's/^channel *= *"\([^"]*\)".*/\1/p' /pin/rust-toolchain.toml); \
+    have=$(rustc --version | cut -d' ' -f2); \
+    if [ "$pin" != "$have" ]; then \
+      echo "Containerfile.mac: base image rustc $have, rust-toolchain.toml pins $pin" >&2; \
+      echo "  bump the FROM tag and its digest in lockstep with the pin" >&2; \
+      exit 1; \
+    fi
+
+# zig, by version AND by sha256. The version alone is not a pin: ziglang.org
+# serves one tarball per release and a checksum is the only thing that says the
+# bytes did not change under the name. The linux-x86_64 build is statically
+# linked, so it runs on this musl base with no interpreter and no libc match.
+ARG ZIG_VERSION=0.16.0
+ARG ZIG_SHA256=70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+RUN set -eu; \
+    cd /tmp; \
+    tarball="zig-x86_64-linux-${ZIG_VERSION}.tar.xz"; \
+    curl -fsSLO "https://ziglang.org/download/${ZIG_VERSION}/${tarball}"; \
+    echo "${ZIG_SHA256}  ${tarball}" | sha256sum -c -; \
+    tar -xJf "${tarball}" -C /opt; \
+    mv "/opt/zig-x86_64-linux-${ZIG_VERSION}" /opt/zig; \
+    ln -s /opt/zig/zig /usr/local/bin/zig; \
+    rm -f "${tarball}"; \
+    zig version
+
+# cargo-zigbuild is what makes `zig cc` usable as rustc's linker: rustc emits
+# darwin linker flags zig does not accept, and this filters them. Exact version
+# and `--locked`, for the reason every other build step here is locked.
+ARG ZIGBUILD_VERSION=0.23.3
+RUN cargo install cargo-zigbuild --version "${ZIGBUILD_VERSION}" --locked
+
+# The target's `std`, from the same pinned toolchain. Cross-compiling needs no
+# Apple anything for this half — rustc's macOS std is distributed by rust-lang.
+RUN rustup target add aarch64-apple-darwin
+
+WORKDIR /src
+
+# COPY by name, the same set the Linux build stage takes: the embedded asset
+# trees are compiled into the binary, so they are inputs here too.
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+COPY src ./src
+COPY template ./template
+COPY schemas ./schemas
+COPY skills ./skills
+COPY install ./install
+
+# Only the `litany` binary, as in the Linux build: `agent-eval` and
+# `litany-eval-agent` are repo-side evaluation tooling with no meaning on a
+# deployed box.
+#
+# THE MACOS FLOOR IS NOT ASKED FOR, IT IS READ BACK. rustc passes
+# `-mmacosx-version-min` and the pinned zig ignores it, stamping its own darwin
+# minimum into LC_BUILD_VERSION; cargo-zigbuild's `aarch64-apple-darwin.<ver>`
+# target syntax does not survive this zig either (it forms a target query zig
+# rejects). So the floor is a property of the pinned pair, not a setting, and
+# `scripts/mac-verify.sh` prints what the artifact actually carries. Do not
+# write the floor into a README from memory — read it off the binary.
+RUN cargo zigbuild --release --locked --target aarch64-apple-darwin --bin litany
+
+# The adapter, at the pin, cross-linked the same way. The pin is READ from
+# `Cargo.toml`'s `brazen = "="` line, which is its one home — not typed here,
+# because a version typed into a second file is a version that drifts.
+#
+# `cargo-zigbuild install` and not `cargo zigbuild install`: cargo's subcommand
+# dispatch turns `cargo zigbuild ...` into `cargo-zigbuild zigbuild ...`, which
+# has no `install` verb. The binary is invoked directly to reach it.
+RUN set -eu; \
+    pin=$(sed -n 's/^brazen = "=\([^"]*\)"$/\1/p' Cargo.toml); \
+    test -n "$pin" || { echo 'Containerfile.mac: no `brazen = "=<version>"` line in Cargo.toml' >&2; exit 1; }; \
+    cargo-zigbuild install brazen --version "=$pin" --locked \
+      --target aarch64-apple-darwin --root /adapter
+
+# Stage 2 — the carrier. Two files, nothing else: `podman create` + `podman cp`
+# lifts them out without running anything, and there is no runtime layer to
+# reason about because nothing here is ever run. It is not `FROM alpine` for
+# the same reason it is not pushed: these are files in a wrapper, not an
+# install.
+FROM scratch
+COPY --from=build /src/target/aarch64-apple-darwin/release/litany /litany
+COPY --from=build /adapter/bin/bz /bz

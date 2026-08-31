@@ -61,7 +61,15 @@ serde_yaml_ng = "0.10"
 serde_json = "1"
 schemars = "0.8"
 thiserror = "2"
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# `now` and NOT `clock`, and the difference is load-bearing for the macOS
+# artifact (`Containerfile.mac`). `clock` is `now` plus local-timezone
+# detection, which pulls `iana-time-zone` — and on darwin that links the
+# CoreFoundation framework, which no lawful Linux cross-build can supply (the
+# cross toolchain ships libSystem and no framework stubs). This crate uses
+# `Utc` only: `src/prompt/clock.rs` is the whole of the use. Narrowing to `now`
+# drops five crates from the lockfile and ports the mac build by the same edit.
+# Widening it back un-ports that build.
+chrono = { version = "0.4", default-features = false, features = ["now", "std"] }
 
 [dev-dependencies]
 tempfile = "3"

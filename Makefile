@@ -1,4 +1,4 @@
-.PHONY: all build release test test-install coverage lint leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan clean
+.PHONY: all build release test test-install coverage lint leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan mac-artifact clean
 
 # Install location for `make install`. Defaults to the XDG-ish user-local
 # convention; override for system-wide installs or packaging:
@@ -392,5 +392,53 @@ image-scan:
 	@CONTAINER_ENGINE=$(CONTAINER_ENGINE) scripts/image-scan.sh --self-test "$(IMAGE_TAG)"
 	@CONTAINER_ENGINE=$(CONTAINER_ENGINE) scripts/image-scan.sh "$(IMAGE_TAG)"
 
+# The macOS artifacts — the aarch64 mac `litany` AND the `bz` at the pin,
+# cross-produced from a Linux container so they come off the same reproducible
+# line as the Linux image rather than off somebody's laptop (yog DESIGN §10,
+# README "The macOS artifact"). `Containerfile.mac` is the whole of what it
+# builds and argues the toolchain choice — `zig cc`, with osxcross refused on
+# Apple's own licence terms — where the decision lives.
+#
+# BOTH BINARIES, for the reason the image ships both: `bz` is not optional and
+# a mac artifact that was only the engine would be an install route that cannot
+# answer a prompt.
+#
+# THE PRODUCT IS TWO FILES, NOT AN IMAGE. The build's last stage is `FROM
+# scratch` carrying them, so `create` + `cp` lifts them out without running
+# anything; the wrapper image is a fixture and is deleted below. That is why
+# `image-scan` is not wired in here and is not being skipped: the image is
+# never pushed, and the artifacts are compiled from the same tree the source
+# gate reads, exactly as the Linux release binaries are.
+#
+# IT IS VERIFIED, NOT ASSUMED. No mac exists on the build box, so the artifacts
+# cannot be executed — but they can be READ, and a green build is not evidence
+# of an arm64 Mach-O that a mac would load. `scripts/mac-verify.sh` reads the
+# header, LC_BUILD_VERSION and every LC_LOAD_DYLIB out of each produced file,
+# and runs its own negative direction first (five malformed inputs it must
+# refuse), the same two-direction discipline `leak-scan` holds.
+#
+# NOT part of `check`, for the reason `image` is not: `check` must run on a box
+# with no container engine, and this needs one.
+MAC_TARGET := aarch64-apple-darwin
+MAC_IMAGE  := $(IMAGE_NAME)-macos-build:$(IMAGE_VERSION)
+MAC_DIST   := dist/$(MAC_TARGET)
+
+mac-artifact:
+	@test -n "$(CONTAINER_ENGINE)" || { echo "mac-artifact: no podman and no docker on PATH" >&2; exit 1; }
+	@test -n "$(IMAGE_VERSION)" || { echo "mac-artifact: no version in Cargo.toml" >&2; exit 1; }
+	@scripts/mac-verify.sh --self-test
+	@echo "mac-artifact: $(notdir $(CONTAINER_ENGINE)) build -> $(MAC_TARGET)"
+	@$(CONTAINER_ENGINE) build -f Containerfile.mac -t "$(MAC_IMAGE)" .
+	@mkdir -p "$(MAC_DIST)"
+	@cid=$$($(CONTAINER_ENGINE) create "$(MAC_IMAGE)") && \
+	  $(CONTAINER_ENGINE) cp "$$cid:/litany" "$(MAC_DIST)/litany" && \
+	  $(CONTAINER_ENGINE) cp "$$cid:/bz" "$(MAC_DIST)/bz" && \
+	  $(CONTAINER_ENGINE) rm "$$cid" >/dev/null
+	@$(CONTAINER_ENGINE) rmi "$(MAC_IMAGE)" >/dev/null
+	@chmod +x "$(MAC_DIST)/litany" "$(MAC_DIST)/bz"
+	@scripts/mac-verify.sh "$(MAC_DIST)/litany"
+	@scripts/mac-verify.sh "$(MAC_DIST)/bz"
+
 clean:
 	cargo clean
+	rm -rf dist

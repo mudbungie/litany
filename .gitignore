@@ -9,6 +9,11 @@
 /target
 lcov.info
 
+# The cross-produced macOS artifacts (`make mac-artifact`). Build output, not
+# source: reproducible from `Containerfile.mac`, and they belong in a release
+# rather than in the tree.
+/dist
+
 # Gate-run scratch at the repo root. `cargo tarpaulin` drops the build
 # script's `build_rs_cov.profraw` here, and agents commonly tee `make check`
 # into check.log / its status into check.exit. This has to be ignored rather

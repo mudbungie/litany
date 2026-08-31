@@ -7,3 +7,6 @@
 target/
 .git/
 experiments/
+# `make mac-artifact` writes its output here; sending it back into a later
+# build context would be shipping an artifact into the build that made it.
+dist/

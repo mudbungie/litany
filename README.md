@@ -325,6 +325,101 @@ other route.
   meaning on a deployed box — the install table above already says the
   non-Makefile routes do not lay them down either.
 
+### The macOS artifact
+
+    make mac-artifact        # -> dist/aarch64-apple-darwin/{litany,bz}
+
+`make mac-artifact` cross-produces the `aarch64-apple-darwin` binaries **from
+the same Linux container line the image comes off** — the same digest-pinned
+base, the same toolchain pin checked against `rust-toolchain.toml`, the same
+`--locked` dependency answer the gate judged, and the same `brazen` pin read
+out of `Cargo.toml`. So a mac binary is reproducible from the tree rather than
+being whatever came out of somebody's laptop that afternoon.
+
+**Both binaries**, for the reason the image ships both: `bz` is not optional,
+and an artifact that was only the engine would be an install route that cannot
+answer a prompt.
+
+The product is **files, not an image**. The build's last stage is `FROM
+scratch` carrying the two binaries; the wrapper is a fixture, is never pushed,
+and is deleted when they have been lifted out. `make image-scan` therefore does
+not apply to it and is not being skipped: the artifacts are compiled from the
+same tree `make leak-scan` reads, exactly as the Linux release binaries are.
+
+#### The toolchain is `zig cc`, and osxcross is refused
+
+There were two ways to link a Mach-O binary on Linux, and the choice was made
+on Apple's licence rather than on taste. osxcross drives **Apple's own SDK**,
+which the *Xcode and Apple SDKs Agreement* forbids twice over — either clause
+alone would settle it:
+
+> **2.7** The grants set forth in this Agreement do not permit You to, and You
+> agree not to, install, use or run the Apple Software or Apple Services on any
+> non-Apple-branded computer or device, or to enable others to do so. … You
+> agree not to rent, lease, lend, upload to or host on any website or server,
+> sell, redistribute, or sublicense the Apple Software and Apple Services, in
+> whole or in part, or to enable others to do so.
+
+> **2.5** You may not alter the Apple Software or Services in any way in such
+> copy, e.g., You are expressly prohibited from separately using the Apple SDKs
+> or attempting to run any part of the Apple Software on non-Apple-branded
+> hardware.
+
+The first means the SDK may never sit in this repository nor in anything
+published from it. The second means the usual escape — take the SDK path as a
+build argument, keep it out of the tree, let the operator supply it — **does
+not work either**, because the builder is not Apple-branded hardware. So this
+repo does not hold the SDK at arm's length; it refuses the arm.
+
+`zig` acquires nothing from Apple: it ships one darwin stub of its own,
+`lib/libc/darwin/libSystem.tbd`, in its own distribution and under its own
+licence. It is pinned by version **and** sha256; `cargo-zigbuild` (which
+filters the darwin linker flags `zig cc` will not take) is pinned exactly and
+installed `--locked`.
+
+#### The limit, and the one edge it cost
+
+zig ships libSystem and **no framework stubs at all**. A crate graph that links
+only libSystem crosses cleanly; one that links any Apple framework fails at the
+link step with *"unable to find framework"*, and there is no lawful way to
+supply the frameworks on a Linux builder.
+
+This graph had exactly one such edge. `chrono`'s `clock` feature is `now` plus
+local-timezone detection, and the detection pulls `iana-time-zone`, which links
+CoreFoundation on darwin. This crate uses `Utc` only — `src/prompt/clock.rs` is
+the whole of the use — so the feature is now `now`, which dropped five crates
+from the lockfile and ported the mac build by the same edit. That line in
+`Cargo.toml` says so beside itself: widening it back to `clock` un-ports this
+build.
+
+#### What is proven, and what is not
+
+There is no mac on the build box, so **the artifacts are never executed**. A
+green build is not evidence: a wrong architecture, a dependency on a dylib no
+stock mac carries, and a binary macOS would refuse to start all look identical
+to a successful `cargo build`. `scripts/mac-verify.sh` reads each produced file
+instead, on any platform, with no Apple tooling:
+
+- **Proven** — 64-bit Mach-O, `arm64`, an executable; platform macOS with the
+  minimum-OS and SDK versions it declares; every dynamic library it will ask
+  for at load time, each of which must be a stock `/usr/lib` or
+  `/System/Library` path; and that a code signature is present at all.
+- **Not proven** — that they run. They have the shape of working mac binaries
+  and have not been observed to be ones.
+
+It runs **both directions**: five fabricated malformed inputs must be refused
+before the real artifacts are read, because a checker that has quietly stopped
+checking passes everything forever.
+
+Two properties are worth knowing before an artifact is handed to anyone. **The
+minimum macOS version is the pinned zig's, not a setting** — `rustc` asks for
+one and this zig stamps its own — so read it off the artifact where
+`mac-verify` prints it, never from a document. And **the signature is ad-hoc,
+which is not notarization**: an arm64 mac refuses to start an unsigned binary
+and the ad-hoc signature satisfies exactly that. A copy that arrives over a
+network still carries a quarantine attribute, and clearing it — or replacing
+the signature with a real one — is an act on a mac, by the operator.
+
 ## Configuration schemas
 
 JSON Schemas for the harness-root and config-commit control files (per
