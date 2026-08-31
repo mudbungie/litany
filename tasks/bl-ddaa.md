@@ -12,6 +12,10 @@ on = "close"
 [[blockers]]
 id = "bl-fba0"
 on = "close"
+
+[[blockers]]
+id = "bl-ae92"
+on = "close"
 +++
 Two downstream defects (yog bl-fd24 and bl-77be, evidence there) trace to one
 seam shape: docs/DESIGN_TOOL_INJECTION.md declares the injection per-process
