@@ -26,6 +26,17 @@ reaching a release.
 
 ## [Unreleased]
 
+- **record the compactor-pair ruling in `docs/DESIGN_TOOL_INJECTION.md` §7:
+  the host answers `write_summary` / `mark_for_deletion` itself, as engine
+  acts.** The bullet had listed three candidates and read as open long after
+  the composer adjudicated it (yog `docs/REMOTE.md` §5.4, landed against the
+  0.0.2 pin). It now carries the answer, the subject-locality reasoning it
+  follows from, and the residual a composing host must know: the built-ins
+  read the calling agent's identity from the **process** environment, so a
+  linked host still has to re-enter `<driver_target> tool <name>` as a child
+  to carry a per-invocation identity. No code changes — the surface the
+  ruling uses is the front door that already exists. [bl-43aa]
+
 - **gate the image the way the commit is gated: `make image-scan`, and it runs
   as the last step of `make image`.** `make leak-scan` reads the git index, so
   nothing had ever read what a `podman push` would publish — the build context

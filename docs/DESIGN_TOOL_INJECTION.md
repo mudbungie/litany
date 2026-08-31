@@ -386,27 +386,48 @@ an absent binary produced behind the front door too. It is no longer a
   agent a driver verb drives. `RoutedCall` carries the workspace and
   agent id so a router can discriminate, but litany will not do it for
   them.
-- **Procedure-injected tools are routed like any other, and that is a
-  live question for the composing host, not a settled one** (bl-a00a;
-  filed downstream as yog bl-dfce, which is where it is adjudicated). The compactor pair (`write_summary` /
+- **Procedure-injected tools are routed like any other, and the host
+  answers the compactor pair itself.** The pair (`write_summary` /
   `mark_for_deletion`, ARCH §2.7) reaches the executor as an ordinary
   `tool_use` and is therefore answered by an installed router, exactly as
-  every other name now is. But those two are not tools *on a machine*:
-  they write the conversation's own summary and nominate its own files,
-  on the engine's own state — the class yog's `docs/REMOTE.md` §5.4 calls
-  an engine act rather than a thrall's. A host that routes everything
-  must therefore answer them itself, and a host forbidden to execute
-  locally (yog's §12 *front door only*) has no obvious way to. **Which
-  side owns the carve-out is the composer's ruling to make**, and the
-  three candidates are: the host answers the pair itself as engine acts;
-  §2's *procedure injection* is exempted from routing here (which costs a
-  second road decided by litany, not by a host); or compaction's pair
-  stops being executor-shaped at all and becomes part of the compaction
-  act. litany does not pick one unilaterally, because the invariant being
-  amended (`REMOTE.md` §5, *"every tool call the agent makes takes the
-  same road"*) is not litany's to amend. Nothing regresses in litany's
-  own tree — the exec binding installs no injection and compaction is
-  unaffected — and nothing regresses downstream until the pin is bumped.
+  every other name now is — no exemption, no second road. This was filed
+  open (bl-a00a listed three candidates and declined to pick, because the
+  invariant at stake — yog `REMOTE.md` §5, *"every tool call the agent
+  makes takes the same road"* — is not litany's to amend). **It is
+  adjudicated: the composer ruled the first candidate, and the ruling's
+  home is yog's `docs/REMOTE.md` §5.4** (landed against the 0.0.2 pin).
+  The reasoning recorded there, because it is the part a later reader
+  needs:
+  - **Subject locality decides it alone** (`REMOTE.md` §5, *"a tool
+    executes where its subject lives"*). The pair's subject is the agent
+    itself: `write_summary` writes that agent's own summary onto the
+    compactor branch and `mark_for_deletion` nominates that same agent's
+    own files. The agent lives on the server, so no machine and no thrall
+    is in the picture.
+  - **yog's §12 *front door only* is therefore not narrowed.** It governs
+    execution *on a machine*, which the pair is not — so the carve-out
+    this bullet once worried about is not a carve-out in the invariant at
+    all. The principle it falls out of: context management happens in the
+    composing host.
+  - **Nothing is asked of litany.** The surface a host needs already
+    exists and is the one yog used — the `tool` verb on the public
+    `cmd::Command` surface, the same front door ARCH §3.3's third
+    resolver hop addresses as `<driver_target> tool <name>`. A host
+    re-enters it with the caller identity on the child's environment
+    (`LITANY_CONV_REPO` / `LITANY_CONV_BRANCH`, ARCH §3.3, taken from
+    `RoutedCall`'s own `workspace` / `agent`) and the `tool_use` input on
+    stdin, so the compactor's semantics keep exactly one definition and
+    it is this repo's.
+
+  **The residual, which is a property of the front door and not a
+  defect:** the built-ins resolve the calling agent's worktree from the
+  **process** environment (`builtin::run` wires `dispatch::ProcessEnv`),
+  so an in-process `Command::Tool` cannot carry a per-invocation
+  identity — a host that links litany must still re-enter as a child
+  process to answer the pair, and cannot answer it by linking alone.
+  That is what keeps the identity harness-derived rather than
+  model-supplied (ARCH §2.11), and it is the one thing a composing host
+  has to rediscover if this paragraph is not read.
 - **No stability promise.** Like the linked binding and the mint seam
   (`src/mint.rs`), this is pin-exact 0.x consumption: no semver
   stability.
