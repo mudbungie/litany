@@ -23,8 +23,15 @@
 //! commit, so a nomination after that is a `D` in `dispatch..tip`, which
 //! the landing classifies as the compactor's product and applies to the
 //! dispatching branch. That branch then keeps stepping with no goal, no
-//! soul or no identity line on every later model call. This test drives
-//! all four nominations and asserts all four files survive the landing.
+//! soul or no identity line on every later model call.
+//!
+//! The fifth nomination is the pass's **own summary** (bl-c7bb), and it
+//! was seen accepted in the wild in the same tool sequence that wrote
+//! it. The landing admits the summary and the deletions and nothing
+//! else (§2.6), so accepting it lands a base holding no record of the
+//! span at all. This test drives all five nominations and asserts every
+//! file survives the landing — the summary among them, read back off
+//! the dispatching branch after the rebase-forward.
 
 use super::advance::{AGENT, RecLauncher, worker_config};
 use super::fixtures::*;
@@ -111,20 +118,33 @@ fn a_conversation_past_a_compaction_still_has_its_opening_prompt_goal_soul_and_n
     // nomination the shipped model actually made is declined in-band and
     // stages nothing; the later entry is shed as it always was.
     tools::write_summary(&cwt, "the parser port is underway\n").unwrap();
-    let declined = tools::mark_for_deletion(&cwt, "messages/001-user.md", &git).unwrap_err();
+    // The pass's own product, staged as the harness stages a tool's side
+    // effect (§2.3): the live run accepted exactly this nomination, and
+    // the landing admits the summary and the deletions and nothing else
+    // (§2.6) — so it would have carried away the one artifact standing
+    // in for the whole compacted span (bl-c7bb).
+    git.run(&cwt, &["add", "-A"]).unwrap();
+    let declined = tools::mark_for_deletion(&cwt, &child, "summary/001.md", &git).unwrap_err();
+    assert!(
+        matches!(&declined, Error::NotCompactionEligible { path, what }
+            if path == "summary/001.md" && what.contains("own product")),
+        "{declined:?}"
+    );
+    let declined =
+        tools::mark_for_deletion(&cwt, &child, "messages/001-user.md", &git).unwrap_err();
     assert!(
         matches!(&declined, Error::NotCompactionEligible { path, .. }
             if path == "messages/001-user.md"),
         "{declined:?}"
     );
     for slot in crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES {
-        let declined = tools::mark_for_deletion(&cwt, slot, &git).unwrap_err();
+        let declined = tools::mark_for_deletion(&cwt, &child, slot, &git).unwrap_err();
         assert!(
             matches!(&declined, Error::NotCompactionEligible { path, .. } if path == slot),
             "{slot}: {declined:?}"
         );
     }
-    tools::mark_for_deletion(&cwt, "messages/002-user.md", &git).unwrap();
+    tools::mark_for_deletion(&cwt, &child, "messages/002-user.md", &git).unwrap();
     git.run(&cwt, &["add", "-A"]).unwrap();
     git.run(&cwt, &["commit", "-m", "compaction"]).unwrap();
     let tip = git.run_capture(&cwt, &["rev-parse", "HEAD"]).unwrap();

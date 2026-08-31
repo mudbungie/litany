@@ -161,7 +161,10 @@ pub fn compactor_goal(parent_worktree: &Path, parent_branch: &str) -> Result<Str
          `skills/` bodies the transcript shows loaded and finished with. The\n\
          branch's dispatch entry — `messages/001-…`, its opening prompt — is the\n\
          goal quoted below in transcript form, is never superseded, and a\n\
-         nomination of it is declined. Your\n\
+         nomination of it is declined. So is a nomination of the summary you\n\
+         wrote this pass: it is the only thing your compaction leaves behind.\n\
+         An earlier pass's summary is a different thing and is yours to\n\
+         supersede. Your\n\
          toolset is deletion-only: you can remove and summarize, never rewrite,\n\
          so the worst case is lost information, never corrupted\n\
          information. A work product the live branch has rewritten\n\
@@ -231,6 +234,21 @@ mod tests {
         assert!(g.contains("dispatch entry"), "{g}");
         assert!(g.contains("messages/001-"), "{g}");
         assert!(g.contains("declined"), "{g}");
+    }
+
+    #[test]
+    fn compactor_goal_states_that_this_passs_own_summary_is_not_nominable() {
+        // bl-c7bb, on bl-898f's reasoning: a refusal the model was never
+        // told about arrives as a surprise `is_error`, and this one fires
+        // on the tool call the *other* half of the pair invited. Stated
+        // with its counterpart — an earlier pass's summary stays the
+        // thing it is told to supersede — so the rule reads as a
+        // distinction rather than a ban on the directory.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("goal.md"), "ship the widget").unwrap();
+        let g = compactor_goal(dir.path(), "20260101-p1").unwrap();
+        assert!(g.contains("the summary you\nwrote this pass"), "{g}");
+        assert!(g.contains("An earlier pass's summary"), "{g}");
     }
 
     #[test]

@@ -79,7 +79,7 @@ pub fn run_write_summary<R: Read, W: Write>(
     env: &dyn EnvLookup,
 ) -> Result<(), Error> {
     let input: WriteSummaryInput = read_input(stdin)?;
-    let worktree = resolve_worktree(env)?;
+    let (worktree, _) = resolve_agent(env)?;
     let rel = tools::write_summary(&worktree, &input.content).map_err(Error::WriteSummary)?;
     emit(stdout, "written", rel)
 }
@@ -103,8 +103,8 @@ pub fn run_mark_for_deletion_with<R: Read, W: Write>(
     git: &dyn GitRunner,
 ) -> Result<(), Error> {
     let input: MarkInput = read_input(stdin)?;
-    let worktree = resolve_worktree(env)?;
-    tools::mark_for_deletion(&worktree, &input.path, git).map_err(Error::Mark)?;
+    let (worktree, branch) = resolve_agent(env)?;
+    tools::mark_for_deletion(&worktree, &branch, &input.path, git).map_err(Error::Mark)?;
     emit(stdout, "marked", input.path)
 }
 
@@ -115,9 +115,12 @@ fn read_input<R: Read, T: for<'de> Deserialize<'de>>(stdin: &mut R) -> Result<T,
     serde_json::from_slice(&buf).map_err(Error::InvalidJson)
 }
 
-/// The calling agent's worktree, from `LITANY_CONV_REPO` (workspace) +
-/// `LITANY_CONV_BRANCH` (agent id), harness-derived (§3.3).
-fn resolve_worktree(env: &dyn EnvLookup) -> Result<std::path::PathBuf, Error> {
+/// The calling agent's worktree **and its id**, from `LITANY_CONV_REPO`
+/// (workspace) + `LITANY_CONV_BRANCH` (agent id), harness-derived (§3.3).
+/// The id travels with the worktree because `mark_for_deletion`'s third
+/// eligibility class is read against the compactor's own dispatch commit
+/// (§2.7), which is named by the id and by nothing else.
+fn resolve_agent(env: &dyn EnvLookup) -> Result<(std::path::PathBuf, String), Error> {
     let repo = env
         .get(ENV_CONV_REPO)
         .ok_or(Error::MissingEnv(ENV_CONV_REPO))?;
@@ -126,7 +129,8 @@ fn resolve_worktree(env: &dyn EnvLookup) -> Result<std::path::PathBuf, Error> {
         .ok_or(Error::MissingEnv(ENV_CONV_BRANCH))?
         .into_string()
         .map_err(|_| Error::MissingEnv(ENV_CONV_BRANCH))?;
-    Ok(workspace::agent_worktree(Path::new(&repo), &branch))
+    let worktree = workspace::agent_worktree(Path::new(&repo), &branch);
+    Ok((worktree, branch))
 }
 
 /// Serialize the `{status, path}` result to `stdout` (§3.3).

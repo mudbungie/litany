@@ -24,11 +24,10 @@
 //! by defect. The compactor decides relevance against the dispatching
 //! branch's goal (`goal.md`), which its inherited worktree carries (§2.7).
 //!
-//! **What is written at dispatch is not compaction-eligible** (§2.7,
-//! §2.8; bl-898f, bl-541b). A fact set when the branch was created and
-//! never rewritten is not history, so no pass may shed it, and
+//! **What is not the branch's history is not a pass's to shed** (§2.7,
+//! §2.8; bl-898f, bl-541b, bl-c7bb), and
 //! [`not_compaction_eligible`] is the one predicate saying which paths
-//! those are. Two classes are in it.
+//! those are. Three classes are in it.
 //!
 //! The **dispatch entry** is the goal in transcript form. A goal has two
 //! projections written at one dispatch and neither ever rewritten — the
@@ -52,12 +51,29 @@
 //! *dispatching* branch's tree, which then keeps stepping with no goal,
 //! no soul or no identity line on every later model call.
 //!
-//! Both are declined **at the nomination**, in-band, so the compactor's
-//! summary is never premised on a deletion that did not happen —
-//! declined at the door rather than dropped at the landing because the
-//! fact is knowable from the path alone. Live-branch-wins is dropped at
-//! the landing precisely because *its* fact (a race with the live
-//! branch) is not (§2.6).
+//! **This pass's own product** is the third, and the one with the
+//! largest blast radius (bl-c7bb). A live compactor accepted
+//! `mark_for_deletion` of the `summary/001.md` it had written seconds
+//! earlier through the other half of this same pair; the landing admits
+//! the summary and the deletions and nothing else (§2.6), so a landing
+//! carrying a `git rm` of its own summary carries away the entire span
+//! it was dispatched to preserve and leaves a base holding nothing of
+//! it. A **blanket** `summary/**` refusal would be wrong — superseding
+//! an *earlier* pass's summary is the shipped soul's own instruction
+//! (`template/souls/compactor.md`) and the only thing that keeps the
+//! chain from growing without bound — so the class is *this run's*
+//! output, not the directory. It is read from the same place the landing
+//! reads the compaction product from ([`super::land::base`]): what
+//! changed after the compactor's **own dispatch commit** is the pass's,
+//! and everything at or before it is the inherited branch. One
+//! definition of "the product", now read by the landing that carries it
+//! and by the door that refuses to shed it.
+//!
+//! All three are declined **at the nomination**, in-band, so the
+//! compactor's summary is never premised on a deletion that did not
+//! happen. Live-branch-wins is dropped at the landing instead, precisely
+//! because *its* fact — a race with the live branch — is not knowable
+//! when the compactor nominates (§2.6).
 
 use super::Error;
 use crate::prompt::dispatch::MESSAGES_DIR;
@@ -107,20 +123,27 @@ pub(crate) fn write_summary(worktree: &Path, content: &str) -> std::io::Result<S
 /// "applied at commit time" contract. **Deletion-only structural**: this
 /// can only remove, never write, so a compactor cannot corrupt content.
 ///
-/// Two nominations are **declined loudly** rather than silently ignored
+/// Two kinds of nomination are **declined loudly** rather than silently ignored
 /// (`docs/PRINCIPLES.md` "Decline illegal operations"), and the decline
 /// reaches the model in-band as an `is_error` `tool_result` (§3.3):
 ///
 /// - a path [`not_compaction_eligible`] names — the branch's dispatch
-///   entry, or one of the system slot's files (module docs, §2.7);
+///   entry, one of the system slot's files, or this pass's own product
+///   (module docs, §2.7);
 /// - a path that does not exist on the branch — a compactor nominating a
 ///   nonexistent file is a defect worth surfacing, and `git rm` errors on it.
+///
+/// `agent_id` is the compactor's own branch (harness-derived, §3.3): the
+/// third class is read against that branch's dispatch commit, which is
+/// the only thing that separates the pass's own output from the tree it
+/// inherited.
 pub(crate) fn mark_for_deletion(
     worktree: &Path,
+    agent_id: &str,
     path: &str,
     git: &dyn GitRunner,
 ) -> Result<(), Error> {
-    if let Some(what) = not_compaction_eligible(path) {
+    if let Some(what) = not_compaction_eligible(worktree, agent_id, path, git)? {
         return Err(Error::NotCompactionEligible {
             path: path.to_string(),
             what: what.to_string(),
@@ -138,12 +161,21 @@ pub(crate) fn mark_for_deletion(
 /// the noun the decline names it by, so the model is told which rule it
 /// hit rather than being refused anonymously.
 ///
-/// Derived from the path alone — the dispatch entry from the same
-/// `NNN-` prefix reading `dispatch::transcript`'s counter uses, the
-/// system slot from the file names the composer pins — so it needs no
-/// tree, no config and no state, and it holds for a `.md` delivery and a
-/// resumed conversation's inherited first entry alike.
-fn not_compaction_eligible(path: &str) -> Option<&'static str> {
+/// The first two classes are derived from the path alone — the dispatch
+/// entry from the same `NNN-` prefix reading `dispatch::transcript`'s
+/// counter uses, the system slot from the file names the composer pins —
+/// so they need no tree, no config and no state, and they hold for a
+/// `.md` delivery and a resumed conversation's inherited first entry
+/// alike. The third cannot be: "whose output is this file" is not in the
+/// name, and a blanket `summary/**` refusal would forbid the supersede
+/// the chain depends on (module docs). It reads the branch instead, at
+/// the one anchor the landing already classifies the product by.
+fn not_compaction_eligible(
+    worktree: &Path,
+    agent_id: &str,
+    path: &str,
+    git: &dyn GitRunner,
+) -> Result<Option<&'static str>, Error> {
     let rel = path.strip_prefix("./").unwrap_or(path);
     if rel
         .strip_prefix(MESSAGES_DIR)
@@ -152,15 +184,77 @@ fn not_compaction_eligible(path: &str) -> Option<&'static str> {
         .and_then(|nnn| nnn.parse::<u32>().ok())
         == Some(DISPATCH_SEQ)
     {
-        return Some("the branch's dispatch entry, its opening prompt in transcript form");
+        return Ok(Some(
+            "the branch's dispatch entry, its opening prompt in transcript form, \
+             written at dispatch and never rewritten",
+        ));
     }
     if crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES.contains(&rel) {
-        return Some(
+        return Ok(Some(
             "one of the system slot's files (goal.md, soul.md, name), \
-             a structural wire home composed into every model call on the branch (ARCH §5.2)",
-        );
+             a structural wire home composed into every model call on the branch (ARCH §5.2), \
+             written at dispatch and never rewritten",
+        ));
     }
-    None
+    if written_by_this_pass(worktree, agent_id, rel, git)? {
+        return Ok(Some(
+            "this compaction pass's own product — a file this compactor has written since \
+             its own dispatch commit, which is what the landing carries forward (ARCH §2.6), \
+             not history it may shed",
+        ));
+    }
+    Ok(None)
+}
+
+/// Has *this* compaction pass written `rel` — is it an addition or a
+/// rewrite in the range after the compactor's own dispatch commit?
+///
+/// That range is the landing's definition of the compaction product
+/// ([`super::land::base`]: "a path *added under `summary/`* is the
+/// `write_summary` product"), read here against the **index** rather
+/// than a commit pair, which is exactly the set `git rm` could carry
+/// away: a summary already committed by its tool step and one merely
+/// staged both answer the same, and an untracked one answers `false`
+/// because `git rm` refuses it anyway — the nonexistent-path decline
+/// takes that case, and nothing is lost either way.
+///
+/// `--diff-filter=AM` excludes deletions on purpose: a path this pass
+/// already staged for removal is not its product, and a re-nomination of
+/// one should meet the nonexistent-path decline it has always met, not
+/// this one.
+///
+/// No dispatch commit reachable — a tree that was never founded — is the
+/// general path with empty inputs: nothing was added after a commit that
+/// does not exist, so nothing is this pass's ([`crate::prompt::role::founding_sha`]
+/// answers `None` the same way [`super::checkpoint::origin`] does).
+fn written_by_this_pass(
+    worktree: &Path,
+    agent_id: &str,
+    rel: &str,
+    git: &dyn GitRunner,
+) -> Result<bool, Error> {
+    let Some(dispatch) = crate::prompt::role::founding_sha(worktree, "HEAD", agent_id, git)? else {
+        return Ok(false);
+    };
+    let out = git
+        .run_capture(
+            worktree,
+            &[
+                "diff",
+                "--cached",
+                "--name-only",
+                "--no-renames",
+                "--diff-filter=AM",
+                &dispatch,
+                "--",
+                rel,
+            ],
+        )
+        .map_err(|source| Error::Git {
+            op: "mark_for_deletion own-product diff",
+            source,
+        })?;
+    Ok(!out.trim().is_empty())
 }
 
 /// Pick the next summary-seq: one more than the highest existing
@@ -187,3 +281,5 @@ fn next_seq(dir: &Path) -> std::io::Result<u32> {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_own_product;

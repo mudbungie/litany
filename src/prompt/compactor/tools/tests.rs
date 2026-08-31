@@ -58,9 +58,15 @@ fn write_summary_skips_a_non_utf8_file_name() {
     assert_eq!(rel, "summary/005.md");
 }
 
-/// A real repo on `agents/p1` with one tracked file, for the
-/// deletion-only `git rm` path.
-fn repo_with(rel: &str) -> tempfile::TempDir {
+/// The compactor branch these fixtures run on.
+pub(super) const AGENT: &str = "p1";
+
+/// A real repo on `agents/p1` carrying `rel`, founded by the compactor's
+/// **own dispatch commit** — the shape `mark_for_deletion` runs in
+/// (§2.3 step 2), and the anchor the third eligibility class reads
+/// ([`super::written_by_this_pass`]). Everything in that commit is the
+/// inherited branch; anything after it is the pass's own product.
+pub(super) fn repo_with(rel: &str) -> tempfile::TempDir {
     let dir = tmpdir();
     let wt = dir.path();
     let g = RealGit::new();
@@ -73,7 +79,11 @@ fn repo_with(rel: &str) -> tempfile::TempDir {
     std::fs::create_dir_all(f.parent().unwrap()).unwrap();
     std::fs::write(&f, "content\n").unwrap();
     g.run(wt, &["add", "-A"]).unwrap();
-    g.run(wt, &["commit", "-m", "c"]).unwrap();
+    g.run(
+        wt,
+        &["commit", "-m", &format!("dispatch: compactor [{AGENT}]")],
+    )
+    .unwrap();
     dir
 }
 
@@ -81,7 +91,7 @@ fn repo_with(rel: &str) -> tempfile::TempDir {
 fn mark_for_deletion_stages_a_real_removal() {
     let dir = repo_with("messages/004-user.md");
     let wt = dir.path();
-    mark_for_deletion(wt, "messages/004-user.md", &RealGit::new()).unwrap();
+    mark_for_deletion(wt, AGENT, "messages/004-user.md", &RealGit::new()).unwrap();
     // Removed from the worktree and staged for the next commit.
     assert!(!wt.join("messages/004-user.md").exists());
     let staged = RealGit::new()
@@ -99,7 +109,7 @@ fn mark_for_deletion_declines_the_dispatch_entry_and_removes_nothing() {
     // and nothing is staged.
     let dir = repo_with("messages/001-user.md");
     let wt = dir.path();
-    let err = mark_for_deletion(wt, "messages/001-user.md", &RealGit::new()).unwrap_err();
+    let err = mark_for_deletion(wt, AGENT, "messages/001-user.md", &RealGit::new()).unwrap_err();
     assert!(
         matches!(&err, Error::NotCompactionEligible { path, .. } if path == "messages/001-user.md"),
         "{err:?}"
@@ -120,7 +130,11 @@ fn mark_for_deletion_declines_the_dispatch_entry_and_removes_nothing() {
 fn the_dispatch_entry_is_read_off_the_name_alone() {
     // Derived from the `NNN-` prefix, like the transcript's own counter:
     // any origin token and any extension at 001, a leading `./` folded,
-    // and nothing outside `messages/` or past the first entry.
+    // and nothing outside `messages/` or past the first entry. The tree
+    // is present only because the predicate's *third* class reads one;
+    // nothing here is in it, so every answer below is the name's.
+    let dir = repo_with("keep.txt");
+    let (wt, git) = (dir.path(), RealGit::new());
     for yes in [
         "messages/001-user.md",
         "./messages/001-user.md",
@@ -128,7 +142,9 @@ fn the_dispatch_entry_is_read_off_the_name_alone() {
         "messages/001-claude-fable-5.json",
         "messages/1-user.md",
     ] {
-        let what = not_compaction_eligible(yes).unwrap_or_else(|| panic!("{yes}"));
+        let what = not_compaction_eligible(wt, AGENT, yes, &git)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{yes}"));
         assert!(what.contains("dispatch entry"), "{yes}: {what}");
     }
     for no in [
@@ -141,7 +157,12 @@ fn the_dispatch_entry_is_read_off_the_name_alone() {
         "goal.txt",
         "src/goal.md",
     ] {
-        assert!(not_compaction_eligible(no).is_none(), "{no}");
+        assert!(
+            not_compaction_eligible(wt, AGENT, no, &git)
+                .unwrap()
+                .is_none(),
+            "{no}"
+        );
     }
 }
 
@@ -152,8 +173,12 @@ fn the_system_slots_files_are_read_off_the_name_alone() {
     // after that lands as a deletion the dispatching branch inherits —
     // the branch would keep stepping with no goal, no soul or no
     // identity line (ARCH §2.7, §5.2).
+    let dir = repo_with("keep.txt");
+    let (wt, git) = (dir.path(), RealGit::new());
     for yes in ["goal.md", "soul.md", "name", "./goal.md", "./name"] {
-        let what = not_compaction_eligible(yes).unwrap_or_else(|| panic!("{yes}"));
+        let what = not_compaction_eligible(wt, AGENT, yes, &git)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{yes}"));
         assert!(what.contains("system slot"), "{yes}: {what}");
     }
 }
@@ -166,7 +191,7 @@ fn mark_for_deletion_declines_the_system_slots_files() {
     for name in crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES {
         let dir = repo_with(name);
         let wt = dir.path();
-        let err = mark_for_deletion(wt, name, &RealGit::new()).unwrap_err();
+        let err = mark_for_deletion(wt, AGENT, name, &RealGit::new()).unwrap_err();
         assert!(
             matches!(&err, Error::NotCompactionEligible { path, .. } if path == name),
             "{name}: {err:?}"
@@ -186,7 +211,7 @@ fn mark_for_deletion_declines_the_system_slots_files() {
 #[test]
 fn mark_for_deletion_declines_a_nonexistent_path() {
     let dir = repo_with("keep.txt");
-    let err = mark_for_deletion(dir.path(), "no/such.md", &RealGit::new()).unwrap_err();
+    let err = mark_for_deletion(dir.path(), AGENT, "no/such.md", &RealGit::new()).unwrap_err();
     assert!(
         matches!(
             err,
