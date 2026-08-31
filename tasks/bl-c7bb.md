@@ -9,6 +9,10 @@ tags = ["compaction"]
 [[blockers]]
 id = "bl-80af"
 on = "close"
+
+[[blockers]]
+id = "bl-d632"
+on = "close"
 +++
 `prompt/compactor/tools.rs::mark_for_deletion` declines exactly two nominations:
 the branch's dispatch entry, and a path that does not exist. Nothing else. In
