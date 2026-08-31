@@ -4,6 +4,10 @@ created = 1788150785
 updated = 1788150785
 priority = 9
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
+
+[[blockers]]
+id = "bl-d3b8"
+on = "close"
 +++
 Two downstream defects (yog bl-fd24 and bl-77be, evidence there) trace to one
 seam shape: docs/DESIGN_TOOL_INJECTION.md declares the injection per-process
