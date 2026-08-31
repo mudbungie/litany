@@ -100,7 +100,7 @@ pub(super) fn step(
         worktree,
         resolved.grant.tools,
         &messages,
-        &tools::injected(resolved.grant.role, deps.tool_executor),
+        &tools::injected(resolved.grant.role, deps.tool_executor, workspace, agent_id),
     )?;
     let request = model_call::build_request(
         resolved.model_id,

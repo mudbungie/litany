@@ -179,9 +179,13 @@ impl<'a> ToolExecutor for SpawnTool<'a> {
 
     /// The definitions the binding injected, if any (ARCH §3.3
     /// *Host-injected tools*). The composer and the grant gate both read
-    /// this, so a host declares and permits with one statement.
-    fn injected(&self) -> Vec<InjectedTool> {
-        self.injection.map(ToolInjection::tools).unwrap_or_default()
+    /// this, so a host declares and permits with one statement. The
+    /// driven agent rides through (bl-ddaa): the host's declared set may
+    /// be per-agent state, and the assembly is always for one agent.
+    fn injected(&self, workspace: &Path, agent: &str) -> Vec<InjectedTool> {
+        self.injection
+            .map(|i| i.tools(workspace, agent))
+            .unwrap_or_default()
     }
 
     /// The implementation a `parallel` multi-tool envelope reaches

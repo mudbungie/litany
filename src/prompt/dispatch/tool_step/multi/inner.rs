@@ -75,7 +75,12 @@ pub(super) fn gate(
     if let Some(decline) = refusal(
         resolved.grant.role,
         resolved.grant.tools,
-        &injected(resolved.grant.role, ctx.executor),
+        &injected(
+            resolved.grant.role,
+            ctx.executor,
+            inner.conv_repo,
+            inner.conv_id,
+        ),
         &inv.name,
     ) {
         return Ok(Some(Gated::Declined(Entry {

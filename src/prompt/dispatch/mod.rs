@@ -170,7 +170,7 @@ pub(super) fn run_exchange(
             &worktree_path,
             resolved.grant.tools,
             &messages,
-            &tools::injected(resolved.grant.role, deps.tool_executor),
+            &tools::injected(resolved.grant.role, deps.tool_executor, repo, &conv_id),
         )?;
         let request = model_call::build_request(
             resolved.model_id,

@@ -84,7 +84,7 @@ pub struct Fx<'a> {
 }
 
 pub trait ToolInjection {
-    fn tools(&self) -> Vec<InjectedTool>;
+    fn tools(&self, workspace: &Path, agent: &str) -> Vec<InjectedTool>;
     fn route(&self, call: RoutedCall<'_>) -> RoutedCapture;
 }
 
@@ -100,6 +100,7 @@ pub struct RoutedCall<'a> {
     pub input: &'a serde_json::Value,
     pub workspace: &'a Path,
     pub agent: &'a str,
+    pub cwd: &'a Path,
     pub stop: &'a AtomicBool,
 }
 
@@ -119,9 +120,19 @@ grant gate, and `route()` sits on the same object.
 
 **`RoutedCall` is the stdio contract, in memory.** It carries exactly
 what a tool subprocess gets — `tool_use.id`, name and input on stdin
-(ARCH §3.3 *Stdin*), plus the `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH`
-identity from its environment — and one thing a subprocess gets from the
-kernel instead: the §2.9 cancel flag. `RoutedCapture` is the same three
+(ARCH §3.3 *Stdin*), the `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH`
+identity from its environment, and `cwd`, the caller's resolved working
+directory a subprocess is *started in* (ARCH §3.3 *Working directory*:
+the `cd` mark if it names a live directory, else the worktree — the one
+resolution `prepare` performs for both backends, amendment bl-ddaa) —
+and one thing a subprocess gets from the kernel instead: the §2.9
+cancel flag. `cwd` was added for the host that routes a
+worktree-subject tool to a *remote* executor (yog `docs/REMOTE.md` §5:
+"an invocation carries its subject's location"): without it a router
+must re-derive the mark, a second home for this crate's own fact,
+reading a ref namespace §3.3 keeps consumers out of. §3.4's pricing is
+untouched — what stays off the seam is the caller's *environment*,
+which only an in-process spawning backend could want. `RoutedCapture` is the same three
 facts a subprocess produces. Nothing new is invented on either side,
 which is what makes §3.1 true.
 
@@ -241,12 +252,13 @@ The alternative shape — make the local spawn itself an implementation of
 `ToolInjection`, so there is literally one backend and the exec binding
 installs the local one — is elegant and was rejected for a concrete
 reason: a spawning backend needs the caller's **cwd and environment**,
-which `RoutedCall` deliberately does not carry (§3, "nothing else,
-because a router that needed more would be reaching for harness state the
-front door does not carry"). Making it fit would widen the public seam
-with fields no host wants, to express an internal implementation. The
-seam stays four types wide and the two backends stay internal, selected
-by one `Option`.
+which `RoutedCall` at that time carried neither of. Making it fit would
+widen the public seam with fields no host wants, to express an internal
+implementation. The seam stays four types wide and the two backends stay
+internal, selected by one `Option`. (bl-ddaa later added `cwd` — but as
+a *consumer's* requirement, the subject location a routing host puts on
+a remote invocation, not as the spawning backend's need: the
+environment half stays off the seam, and this ruling stands.)
 
 **What holds the ruling honest**: `SpawnTool` reads `self.injection` in
 exactly two places (`execute`, `execute_all`), each a `match` with two
@@ -382,10 +394,18 @@ an absent binary produced behind the front door too. It is no longer a
   additive, so no host is broken by its arrival, and no host is asked for
   a concurrency guarantee it cannot give. Nothing observable changes
   today: results still render in list order.
-- **The seam is per-process, not per-agent.** One injection serves every
-  agent a driver verb drives. `RoutedCall` carries the workspace and
-  agent id so a router can discriminate, but litany will not do it for
-  them.
+- **The seam is per-process, not per-agent — but every question it is
+  asked names the agent** (amended bl-ddaa). One injection object serves
+  every agent a driver verb drives. `RoutedCall` carries the workspace
+  and agent id so a router can discriminate, and since bl-ddaa `tools()`
+  is handed the same pair — a request is always assembled *for* one
+  agent, and a host whose declared set is per-agent state (a
+  loaded-tools document keyed by agent) otherwise had to read the agent
+  off its own argv, which a verb that *mints* its agent cannot do: the
+  minting driver then declared nothing for its whole drive while its
+  loads kept promising callability. What litany still will not do is
+  hold or merge per-agent state for the host — the discriminants cross,
+  the discrimination is the host's.
 - **Procedure-injected tools are routed like any other, and the host
   answers the compactor pair itself.** The pair (`write_summary` /
   `mark_for_deletion`, ARCH §2.7) reaches the executor as an ordinary

@@ -186,6 +186,7 @@ impl<'a> SpawnTool<'a> {
             input: call.input,
             workspace: &prepared.caller.workspace,
             agent: &prepared.caller.agent_id,
+            cwd: &prepared.caller.cwd,
             stop,
         })
     }

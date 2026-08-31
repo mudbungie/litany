@@ -84,10 +84,18 @@ const SKILLS_DESC_DIR: &str = "descriptions/skills";
 /// The two sources are read here and nowhere else, so the composer below
 /// and the execution gate ([`super::tool_step::refusal`]) union the same
 /// pair: a tool that is declared but not permitted, or permitted but
-/// never declared, has no way to arise.
-pub(super) fn injected(role: &str, executor: &dyn ToolExecutor) -> Vec<InjectedTool> {
+/// never declared, has no way to arise. `workspace` and `agent` name
+/// whose request this is (bl-ddaa): the host's declared set may be
+/// per-agent state, and every caller of this function is assembling or
+/// gating for exactly one agent.
+pub(super) fn injected(
+    role: &str,
+    executor: &dyn ToolExecutor,
+    workspace: &Path,
+    agent: &str,
+) -> Vec<InjectedTool> {
     let mut out = compactor::builtin_tool_schemas(role);
-    out.extend(executor.injected());
+    out.extend(executor.injected(workspace, agent));
     out
 }
 

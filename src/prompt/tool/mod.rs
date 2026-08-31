@@ -257,7 +257,12 @@ pub trait ToolExecutor {
     /// grant gate unions their names into the effective toolset, so both
     /// halves read the same object the router belongs to and cannot drift
     /// from what will actually run (PRINCIPLES, single source of truth).
-    fn injected(&self) -> Vec<InjectedTool> {
+    ///
+    /// `workspace` and `agent` name whose request is being assembled —
+    /// the same discriminants a routed call carries
+    /// ([`inject::ToolInjection::tools`], bl-ddaa); an executor with no
+    /// per-agent state ignores them, as this default does.
+    fn injected(&self, _workspace: &Path, _agent: &str) -> Vec<InjectedTool> {
         Vec::new()
     }
 }

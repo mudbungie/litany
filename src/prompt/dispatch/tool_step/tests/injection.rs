@@ -27,7 +27,7 @@ use tempfile::TempDir;
 struct Hosted(RefCell<Vec<String>>);
 
 impl ToolInjection for Hosted {
-    fn tools(&self) -> Vec<InjectedTool> {
+    fn tools(&self, _workspace: &std::path::Path, _agent: &str) -> Vec<InjectedTool> {
         vec![InjectedTool {
             name: "teleop".into(),
             input_schema: json!({"type": "object"}),
@@ -55,8 +55,8 @@ impl ToolExecutor for Hosted {
         })
     }
 
-    fn injected(&self) -> Vec<InjectedTool> {
-        ToolInjection::tools(self)
+    fn injected(&self, workspace: &std::path::Path, agent: &str) -> Vec<InjectedTool> {
+        ToolInjection::tools(self, workspace, agent)
     }
 }
 

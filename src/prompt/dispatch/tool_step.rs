@@ -147,7 +147,7 @@ pub(in crate::prompt) fn run_tool_calls(
         let outcome = match refusal(
             resolved.grant.role,
             resolved.grant.tools,
-            &super::tools::injected(resolved.grant.role, deps.tool_executor),
+            &super::tools::injected(resolved.grant.role, deps.tool_executor, conv_repo, conv_id),
             name,
         ) {
             Some(decline) => ToolOutcome {

@@ -65,11 +65,14 @@ pub struct InjectedTool {
     pub description: Option<String>,
 }
 
-/// One invocation handed to a host router. The four wire facts a tool
+/// One invocation handed to a host router: the wire facts a tool
 /// subprocess gets on stdin and in its environment (§3.3 *Stdio
-/// contract*), plus the cancel flag — nothing else, because a router
-/// that needed more would be reaching for harness state the front door
-/// does not carry.
+/// contract*), the working directory it would be started in, and the
+/// cancel flag — nothing else, because a router that needed more would
+/// be reaching for harness state the front door does not carry. (The
+/// caller's *environment* is the one fact deliberately withheld:
+/// only an in-process spawning backend could want it —
+/// `docs/DESIGN_TOOL_INJECTION.md` §3.4.)
 pub struct RoutedCall<'a> {
     /// `tool_use.id` from the wire — the per-tool-call record's directory
     /// name (§3.3 *Disk record*), and the id a host correlates on.
@@ -84,6 +87,15 @@ pub struct RoutedCall<'a> {
     /// The calling agent's id (== branch name / hyphenated descent,
     /// §2.3) — the `LITANY_CONV_BRANCH` a subprocess reads.
     pub agent: &'a str,
+    /// The calling agent's **resolved working directory** — the cwd a
+    /// subprocess would run in (§3.3 *Working directory*: the `cd` mark
+    /// if it names a live directory, else the worktree), resolved once by
+    /// the executor for spawned and routed calls alike. A router shipping
+    /// a worktree-subject tool to another executor needs the subject's
+    /// location on the invocation (yog `docs/REMOTE.md` §5), and
+    /// re-deriving the mark would be a second home for this crate's own
+    /// fact.
+    pub cwd: &'a Path,
     /// The §2.9 cancel flag, set when a stop lands mid-invocation. A
     /// router that blocks must watch it: it is the only thing that can
     /// tell an in-process router the drive is being torn down.
@@ -132,14 +144,24 @@ pub struct RoutedCapture {
 /// answer, routed or spawned, so one convention holds for both and a
 /// host cannot forget it (PRINCIPLES "Structure over discipline").
 pub trait ToolInjection {
-    /// The definitions this host splices into every request assembled
-    /// while it is installed — read by the composer (the `tools: [...]`
-    /// array) and by the grant gate (the effective toolset), so the two
-    /// cannot disagree about what exists.
+    /// The definitions this host splices into the request being
+    /// assembled — read by the composer (the `tools: [...]` array) and by
+    /// the grant gate (the effective toolset), so the two cannot disagree
+    /// about what exists.
+    ///
+    /// **Asked per assembly, for a named agent** (bl-ddaa): `workspace`
+    /// and `agent` are the same two discriminants every [`RoutedCall`]
+    /// carries, handed to the declaration half too — because a request is
+    /// always assembled *for* one agent, and a host whose declared set is
+    /// per-agent state (a loaded-tools document keyed by agent, yog's
+    /// `docs/REMOTE.md` §5.2) otherwise has to guess the agent from its
+    /// own argv, which a verb that *mints* its agent cannot do. The
+    /// injection object stays per-process (§7); what is per-agent is the
+    /// question.
     ///
     /// Returning an empty list is the ordinary "nothing right now" and
     /// declares nothing; the injection is still installed.
-    fn tools(&self) -> Vec<InjectedTool>;
+    fn tools(&self, workspace: &Path, agent: &str) -> Vec<InjectedTool>;
 
     /// Answer `call`. **Total** — there is nothing to decline to: while
     /// this host is installed it is the executor, and the §3.3 three-hop

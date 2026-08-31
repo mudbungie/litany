@@ -28,7 +28,18 @@ use std::sync::atomic::AtomicBool;
 pub(super) struct Embedder {
     owns: &'static str,
     exit_code: i32,
-    pub(super) seen: RefCell<Vec<(String, String, Value, String)>>,
+    pub(super) seen: RefCell<Vec<Seen>>,
+}
+
+/// What one routed call carried across the seam — the wire facts the
+/// router is handed, recorded so the test can assert them verbatim.
+#[derive(Debug, PartialEq)]
+pub(super) struct Seen {
+    pub(super) id: String,
+    pub(super) name: String,
+    pub(super) input: Value,
+    pub(super) agent: String,
+    pub(super) cwd: std::path::PathBuf,
 }
 
 impl Embedder {
@@ -49,7 +60,7 @@ impl Embedder {
 }
 
 impl ToolInjection for Embedder {
-    fn tools(&self) -> Vec<InjectedTool> {
+    fn tools(&self, _workspace: &std::path::Path, _agent: &str) -> Vec<InjectedTool> {
         vec![InjectedTool {
             name: self.owns.to_string(),
             input_schema: json!({"type": "object"}),
@@ -58,13 +69,15 @@ impl ToolInjection for Embedder {
     }
 
     fn route(&self, call: RoutedCall<'_>) -> RoutedCapture {
-        self.seen.borrow_mut().push((
-            call.id.to_string(),
-            call.name.to_string(),
-            call.input.clone(),
-            call.agent.to_string(),
-        ));
+        self.seen.borrow_mut().push(Seen {
+            id: call.id.to_string(),
+            name: call.name.to_string(),
+            input: call.input.clone(),
+            agent: call.agent.to_string(),
+            cwd: call.cwd.to_path_buf(),
+        });
         assert!(call.workspace.is_dir(), "the router is told a live root");
+        assert!(call.cwd.is_dir(), "the router is told a live cwd");
         assert!(!call.stop.load(std::sync::atomic::Ordering::SeqCst));
         if call.name != self.owns {
             return RoutedCapture {
@@ -113,12 +126,16 @@ fn a_routed_tool_answers_without_a_binary_and_lands_the_record() {
     assert_eq!(outcome.content, b"Exit code: 0\nrouted product");
     assert_eq!(
         *host.seen.borrow(),
-        vec![(
-            "toolu_r1".to_string(),
-            "teleop".to_string(),
-            json!({"do": "thing"}),
-            super::fixtures::AGENT_ID.to_string(),
-        )],
+        vec![Seen {
+            id: "toolu_r1".to_string(),
+            name: "teleop".to_string(),
+            input: json!({"do": "thing"}),
+            agent: super::fixtures::AGENT_ID.to_string(),
+            // The caller's resolved working directory crosses the seam
+            // (bl-ddaa): with no cd mark it is the worktree, the same
+            // directory a spawned subprocess runs in (§3.3).
+            cwd: step.worktree.clone(),
+        }],
     );
 
     let dir = step.path.join(STEP_TOOLS_SUBDIR).join("toolu_r1");
@@ -173,11 +190,17 @@ fn the_executor_reports_the_hosts_definitions_and_nothing_without_one() {
     let clock = FixedClock::default();
     let host = Embedder::new("teleop");
     let with = SpawnTool::new(root.path(), &clock, driver_target()).with_injection(Some(&host));
-    let names: Vec<String> = with.injected().into_iter().map(|t| t.name).collect();
+    let names: Vec<String> = with
+        .injected(std::path::Path::new("/ws"), "agent-1")
+        .into_iter()
+        .map(|t| t.name)
+        .collect();
     assert_eq!(names, vec!["teleop".to_string()]);
     let without = SpawnTool::new(root.path(), &clock, driver_target());
     assert!(
-        without.injected().is_empty(),
+        without
+            .injected(std::path::Path::new("/ws"), "agent-1")
+            .is_empty(),
         "no injection installed declares nothing"
     );
 }
