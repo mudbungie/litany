@@ -1,0 +1,11 @@
++++
+title = "gate: alignment — bl-43aa DESIGN_TOOL_INJECTION §7 compactor-pair ruling"
+created = 1788138423
+updated = 1788138423
+parent = "bl-43aa"
+root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
+
+[[blockers]]
+id = "bl-43aa"
+on = "claim"
++++
