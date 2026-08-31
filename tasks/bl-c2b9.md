@@ -1,7 +1,8 @@
 +++
 title = "the macOS artifact comes off the same container line: litany and bz cross-produced for aarch64-apple-darwin"
 created = 1788138707
-updated = 1788138707
+updated = 1788138708
+claimant = "OrderMac"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
