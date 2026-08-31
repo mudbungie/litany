@@ -1,7 +1,7 @@
 +++
 title = "a compaction in flight does not suppress the next checkpoint, so a second compactor is dispatched off the same span and both write summary/001.md"
 created = 1788150358
-updated = 1788151149
+updated = 1788151150
 priority = 7
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["compaction"]
@@ -12,6 +12,10 @@ on = "close"
 
 [[blockers]]
 id = "bl-c815"
+on = "close"
+
+[[blockers]]
+id = "bl-23e7"
 on = "close"
 +++
 `prompt/compactor/checkpoint.rs` evaluates the trigger at each step boundary
