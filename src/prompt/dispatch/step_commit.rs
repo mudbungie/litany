@@ -45,6 +45,22 @@ pub(super) const GOAL_FILE: &str = "goal.md";
 /// at dispatch time (ARCH §4.3 / §2.8). Lives at the worktree root for
 /// the same reason `goal.md` does.
 pub(super) const SOUL_FILE: &str = "soul.md";
+/// The **system slot's files** (ARCH §2.3 *Goal and soul are pinned
+/// files*, §5.2 *Structural wire homes*): the three worktree-root paths
+/// whose wire home is [`compose_system`] rather than any list a
+/// manifest names. This is that set's one home, beside the composer
+/// that defines it (`docs/PRINCIPLES.md` single source of truth), and
+/// three unrelated rules read it rather than each spelling the triple:
+/// assembly refuses to compose them a second time as body text
+/// ([`super::assembler`]), the pin validator reserves their names
+/// ([`crate::prompt::pinned_doc`]), and the compactor's nomination gate
+/// keeps them out of the compaction-eligible set (§2.7,
+/// [`crate::prompt::compactor::tools`]).
+pub(crate) const SYSTEM_SLOT_FILES: [&str; 3] = [
+    GOAL_FILE,
+    SOUL_FILE,
+    crate::workspace::agent_name::NAME_FILE,
+];
 
 /// `git worktree add -b agents/<id> <worktree_path> <fork-point>`, run
 /// against the workspace's bare `repo.git` (§2.2): fork the fresh root

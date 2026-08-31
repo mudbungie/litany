@@ -1,6 +1,7 @@
 //! Unit coverage for the compactor toolset ([`super`]): summary
-//! numbering, the deletion-only `git rm`, and the dispatch-entry decline
-//! that keeps the goal outside the compaction-eligible set (ARCH §2.7).
+//! numbering, the deletion-only `git rm`, and the not-compaction-eligible
+//! decline that keeps the goal and the system slot's files outside the
+//! compaction-eligible set (ARCH §2.7).
 
 use super::*;
 use crate::template::RealGit;
@@ -100,7 +101,7 @@ fn mark_for_deletion_declines_the_dispatch_entry_and_removes_nothing() {
     let wt = dir.path();
     let err = mark_for_deletion(wt, "messages/001-user.md", &RealGit::new()).unwrap_err();
     assert!(
-        matches!(&err, Error::DispatchEntryNotEligible { path } if path == "messages/001-user.md"),
+        matches!(&err, Error::NotCompactionEligible { path, .. } if path == "messages/001-user.md"),
         "{err:?}"
     );
     // The decline names the path and says why, so the model reads it
@@ -127,7 +128,8 @@ fn the_dispatch_entry_is_read_off_the_name_alone() {
         "messages/001-claude-fable-5.json",
         "messages/1-user.md",
     ] {
-        assert!(is_dispatch_entry(yes), "{yes}");
+        let what = not_compaction_eligible(yes).unwrap_or_else(|| panic!("{yes}"));
+        assert!(what.contains("dispatch entry"), "{yes}: {what}");
     }
     for no in [
         "messages/002-user.md",
@@ -136,9 +138,48 @@ fn the_dispatch_entry_is_read_off_the_name_alone() {
         "messages/notes.md",
         "messages",
         "messagesX/001-user.md",
-        "goal.md",
+        "goal.txt",
+        "src/goal.md",
     ] {
-        assert!(!is_dispatch_entry(no), "{no}");
+        assert!(not_compaction_eligible(no).is_none(), "{no}");
+    }
+}
+
+#[test]
+fn the_system_slots_files_are_read_off_the_name_alone() {
+    // §5.2's three structural wire homes, plus a leading `./`. Each is
+    // written at the compactor's own dispatch commit, so nominating one
+    // after that lands as a deletion the dispatching branch inherits —
+    // the branch would keep stepping with no goal, no soul or no
+    // identity line (ARCH §2.7, §5.2).
+    for yes in ["goal.md", "soul.md", "name", "./goal.md", "./name"] {
+        let what = not_compaction_eligible(yes).unwrap_or_else(|| panic!("{yes}"));
+        assert!(what.contains("system slot"), "{yes}: {what}");
+    }
+}
+
+#[test]
+fn mark_for_deletion_declines_the_system_slots_files() {
+    // The whole triple, at the tool rather than at the predicate: the
+    // decline is in-band (§3.3), the file survives on disk, and nothing
+    // is staged — so no later commit can carry the deletion.
+    for name in crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES {
+        let dir = repo_with(name);
+        let wt = dir.path();
+        let err = mark_for_deletion(wt, name, &RealGit::new()).unwrap_err();
+        assert!(
+            matches!(&err, Error::NotCompactionEligible { path, .. } if path == name),
+            "{name}: {err:?}"
+        );
+        let text = err.to_string();
+        assert!(text.contains(name), "{text}");
+        assert!(text.contains("system slot"), "{text}");
+        assert!(text.contains("not compaction-eligible"), "{text}");
+        assert!(wt.join(name).exists(), "{name} still on disk");
+        let staged = RealGit::new()
+            .run_capture(wt, &["diff", "--cached", "--name-status"])
+            .unwrap();
+        assert!(staged.trim().is_empty(), "nothing staged: {staged:?}");
     }
 }
 

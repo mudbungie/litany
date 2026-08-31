@@ -40,12 +40,6 @@ const BYTES_PER_TOKEN: u64 = 4;
 
 /// Transcript home (§2.3): never head or body material.
 const TRANSCRIPT_DIR: &str = "messages";
-/// Pinned files whose wire home is the system slot (§2.3): the goal, the
-/// agent's `name` — composed there as the identity line
-/// ([`crate::prompt::dispatch::step_commit::compose_system`]) — and the
-/// role's soul. Naming one of these in a role's `pinned` or `order`
-/// therefore adds nothing; it must not send it twice.
-const SYSTEM_SLOT: &[&str] = &["goal.md", "name", "soul.md"];
 /// Committed tool schemas (§3.3): their wire home is the tools array.
 const TOOLS_DESC_DIR: &str = "descriptions/tools";
 /// Committed skill frontmatter (§3.3 Description-always), one
@@ -268,7 +262,7 @@ fn skip(worktree: &Path, rel: &str) -> bool {
     rel == ".git"
         || rel == TRANSCRIPT_DIR
         || rel == TOOLS_DESC_DIR
-        || SYSTEM_SLOT.contains(&rel)
+        || crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES.contains(&rel)
         || tool_backed(worktree, rel)
 }
 

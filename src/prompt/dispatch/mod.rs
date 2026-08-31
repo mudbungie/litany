@@ -27,7 +27,7 @@ mod model_call;
 mod resolved;
 mod result_deposit;
 mod staging;
-mod step_commit;
+pub(crate) mod step_commit;
 pub mod stop_signal;
 mod terminal;
 mod tool_step;

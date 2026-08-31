@@ -24,23 +24,40 @@
 //! by defect. The compactor decides relevance against the dispatching
 //! branch's goal (`goal.md`), which its inherited worktree carries (§2.7).
 //!
-//! **The goal is not compaction-eligible** (§2.7, bl-898f). A goal has two
+//! **What is written at dispatch is not compaction-eligible** (§2.7,
+//! §2.8; bl-898f, bl-541b). A fact set when the branch was created and
+//! never rewritten is not history, so no pass may shed it, and
+//! [`not_compaction_eligible`] is the one predicate saying which paths
+//! those are. Two classes are in it.
+//!
+//! The **dispatch entry** is the goal in transcript form. A goal has two
 //! projections written at one dispatch and neither ever rewritten — the
-//! pinned `goal.md` (§2.8) and the **dispatch entry**, the transcript entry
-//! the same text was deposited as through the front door (§2.11: a root's
-//! opening user message, a child's dispatch message). The compactor is
-//! shown one of them — its own goal quotes the dispatching branch's
-//! `goal.md` verbatim (§2.7) — while the other sits in the transcript it
-//! is told to prune, so the dispatch entry is the one entry that reads as
-//! *pure duplication* to a model nominating superseded files. It was
-//! nominated and deleted in practice, and what it deleted was the
-//! operator's only copy of the prompt the conversation exists to serve.
-//! [`mark_for_deletion`] therefore declines that path — at the nomination,
-//! in-band, so the compactor's summary is never premised on a deletion
-//! that did not happen. Declined at the door rather than dropped at the
-//! landing because the fact is knowable from the path alone;
-//! live-branch-wins is dropped at the landing precisely because *its* fact
-//! (a race with the live branch) is not (§2.6).
+//! pinned `goal.md` (§2.8) and the entry the same text was deposited as
+//! through the front door (§2.11: a root's opening user message, a
+//! child's dispatch message). The compactor is shown one of them — its
+//! own goal quotes the dispatching branch's `goal.md` verbatim (§2.7) —
+//! while the other sits in the transcript it is told to prune, so that
+//! entry is the one that reads as *pure duplication* to a model
+//! nominating superseded files. It was nominated and deleted in
+//! practice, and what it deleted was the operator's only copy of the
+//! prompt the conversation exists to serve.
+//!
+//! The **system slot's files** — `goal.md`, `soul.md` and `name`
+//! ([`crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES`], §5.2
+//! structural wire homes) — are the other class, and strictly worse
+//! when they fire. A compactor writes its own three at its dispatch
+//! commit, so a nomination of one after that is a deletion inside the
+//! `dispatch..tip` range the landing classifies as the compactor's
+//! product (`compactor::land`): it lands as a `git rm` against the
+//! *dispatching* branch's tree, which then keeps stepping with no goal,
+//! no soul or no identity line on every later model call.
+//!
+//! Both are declined **at the nomination**, in-band, so the compactor's
+//! summary is never premised on a deletion that did not happen —
+//! declined at the door rather than dropped at the landing because the
+//! fact is knowable from the path alone. Live-branch-wins is dropped at
+//! the landing precisely because *its* fact (a race with the live
+//! branch) is not (§2.6).
 
 use super::Error;
 use crate::prompt::dispatch::MESSAGES_DIR;
@@ -94,8 +111,8 @@ pub(crate) fn write_summary(worktree: &Path, content: &str) -> std::io::Result<S
 /// (`docs/PRINCIPLES.md` "Decline illegal operations"), and the decline
 /// reaches the model in-band as an `is_error` `tool_result` (§3.3):
 ///
-/// - the branch's **dispatch entry**, which is the goal in transcript form
-///   and is not compaction-eligible (module docs, §2.7);
+/// - a path [`not_compaction_eligible`] names — the branch's dispatch
+///   entry, or one of the system slot's files (module docs, §2.7);
 /// - a path that does not exist on the branch — a compactor nominating a
 ///   nonexistent file is a defect worth surfacing, and `git rm` errors on it.
 pub(crate) fn mark_for_deletion(
@@ -103,9 +120,10 @@ pub(crate) fn mark_for_deletion(
     path: &str,
     git: &dyn GitRunner,
 ) -> Result<(), Error> {
-    if is_dispatch_entry(path) {
-        return Err(Error::DispatchEntryNotEligible {
+    if let Some(what) = not_compaction_eligible(path) {
+        return Err(Error::NotCompactionEligible {
             path: path.to_string(),
+            what: what.to_string(),
         });
     }
     git.run(worktree, &["rm", "-r", "-q", "--", path])
@@ -115,18 +133,34 @@ pub(crate) fn mark_for_deletion(
         })
 }
 
-/// Whether the branch-relative `path` names the branch's dispatch entry
-/// (module docs). Derived from the name alone — the same `NNN-` prefix
-/// reading `dispatch::transcript`'s counter uses — so it needs no tree,
-/// no config and no state, and it holds for a `.md` delivery and a
+/// What makes the branch-relative `path` un-eligible for compaction
+/// (module docs), or `None` when nothing does. The returned phrase is
+/// the noun the decline names it by, so the model is told which rule it
+/// hit rather than being refused anonymously.
+///
+/// Derived from the path alone — the dispatch entry from the same
+/// `NNN-` prefix reading `dispatch::transcript`'s counter uses, the
+/// system slot from the file names the composer pins — so it needs no
+/// tree, no config and no state, and it holds for a `.md` delivery and a
 /// resumed conversation's inherited first entry alike.
-fn is_dispatch_entry(path: &str) -> bool {
+fn not_compaction_eligible(path: &str) -> Option<&'static str> {
     let rel = path.strip_prefix("./").unwrap_or(path);
-    rel.strip_prefix(MESSAGES_DIR)
+    if rel
+        .strip_prefix(MESSAGES_DIR)
         .and_then(|r| r.strip_prefix('/'))
         .and_then(|name| name.split('-').next())
         .and_then(|nnn| nnn.parse::<u32>().ok())
         == Some(DISPATCH_SEQ)
+    {
+        return Some("the branch's dispatch entry, its opening prompt in transcript form");
+    }
+    if crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES.contains(&rel) {
+        return Some(
+            "one of the system slot's files (goal.md, soul.md, name), \
+             a structural wire home composed into every model call on the branch (ARCH §5.2)",
+        );
+    }
+    None
 }
 
 /// Pick the next summary-seq: one more than the highest existing

@@ -49,7 +49,8 @@ pub enum PinError {
 
 /// Worktree paths the harness itself writes, derives or reads
 /// structurally, matched against a destination's first segment: the
-/// system-slot files (`goal.md`, `soul.md`, `name` — §2.3), the config
+/// system-slot files ([`crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES`],
+/// §2.3), the config
 /// control files the dispatch commit removes
 /// ([`crate::workspace::CONTROL_PATHS`], §2.2), the derived
 /// `descriptions/**` (§3.3), the transcript (`messages/**`, §2.3) and
@@ -57,14 +58,13 @@ pub enum PinError {
 /// into a harness-owned tree, so it is refused by name.
 fn reserved(first_segment: &str) -> bool {
     let harness: &[&str] = &[
-        crate::prompt::subagent::GOAL_FILE,
-        crate::prompt::subagent::SOUL_FILE,
-        crate::workspace::agent_name::NAME_FILE,
         crate::template::descriptions::DESCRIPTIONS_DIR,
         crate::prompt::dispatch::MESSAGES_DIR,
         crate::prompt::compactor::tools::SUMMARY_DIR,
     ];
-    crate::workspace::CONTROL_PATHS.contains(&first_segment) || harness.contains(&first_segment)
+    crate::workspace::CONTROL_PATHS.contains(&first_segment)
+        || crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES.contains(&first_segment)
+        || harness.contains(&first_segment)
 }
 
 /// One caller-supplied pinned document: a validated worktree-relative

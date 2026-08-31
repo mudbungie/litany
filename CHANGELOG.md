@@ -26,6 +26,21 @@ reaching a release.
 
 ## [Unreleased]
 
+- **decline a compactor's nomination of `goal.md`, `soul.md` or `name`, the
+  same way the dispatch entry is already declined.** A compactor writes its own
+  three at its dispatch commit, so nominating one afterwards is a deletion
+  inside the `dispatch..tip` range the landing classifies as the compactor's
+  product: it landed as a `git rm` against the *dispatching* branch, which
+  would then keep stepping with no goal, no soul or no identity line on every
+  later model call. Never observed in the wild, and closed on the same
+  knowable-from-the-path argument the dispatch entry was. One predicate, not
+  two — `is_dispatch_entry` became `not_compaction_eligible(path) ->
+  Option<&'static str>`, naming which rule fired, and
+  `Error::DispatchEntryNotEligible` became `Error::NotCompactionEligible {
+  path, what }`. The system slot's file set also gains one home
+  (`dispatch::step_commit::SYSTEM_SLOT_FILES`), read now by the three rules
+  that had each spelled the triple out. [bl-541b]
+
 - **give every operator notice on stderr the stable prefix `litany: notice: `.**
   A driver's stderr carries two populations a reader cannot tell apart: the
   Ok-path declines (a compaction landing declined or superseded, a budget stop,

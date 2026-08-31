@@ -214,19 +214,26 @@ pub enum Error {
          to resume"
     )]
     SummaryConflictMarkers { path: String },
-    /// A compactor nominated the branch's **dispatch entry** — the
-    /// transcript entry its opening prompt landed as (§2.3, §2.11). The
-    /// goal is not compaction-eligible (§2.7): the same text rides
-    /// `goal.md` and is quoted verbatim into the compactor's own goal, so
-    /// that one entry reads as pure duplication to a model told to
-    /// nominate superseded files, and deleting it deletes the operator's
-    /// only copy of the prompt the conversation exists to serve.
+    /// A compactor nominated a path that is **not compaction-eligible**
+    /// (§2.7, §2.8): a fact written at the branch's dispatch and never
+    /// rewritten is not history, so no pass may shed it. Two classes
+    /// qualify, and `what` names the one that fired. The **dispatch
+    /// entry** is the transcript entry the opening prompt landed as
+    /// (§2.3, §2.11) — the same text rides `goal.md` and is quoted
+    /// verbatim into the compactor's own goal, so it reads as pure
+    /// duplication to a model told to nominate superseded files, while
+    /// deleting it deletes the operator's only copy of the prompt the
+    /// conversation exists to serve. The **system slot's files**
+    /// (`goal.md`, `soul.md`, `name` — §5.2 structural wire homes) are
+    /// worse when it fires: the landing would `git rm` them from the
+    /// *dispatching* branch, which then keeps stepping with no goal, no
+    /// soul or no identity line on every later model call.
     #[error(
-        "{path} is the branch's dispatch entry — its opening prompt, the goal in transcript \
-         form — and is not compaction-eligible (ARCH §2.7). Nominate a later transcript \
-         entry, a superseded summary/, or a spent skills/ body instead"
+        "{path} is {what} — written at this branch's dispatch and never rewritten — and is \
+         not compaction-eligible (ARCH §2.7). Nominate a later transcript entry, a \
+         superseded summary/, or a spent skills/ body instead"
     )]
-    DispatchEntryNotEligible { path: String },
+    NotCompactionEligible { path: String, what: String },
     #[error("tool {name} schema unreadable at {path}: {source}")]
     ToolSchemaIo {
         name: String,

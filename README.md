@@ -1423,11 +1423,13 @@ same path with empty inputs.
   `providers.yaml` `tools:` list): `write_summary`, which writes the next
   `summary/<NNN>.md` on the compactor's branch, and `mark_for_deletion`,
   a staged `git rm` that can remove but never write content — so the
-  worst case is lost information, never corrupted information. One path
-  it may never nominate is the branch's **dispatch entry**
-  (`messages/001-…`): that is the conversation's opening prompt, which is
-  the goal in transcript form, not history, and the nomination is
-  declined in-band (ARCH §2.7). Its
+  worst case is lost information, never corrupted information. What it
+  may never nominate is what the dispatch wrote and never rewrote — the
+  branch's **dispatch entry** (`messages/001-…`), which is the
+  conversation's opening prompt and so the goal in transcript form, and
+  the system slot's `goal.md`, `soul.md` and `name`, which every model
+  call on the branch is composed from. None of those are history; the
+  nomination is declined in-band (ARCH §2.7). Its
   request *declares* more than that pair: a compactor inherits the
   dispatching branch's transcript, so the model call also names whatever
   tools that transcript used — otherwise the provider refuses a request

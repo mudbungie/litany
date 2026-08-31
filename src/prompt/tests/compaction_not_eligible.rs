@@ -1,5 +1,6 @@
-//! **A conversation past a compaction still has its opening prompt**
-//! (ARCH §2.7 *the goal is not compaction-eligible*, bl-898f).
+//! **A conversation past a compaction still has its opening prompt, and
+//! still has a goal, a soul and a name** (ARCH §2.7 *what is written at
+//! dispatch is not compaction-eligible*; bl-898f, bl-541b).
 //!
 //! Written from the operator's sentence, not from the mechanism: run a
 //! conversation through a real compaction — a compactor forked off the
@@ -15,6 +16,15 @@
 //! nominate superseded files reads as *pure duplication* is the one the
 //! operator reads. It was nominated, marked, squashed into the compaction
 //! base, and gone.
+//!
+//! The system slot's three files (`goal.md`, `soul.md`, `name` — §5.2)
+//! sit in the same range and were never observed going, but are strictly
+//! worse when they do: a compactor writes its own three at its dispatch
+//! commit, so a nomination after that is a `D` in `dispatch..tip`, which
+//! the landing classifies as the compactor's product and applies to the
+//! dispatching branch. That branch then keeps stepping with no goal, no
+//! soul or no identity line on every later model call. This test drives
+//! all four nominations and asserts all four files survive the landing.
 
 use super::advance::{AGENT, RecLauncher, worker_config};
 use super::fixtures::*;
@@ -45,7 +55,7 @@ impl Clock for DescentClock {
 }
 
 #[test]
-fn a_conversation_past_a_compaction_still_has_its_opening_prompt() {
+fn a_conversation_past_a_compaction_still_has_its_opening_prompt_goal_soul_and_name() {
     let (_h, ws) = fixture::workspace();
     let parent = AGENT;
     let parent_wt = fixture::spawn_root(&ws, parent);
@@ -59,7 +69,12 @@ fn a_conversation_past_a_compaction_still_has_its_opening_prompt() {
     std::fs::create_dir_all(parent_wt.join("messages")).unwrap();
     std::fs::write(parent_wt.join("messages/001-user.md"), OPENING).unwrap();
     std::fs::write(parent_wt.join("messages/002-user.md"), "any progress?\n").unwrap();
+    // The system slot's three, as a real dispatch commit writes them
+    // (§2.3 step 2) — this test's other subject is that all three are
+    // still here after the landing.
     std::fs::write(parent_wt.join("goal.md"), OPENING).unwrap();
+    std::fs::write(parent_wt.join("soul.md"), "you are a worker\n").unwrap();
+    std::fs::write(parent_wt.join("name"), "swift-heron\n").unwrap();
     git.run(&parent_wt, &["add", "-A"]).unwrap();
     git.run(&parent_wt, &["commit", "-m", "checkpoint"])
         .unwrap();
@@ -98,10 +113,17 @@ fn a_conversation_past_a_compaction_still_has_its_opening_prompt() {
     tools::write_summary(&cwt, "the parser port is underway\n").unwrap();
     let declined = tools::mark_for_deletion(&cwt, "messages/001-user.md", &git).unwrap_err();
     assert!(
-        matches!(&declined, Error::DispatchEntryNotEligible { path }
+        matches!(&declined, Error::NotCompactionEligible { path, .. }
             if path == "messages/001-user.md"),
         "{declined:?}"
     );
+    for slot in crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES {
+        let declined = tools::mark_for_deletion(&cwt, slot, &git).unwrap_err();
+        assert!(
+            matches!(&declined, Error::NotCompactionEligible { path, .. } if path == slot),
+            "{slot}: {declined:?}"
+        );
+    }
     tools::mark_for_deletion(&cwt, "messages/002-user.md", &git).unwrap();
     git.run(&cwt, &["add", "-A"]).unwrap();
     git.run(&cwt, &["commit", "-m", "compaction"]).unwrap();
@@ -139,6 +161,12 @@ fn a_conversation_past_a_compaction_still_has_its_opening_prompt() {
         "the parser port is underway\n"
     );
     assert!(!parent_wt.join("messages/002-user.md").exists());
+
+    // The dispatching branch still has a goal, a soul and a name — the
+    // three the landing would have `git rm`'d had the nomination taken.
+    for slot in crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES {
+        assert!(parent_wt.join(slot).exists(), "{slot} survived the landing");
+    }
 
     // The operator's copy of the opening prompt is still there …
     assert_eq!(

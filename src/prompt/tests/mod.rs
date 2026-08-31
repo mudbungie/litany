@@ -5,7 +5,7 @@ mod advance_edges;
 mod advance_release;
 mod budget_depth_boundary;
 mod budget_enforcement;
-mod compaction_dispatch_entry;
+mod compaction_not_eligible;
 mod compaction_toolset;
 mod cwd_seed;
 mod descriptor_prune;
