@@ -1,7 +1,8 @@
 +++
 title = "the injection seam withholds the two facts its consumers own: tools() cannot name the driven agent and route() cannot name the caller's cwd"
 created = 1788150785
-updated = 1788150786
+updated = 1788150787
+claimant = "OrderArbiter"
 priority = 9
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 
