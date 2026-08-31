@@ -26,6 +26,8 @@ reaching a release.
 
 ## [Unreleased]
 
+## [0.0.3](https://github.com/mudbungie/litany/compare/litany-v0.0.2...litany-v0.0.3) - 2026-08-30
+
 - **cross-produce the macOS artifacts from the same container line as the
   Linux image: `make mac-artifact` emits the `aarch64-apple-darwin` `litany`
   and the `bz` at the pin.** The toolchain is `zig cc` via `cargo-zigbuild`,
