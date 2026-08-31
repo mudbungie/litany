@@ -1,7 +1,8 @@
 +++
 title = "the injection design's open question about the compactor pair is answered downstream: DESIGN_TOOL_INJECTION §7 still lists three candidates"
 created = 1788068631
-updated = 1788068631
+updated = 1788138421
+claimant = "OrderTinker"
 priority = 3
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
