@@ -40,3 +40,20 @@ pub(super) fn parse_brazen_pin(manifest: &str) -> Option<&str> {
 pub fn brazen_pin() -> &'static str {
     parse_brazen_pin(MANIFEST).expect("Cargo.toml pins brazen as `brazen = \"=<version>\"`")
 }
+
+/// `litany --version`'s product: litany's own package version paired with
+/// the exact brazen pin it links, e.g. `0.0.1 (brazen 0.0.5)` — printed by
+/// clap as `litany 0.0.1 (brazen 0.0.5)`. The pin's one home is the
+/// `brazen = "=<version>"` line in `Cargo.toml`; [`brazen_pin`] is its
+/// sole reader (the same fact the load-time version guard,
+/// `super::resolve::check_bz_version`, ARCH §4.4, compares a live
+/// `bz --version` against), so this and the guard agree by construction —
+/// a bijection, never a second hard-coded string. Lives beside the pin's
+/// reader rather than on the command surface: `cmd` names it in the clap
+/// attribute and declares nothing.
+pub fn cli_version() -> &'static str {
+    static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    VERSION
+        .get_or_init(|| format!("{} (brazen {})", env!("CARGO_PKG_VERSION"), brazen_pin()))
+        .as_str()
+}

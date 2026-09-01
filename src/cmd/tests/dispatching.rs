@@ -8,7 +8,7 @@
 use super::{assert_prefixed, noop_editor, with_fx, with_litany_home};
 use crate::cmd::{
     Command, Outcome, advance, bundle, config, dispatch, message, new, prime, prompt, replay,
-    retarget, scan, stop, tool,
+    retarget, scan, stop, tool, workflow,
 };
 use tempfile::TempDir;
 
@@ -61,6 +61,12 @@ fn command_run_dispatches_every_non_prime_arm() {
         workspace: ne(),
         agent: "a".into(),
         config: None,
+    })));
+    assert!(!dispatched(Command::Workflow(workflow::Args {
+        workspace: ne(),
+        agent: "a".into(),
+        config: None,
+        clear: false,
     })));
     assert!(!dispatched(Command::Stop(stop::Args {
         repo: ne(),

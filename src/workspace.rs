@@ -44,7 +44,8 @@ pub const DEFAULT_CONFIG_NAME: &str = "default";
 /// The root every per-agent **mark** ref lives under:
 /// `refs/litany/<kind>/<agent-id>`. The kinds spell their own prefixes
 /// where they are written (§2.6 `conflicted`, §6 `budget-exhausted`,
-/// `abandoned`, `notify`, §3.3 [`cwd`], §2.2 [`retarget`], §8 `returned`);
+/// `abandoned`, `notify`, §3.3 [`cwd`], §2.2 [`retarget`],
+/// §6 [`workflow_mark`], §8 `returned`);
 /// this is the namespace they share, so a
 /// consumer that must reach *every* mark of an agent — the retention
 /// delete (§9.2) — enumerates the root instead of keeping a list of
@@ -274,6 +275,7 @@ pub mod cwd;
 mod guard;
 pub mod hold;
 pub mod retarget;
+pub mod workflow_mark;
 pub use guard::{
     LayoutError, UnknownAgent, UnknownLineage, UnknownRef, agent_exists, require, require_agent,
     require_lineage, require_ref,

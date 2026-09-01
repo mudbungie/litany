@@ -59,7 +59,7 @@ pub use child_dispatch::ChildDispatchRequest;
 pub use clock::{Clock, IdGen, NanoIdGen, SystemClock};
 pub use dispatch::{RealSleeper, Sleeper, install_stop_handler, stop_flag};
 pub use error::Error;
-pub use pin::brazen_pin;
+pub use pin::{brazen_pin, cli_version};
 pub use pinned_doc::{PinnedDoc, PinnedDocs};
 pub use tool::{ExecError, SpawnTool, ToolExecutor};
 

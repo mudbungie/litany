@@ -6,7 +6,7 @@
 //! workspace, and an absolute id *replaces* it.
 
 use super::{assert_prefixed, noop_editor, with_fx};
-use crate::cmd::{advance, bundle, delete, dispatch, message, retarget, stop};
+use crate::cmd::{advance, bundle, delete, dispatch, message, retarget, stop, workflow};
 use crate::workspace::fixture;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -210,4 +210,21 @@ fn retarget_declines_an_escaping_id_before_it_reaches_a_ref() {
         )
     });
     assert_prefixed(r.unwrap_err(), "retarget");
+}
+
+#[test]
+fn workflow_declines_an_escaping_id_before_it_reaches_a_ref() {
+    let tmp = TempDir::new().unwrap();
+    let (r, ..) = with_fx("true", b"", &noop_editor, |fx| {
+        workflow::run(
+            workflow::Args {
+                workspace: tmp.path().to_path_buf(),
+                agent: ESCAPING.into(),
+                config: None,
+                clear: false,
+            },
+            fx,
+        )
+    });
+    assert_prefixed(r.unwrap_err(), "workflow");
 }

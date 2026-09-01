@@ -17,13 +17,16 @@
 //! consumes. `litany advance` resolves *lazily*: a no-op hop (lost
 //! acquire, nothing due) exits before any config is read (§6).
 
-use super::{
-    Deps, Error, GLOBAL_MODELS_FILE, PER_REPO_PROVIDERS_FILE, SOULS_DIR, WORKER_ROLE, WORKFLOW_FILE,
-};
+pub(in crate::prompt) mod workflow_source;
+
+#[cfg(test)]
+mod tests;
+
+use super::{Deps, Error, GLOBAL_MODELS_FILE, PER_REPO_PROVIDERS_FILE, SOULS_DIR, WORKER_ROLE};
 use crate::config::manifest::{Manifest, RoleRules};
 use crate::config::version::Version;
 use crate::config::{ModelsConfig, Workflow, cross};
-use crate::prompt::{AdapterRunner, adapter, brazen_pin, dispatch};
+use crate::prompt::{adapter, dispatch};
 use crate::workspace;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -81,8 +84,11 @@ pub(super) struct WorkerConfig {
     pub(super) soul: String,
     /// The adapter binary (`bz` or the `adapter:` override, §4.2).
     pub(super) binary: OsString,
-    /// The agent's workflow, read from the governing config commit (§2.2,
-    /// §6). Carries the event→action bindings the §6 interpreter runs, and
+    /// The agent's workflow — the one control fact with its own source
+    /// derivation (§6 *The workflow mark*, [`workflow_source`]): the
+    /// nearest workflow mark's commit when one stands, else the
+    /// governing config commit (§2.2), which is every unmarked agent's
+    /// path. Carries the event→action bindings the §6 interpreter runs, and
     /// is the single home for the retry policy and budgets — `as_resolved`
     /// derives both from it rather than mirroring them into their own
     /// fields (`docs/PRINCIPLES.md` Single source of truth).
@@ -179,15 +185,19 @@ pub(super) fn resolve_worker(
     let binary = adapter::resolve_binary(adapter_override, host);
     let expect_handshake = adapter_override.is_some() || host.is_some();
     if !expect_handshake {
-        check_bz_version(deps.adapter, &binary)?;
+        adapter::check_bz_version(deps.adapter, &binary)?;
     }
 
-    let workflow_raw = read_control(workspace, &commit, WORKFLOW_FILE, deps)?;
-    let workflow = Workflow::parse(&workflow_raw, &control_origin(&commit, WORKFLOW_FILE))?;
-    // §4.3: every `dispatch(<role>)` binding must name a role the same
-    // config commit declares. Checked here, at the load — a workflow
-    // naming an undeclared role is declined before the first model call,
-    // not at the hop that finally reaches the binding.
+    // The workflow question has its own answer (§6 *The workflow mark*):
+    // the nearest workflow mark on the agent's descent when one stands,
+    // else this same governing commit ([`workflow_source`]).
+    let workflow = workflow_source::resolve_workflow(workspace, &source, &commit, deps)?;
+    // §4.3: every `dispatch(<role>)` binding must name a role the config
+    // declares. Checked here, at the load — a workflow naming an
+    // undeclared role is declined before the first model call, not at
+    // the hop that finally reaches the binding. A *marked* workflow is
+    // checked against the same governing `providers.yaml` the agent's
+    // roles actually resolve from.
     cross::check_workflow_against_roles(&workflow, &cfg.per_repo)?;
 
     // §5.2: the role's context-assembly rules, read from the same config
@@ -276,23 +286,4 @@ fn read_control(
 /// address (§2.2: control lives in the config commit, not on disk).
 fn control_origin(commit: &str, path: &str) -> PathBuf {
     PathBuf::from(format!("{commit}:{path}"))
-}
-
-/// Load-time version guard (§4.4): `bz --version` must report the exact
-/// version of the linked brazen crate ([`brazen_pin`]); a mismatch is
-/// declined (PRINCIPLES "Decline illegal operations") rather than
-/// silently downgraded.
-fn check_bz_version(adapter: &dyn AdapterRunner, binary: &OsString) -> Result<(), Error> {
-    let out = adapter::capture_stdout(adapter, binary, &["--version"])
-        .map_err(|e| adapter::spawn_error(binary, e))?;
-    // `bz --version` prints e.g. `bz 0.0.2`; the version is the last
-    // whitespace token.
-    let found = out.split_whitespace().last().unwrap_or("").to_string();
-    if found != brazen_pin() {
-        return Err(Error::VersionSkew {
-            found,
-            expected: brazen_pin().to_string(),
-        });
-    }
-    Ok(())
 }

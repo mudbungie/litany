@@ -681,6 +681,42 @@ What is re-derived is everything config-shaped: the role's soul, the
 agent's own facts — its goal, its name, its whole transcript and its work
 products — are untouched.
 
+## Switching a running agent's workflow: `litany workflow`
+
+The workflow — the config's `workflow.yaml`, the named declaration of
+what happens at every step (ARCH §6) — has an exit of its own from the
+freeze, lighter than a retarget: the engine operates by workflows, a
+workflow only determines the next step, and it is consulted fresh at
+every step boundary, so switching it is just changing which one is
+consulted (ARCH §6 *The workflow mark*):
+
+```
+litany workflow <workspace> <agent>                 # config/default's workflow
+litany workflow <workspace> <agent> --config alt    # config/alt's workflow
+litany workflow <workspace> <agent> --clear         # back to the governing config's
+```
+
+It writes one **standing** ref, `refs/litany/workflow/<agent-id>`, at
+the named lineage's head — and nothing else. From the agent's next step
+boundary on, that commit's `workflow.yaml` governs — bindings,
+compaction clock, retry, budgets, tool-output bounds, tool control —
+while the soul, providers, manifest and everything else stay with the
+governing config. No re-fork, no rebase, no branch written. The mark
+stands until re-marked or cleared, and the **nearest mark on the
+agent's descent wins**, so marking the root switches its whole tree and
+a child's own mark overrides it.
+
+The shipped default workflow has a name: the **basic agentic loop** —
+`template/workflow.yaml`, the declaration every workspace's
+`config/default` freezes at `litany new`. An unmarked agent runs it
+exactly as before the mark existed; an A/B experiment is two config
+lineages (`litany config <ws> alt --from default`, edit
+`workflow.yaml`) and this verb to switch a live agent between them.
+
+Every refusal precedes the mark: an unknown workspace, agent or
+lineage, or a lineage head whose `version` or `workflow.yaml` does not
+parse, is refused before the ref is written.
+
 ## Sending a prompt
 
 ```

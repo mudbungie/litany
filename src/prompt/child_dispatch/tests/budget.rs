@@ -182,3 +182,45 @@ impl crate::template::GitRunner for FailOnWorkflowShow {
         self.0.run_capture(dest, args)
     }
 }
+
+#[test]
+fn the_gate_reads_the_dispatching_branchs_workflow_mark_not_only_the_governing_config() {
+    // §6 *The workflow mark*: the gate and the child's own step checks
+    // must be one answer. The governing config declares no ceiling; the
+    // parent's standing mark names a commit whose workflow declares
+    // `max_depth: 0` — and the fork is refused under the marked ceiling.
+    let (_h, ws) = fixture::workspace();
+    let parent_wt = fixture::spawn_root(&ws, "20260101-p1");
+    fixture::amend_config(&ws, &[("workflow.yaml", &workflow_with_max_depth(0))]);
+    let g = crate::template::RealGit::new();
+    let head = g
+        .run_capture(
+            &workspace::repo_git(&ws),
+            &["rev-parse", &workspace::config_ref("default")],
+        )
+        .unwrap()
+        .trim()
+        .to_string();
+    workspace::workflow_mark::write(&ws, "20260101-p1", &head, &g).unwrap();
+    let err = run(
+        &req(&ws, "20260101-p1", &parent_wt, "g"),
+        &g,
+        &crate::prompt::SystemClock,
+        &crate::prompt::NanoIdGen,
+        &RecordingLauncher::ok(),
+        &test_rng(),
+    )
+    .unwrap_err();
+    assert!(matches!(err, Error::DispatchRefused { .. }), "{err:?}");
+    // Cleared, the governing (unbounded) workflow answers again.
+    workspace::workflow_mark::clear(&ws, "20260101-p1", &g).unwrap();
+    run(
+        &req(&ws, "20260101-p1", &parent_wt, "g"),
+        &g,
+        &crate::prompt::SystemClock,
+        &crate::prompt::NanoIdGen,
+        &RecordingLauncher::ok(),
+        &test_rng(),
+    )
+    .unwrap();
+}

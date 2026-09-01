@@ -102,6 +102,28 @@ fn message_scan_bundle_replay_advance_parse() {
 }
 
 #[test]
+fn workflow_parses_config_and_clear() {
+    let Command::Workflow(a) = parse(&["litany", "workflow", "/ws", "ag", "--config", "alt"])
+    else {
+        panic!()
+    };
+    assert_eq!(a.workspace, PathBuf::from("/ws"));
+    assert_eq!((a.agent.as_str(), a.config.as_deref()), ("ag", Some("alt")));
+    assert!(!a.clear);
+    let Command::Workflow(b) = parse(&["litany", "workflow", "/ws", "ag", "--clear"]) else {
+        panic!()
+    };
+    assert!(b.config.is_none() && b.clear);
+    // The two modes are exclusive: `--config` marks, `--clear` unmarks.
+    assert!(
+        Cli::try_parse_from([
+            "litany", "workflow", "/ws", "ag", "--config", "x", "--clear"
+        ])
+        .is_err()
+    );
+}
+
+#[test]
 fn tool_and_prime_parse() {
     assert!(matches!(parse(&["litany", "tool", "bash"]), Command::Tool(t) if t.name == "bash"));
     assert!(matches!(parse(&["litany", "prime"]), Command::Prime(_)));
@@ -152,12 +174,13 @@ fn prelude_reexports_the_binding_mechanisms() {
 
 /// `litany --version` (ARCH §4.4 "Version skew is guarded") prints both
 /// litany's own version and the linked brazen pin, and the two readers of
-/// that one pin — `cli_version` here and the load-time guard's
+/// that one pin — [`crate::prompt::cli_version`] (beside the pin, named by
+/// the clap attribute here) and the load-time guard's
 /// [`crate::prompt::brazen_pin`] — must agree by construction: a
 /// bijection, not a second hard-coded string.
 #[test]
 fn cli_version_pairs_litany_and_the_brazen_pin() {
-    let v = crate::cmd::cli_version();
+    let v = crate::prompt::cli_version();
     assert!(v.starts_with(env!("CARGO_PKG_VERSION")), "{v}");
     let brazen = v
         .strip_prefix(env!("CARGO_PKG_VERSION"))
@@ -242,6 +265,7 @@ fn preludes_are_named_per_verb_by_the_surface() {
         &["litany", "new"][..],
         &["litany", "config", "/w"][..],
         &["litany", "retarget", "/w", "20260101-a1"][..],
+        &["litany", "workflow", "/w", "20260101-a1"][..],
         &["litany", "stop", "/w", "20260101-a1"][..],
         &["litany", "message", "/w", "20260101-a1", "c"][..],
         &["litany", "scan", "/w"][..],

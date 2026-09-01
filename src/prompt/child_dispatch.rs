@@ -252,23 +252,30 @@ pub fn run_procedure(
     }
 }
 
-/// The `budgets:` block governing this dispatch, read from the same
-/// frozen config commit the soul comes from (§2.2, §6) — the governing
-/// config of the ref the child forks off. One home for the limits: the
-/// child inherits *that* config through ancestry, so the ceiling this
-/// gate evaluates is the one the child's own later checks read.
+/// The `budgets:` block governing this dispatch, read from the workflow
+/// that governs the **dispatching branch**: the nearest workflow mark on
+/// its descent when one stands (§6 *The workflow mark* — the child's own
+/// descent walk answers identically, so gate and child agree), else the
+/// same frozen config commit the soul comes from (§2.2, §6) — the
+/// governing config of the ref the child forks off, which the child
+/// inherits through ancestry. Either way the ceiling this gate evaluates
+/// is the one the child's own later checks read: one answer, not two.
 fn budgets(
     req: &ChildDispatchRequest<'_>,
     commit: &str,
     git: &dyn GitRunner,
 ) -> Result<crate::config::Budgets, Error> {
-    let raw = workspace::show_control(req.repo, commit, WORKFLOW_FILE, git).map_err(|source| {
-        Error::ControlRead {
-            path: PathBuf::from(format!("{commit}:{WORKFLOW_FILE}")),
-            source,
-        }
-    })?;
-    Ok(Workflow::parse(&raw, &PathBuf::from(format!("{commit}:{WORKFLOW_FILE}")))?.budgets)
+    let wf_commit =
+        crate::prompt::resolve::workflow_source::nearest_mark(req.repo, req.parent_branch, git)
+            .unwrap_or_else(|| commit.to_string());
+    let raw =
+        workspace::show_control(req.repo, &wf_commit, WORKFLOW_FILE, git).map_err(|source| {
+            Error::ControlRead {
+                path: PathBuf::from(format!("{wf_commit}:{WORKFLOW_FILE}")),
+                source,
+            }
+        })?;
+    Ok(Workflow::parse(&raw, &PathBuf::from(format!("{wf_commit}:{WORKFLOW_FILE}")))?.budgets)
 }
 
 #[cfg(test)]

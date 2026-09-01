@@ -22,6 +22,8 @@ mod retargeting;
 mod surface;
 mod verbs;
 mod verbs_more;
+mod workflowing;
+mod workflowing_declines;
 
 /// A no-op `$EDITOR` hand-off.
 fn noop_editor(_: &Path) -> std::io::Result<()> {

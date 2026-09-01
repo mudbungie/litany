@@ -56,6 +56,7 @@ verb_table! {
     Prompt => prompt,
     Dispatch => dispatch,
     Retarget => retarget,
+    Workflow => workflow,
     Stop => stop,
     Message => message,
     Scan => scan,

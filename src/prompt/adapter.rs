@@ -188,6 +188,31 @@ pub fn capture_stdout(
     Ok(String::from_utf8_lossy(&out).into_owned())
 }
 
+/// Load-time version guard (§4.4): `bz --version` must report the exact
+/// version of the linked brazen crate ([`super::brazen_pin`]); a
+/// mismatch is declined (PRINCIPLES "Decline illegal operations")
+/// rather than silently downgraded. Lives with the adapter machinery it
+/// drives ([`capture_stdout`], [`spawn_error`]); its one caller is
+/// resolution (`super::resolve`), which skips it for a named target
+/// (§4.4).
+pub(super) fn check_bz_version(
+    adapter: &dyn AdapterRunner,
+    binary: &OsString,
+) -> Result<(), Error> {
+    let out =
+        capture_stdout(adapter, binary, &["--version"]).map_err(|e| spawn_error(binary, e))?;
+    // `bz --version` prints e.g. `bz 0.0.2`; the version is the last
+    // whitespace token.
+    let found = out.split_whitespace().last().unwrap_or("").to_string();
+    if found != super::brazen_pin() {
+        return Err(Error::VersionSkew {
+            found,
+            expected: super::brazen_pin().to_string(),
+        });
+    }
+    Ok(())
+}
+
 /// Classify a failure to *launch* the adapter (§4.4) — the one
 /// classification the harness makes over a spawn `io::Error`, and the
 /// reason both spawn seams (the version guard's `--version` probe and
