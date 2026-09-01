@@ -11,7 +11,7 @@ brazen = "=0.0.6"
 
 [package]
 name = "litany"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2024"
 description = "A git-backed agent harness"
 license = "MIT"
