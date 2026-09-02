@@ -176,6 +176,7 @@ pub(in crate::prompt) fn run_exchange(
             tools,
             DEFAULT_MAX_TOKENS,
             resolved.effort,
+            resolved.priority,
         );
         let request_value =
             serde_json::to_value(&request).expect("CanonicalRequest is always serializable");

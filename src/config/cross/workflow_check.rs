@@ -59,6 +59,7 @@ mod tests {
                 model: "claude-sonnet-5".to_string(),
                 tools: Vec::new(),
                 effort: None,
+                priority: None,
             },
         );
         PerRepoProviders { roles }

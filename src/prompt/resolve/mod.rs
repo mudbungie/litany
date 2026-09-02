@@ -28,6 +28,8 @@ use source::{agent_role, config_commit};
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_assignment;
+#[cfg(test)]
 mod tests_declines;
 
 use super::{Deps, Error, GLOBAL_MODELS_FILE, PER_REPO_PROVIDERS_FILE, SOULS_DIR};
@@ -72,6 +74,12 @@ pub(super) struct WorkerConfig {
     /// assignment as the model pointer — carried to every model call's
     /// `reasoning` knob; `None` means none requested.
     pub(super) effort: Option<crate::config::Effort>,
+    /// Whether the role asks the provider's priority lane (§4.3
+    /// `priority:`), from that same assignment — carried to every model
+    /// call's `service_tier` knob. `None` and `Some(false)` are one
+    /// fact: no lane preference (the field is `Option` only because the
+    /// config key is optional).
+    pub(super) priority: Option<bool>,
     /// The role's declared tool names (§4.3 `tools:`).
     pub(super) tools: Vec<String>,
     /// The config commit every control file above was read from — the
@@ -121,6 +129,7 @@ impl WorkerConfig {
             model_id: &self.model_id,
             provider_row: &self.provider_row,
             effort: self.effort,
+            priority: self.priority,
             soul: self.soul.clone(),
             binary: self.binary.clone(),
             retry: self.workflow.retry,
@@ -217,6 +226,7 @@ pub(super) fn resolve_worker(
         model_id: assignment.model.clone(),
         provider_row: assignment.provider.clone(),
         effort: assignment.effort,
+        priority: assignment.priority,
         tools: assignment.tools.clone(),
         config_commit: commit,
         soul,

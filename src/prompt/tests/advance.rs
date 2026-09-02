@@ -40,6 +40,7 @@ pub(super) fn worker_config() -> WorkerConfig {
         model_id: "claude-sonnet-5".into(),
         provider_row: "anthropic".into(),
         effort: None,
+        priority: None,
         // The grant the fixtures' model output calls against (§4.3): a
         // tool a role does not grant is declined at execution, never run
         // (`dispatch/tool_step.rs::refusal`).

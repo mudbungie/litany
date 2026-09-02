@@ -23,7 +23,7 @@
       ]
     },
     "RoleAssignment": {
-      "description": "One role's assignment: which provider (by brazen row name) and which model (by wire id), plus the role's enabled tools (ARCH §4.3). This pointer is the whole model binding (bl-35e2) — no global table mediates it; id validity is caught at the first live model call (§4.2). Endpoint and auth resolve inside brazen at call time (§4.1 — no `auth_env` / `endpoint_env` here). `tools` selects which tools the role's agent may call (§3.3); omitted or empty means none. `effort` is the role's reasoning-effort level ([`Effort`], §4.3); omitted means none requested — the general path with empty inputs.",
+      "description": "One role's assignment: which provider (by brazen row name) and which model (by wire id), plus the role's enabled tools (ARCH §4.3). This pointer is the whole model binding (bl-35e2) — no global table mediates it; id validity is caught at the first live model call (§4.2). Endpoint and auth resolve inside brazen at call time (§4.1 — no `auth_env` / `endpoint_env` here). `tools` selects which tools the role's agent may call (§3.3); omitted or empty means none. `effort` is the role's reasoning-effort level ([`Effort`], §4.3); omitted means none requested — the general path with empty inputs. `priority` asks the provider's priority lane for the role's model calls (§4.3); `false` and omitted are one fact — no lane preference, the provider's default lane — so there is no third state to carry.",
       "type": "object",
       "required": [
         "model",
@@ -42,6 +42,12 @@
         },
         "model": {
           "type": "string"
+        },
+        "priority": {
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "provider": {
           "type": "string"

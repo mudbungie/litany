@@ -171,32 +171,6 @@ fn an_unmarked_agent_follows_the_tips_workflow_like_every_other_control_fact() {
 }
 
 #[test]
-fn the_role_effort_follows_the_tip_to_the_resolved_shape() {
-    // §4.3 `effort:` × follow-the-tip (bl-403b): an `effort:` added to
-    // the governing lineage's head reaches the agent's next resolution
-    // — the fact rides the same assignment as the model pointer, all
-    // the way into the borrowed `Resolved` the step loop reads.
-    let (_h, ws) = fixture::workspace();
-    fixture::spawn_root(&ws, "20260101-r1");
-    let fx = Fx::new();
-    let before = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
-    assert_eq!(before.effort, None, "the shipped template requests none");
-    fixture::amend_config(
-        &ws,
-        &[(
-            "providers.yaml",
-            "roles:\n  worker:\n    provider: anthropic\n    model: claude-sonnet-5\n    effort: medium\n  compactor:\n    provider: anthropic\n    model: claude-haiku-4-5\n",
-        )],
-    );
-    let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
-    assert_eq!(cfg.effort, Some(crate::config::Effort::Medium));
-    assert_eq!(
-        cfg.as_resolved().effort,
-        Some(crate::config::Effort::Medium)
-    );
-}
-
-#[test]
 fn clearing_the_mark_returns_resolution_to_the_followed_workflow() {
     // Cleared, the workflow rejoins every other control fact on the
     // lineage's current tip — not on the fork commit the retired freeze

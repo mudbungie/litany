@@ -86,6 +86,7 @@ impl Resolution {
             model_id: "claude-sonnet-5",
             provider_row: "anthropic",
             effort: None,
+            priority: None,
             soul: "be helpful".into(),
             binary: "bz".into(),
             retry: self.workflow.retry,

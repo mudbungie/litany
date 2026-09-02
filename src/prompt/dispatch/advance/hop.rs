@@ -109,6 +109,7 @@ pub(super) fn step(
         tools,
         step_commit::DEFAULT_MAX_TOKENS,
         resolved.effort,
+        resolved.priority,
     );
     let request_value =
         serde_json::to_value(&request).expect("CanonicalRequest is always serializable");
