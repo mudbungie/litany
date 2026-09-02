@@ -31,10 +31,11 @@ fn run_surfaces_name_scan_failure() {
 }
 
 #[test]
-fn run_surfaces_governing_config_read_failure() {
-    // With the fork point resolved and the name settled, the next op
-    // derives the governing config commit by ancestry (§2.2); failing it
-    // surfaces as the governing-config error.
+fn run_surfaces_followed_config_read_failure() {
+    // With the fork point resolved and the name settled, the next ops
+    // derive the followed config commit — the governing ancestry query
+    // and the tip walk over it (§2.2, bl-403b); failing any of them
+    // surfaces as the followed-config error.
     let repo = scaffold_repo(VALID_PER_REPO_PROVIDERS_YAML, Some("body"));
     let adapter = StubAdapter::happy(&happy_response_bytes());
     let err = run_with_stubs(repo.path(), "hi", &adapter, &StubGit::failing_at(2)).unwrap_err();
@@ -42,7 +43,7 @@ fn run_surfaces_governing_config_read_failure() {
         matches!(
             err,
             Error::Git {
-                op: "governing config",
+                op: "followed config",
                 ..
             }
         ),

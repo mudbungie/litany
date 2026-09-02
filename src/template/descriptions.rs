@@ -4,8 +4,9 @@
 //! worktree's `descriptions/**` so every agent branch inherits them via
 //! git (§2.2, §2.3) and context assembly intersects a role's declared
 //! tools against a committed, immutable schema set rather than re-reading
-//! mutable data-root state (§2.10, §5.1) — the committed form of
-//! "fork is the freeze" (§2.2).
+//! mutable data-root state (§2.10, §5.1) — the committed form of the
+//! §2.2 control discipline (control lives in config commits; the
+//! commit read is the lineage's followed tip since bl-403b).
 //!
 //! **One mechanism over two artifact kinds, not two producers:** the
 //! same pass copies every available tool's JSON schema

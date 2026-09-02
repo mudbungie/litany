@@ -90,19 +90,20 @@ pub enum Command {
     /// parent's tip (§2.3); its id, and so its return address, is
     /// unchanged.
     Dispatch(dispatch::Args),
-    /// Move a running agent onto another config commit (ARCH §2.2) — the
-    /// one exit from the config freeze. Writes the mark
-    /// `refs/litany/retarget/<agent>` at `config/<name>`'s head
-    /// (`--config`, default `default`); the agent's own executor lands the
-    /// re-fork at its next step. A target already governing the agent is a
-    /// clean no-op.
+    /// Move a running agent onto another config **lineage** (ARCH §2.2
+    /// — resolution follows a lineage's tip by itself since bl-403b, so
+    /// what retargets is the lineage, or the healing of a diverged
+    /// one). Writes the mark `refs/litany/retarget/<agent>` at
+    /// `config/<name>`'s head (`--config`, default `default`); the
+    /// agent's own executor lands the re-fork at its next step. A
+    /// target the agent already resolves is a clean no-op.
     Retarget(retarget::Args),
     /// Switch which workflow governs a running agent (ARCH §6 *The
     /// workflow mark*): writes the standing mark
     /// `refs/litany/workflow/<agent>` at `config/<name>`'s head
     /// (`--config`, default `default`), consulted at every step boundary
     /// — nearest mark on the agent's descent wins. `--clear` removes it,
-    /// returning the agent to its governing config's workflow.
+    /// returning the agent to its followed config's workflow.
     Workflow(workflow::Args),
     /// Stop a conversation branch (ARCH §2.9 SIGTERM). Default stops the
     /// one agent; `--stop-children` also stops every descendant

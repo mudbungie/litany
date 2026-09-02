@@ -1,12 +1,13 @@
 //! The agent's **retarget mark** — `refs/litany/retarget/<agent-id>`
-//! (ARCH §2.2 *Fork is the freeze*, §3.4 `litany retarget`).
+//! (ARCH §2.2 *Fork chooses the lineage*, §3.4 `litany retarget`).
 //!
-//! Fork is the freeze: an agent's governing config commit is derived from
-//! its branch's ancestry (§2.2), so a config edit after the fork governs
-//! nothing the agent does. The **retarget mark** is the one exit — a user
-//! act that names the config commit the agent should be governed by from
-//! its next step on, consumed by the agent's **own executor** at the next
-//! `advance` step boundary ([`crate::prompt::retarget`]).
+//! Fork chooses the lineage and resolution follows its tip (§2.2,
+//! bl-403b), so a same-lineage config edit reaches the agent by
+//! resolution alone. The **retarget mark** is the act that remains: a
+//! user act naming the config commit — another lineage's head — the
+//! agent should be governed by from its next step on, consumed by the
+//! agent's **own executor** at the next `advance` step boundary
+//! ([`crate::prompt::retarget`]).
 //!
 //! Writing a ref is what keeps §2.3's branch-advancement invariant intact:
 //! the user marks, the executor lands. Nothing else writes the agent's

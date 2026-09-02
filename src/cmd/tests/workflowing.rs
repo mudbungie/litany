@@ -79,6 +79,6 @@ fn clear_deletes_the_mark_and_deletes_config_not_code() {
     assert_eq!(
         workflow_mark::read(&ws, "20260101-a1", &RealGit::new()),
         None,
-        "cleared: the governing config's workflow governs again",
+        "cleared: the followed config's workflow governs again",
     );
 }

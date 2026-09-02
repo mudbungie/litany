@@ -2,11 +2,13 @@
 //! *The workflow mark*, `docs/DESIGN_WORKFLOW_SWITCH.md`).
 //!
 //! The workflow — the config's `workflow.yaml`, the named declaration of
-//! what happens at every step (§6) — is frozen at fork like every other
-//! control fact (§2.2), and this verb is the workflow fact's own exit
-//! (operator ruling 2026-08-31): it writes the **standing** mark
-//! `refs/litany/workflow/<agent>` at the named lineage's head
-//! ([`crate::workspace::workflow_mark`]). Resolution consults the mark
+//! what happens at every step (§6) — follows the governing lineage's
+//! tip like every other control fact (§2.2, bl-403b), and this verb is
+//! the workflow fact's per-agent override (operator ruling 2026-08-31):
+//! it writes the **standing** mark `refs/litany/workflow/<agent>` at
+//! the named lineage's head ([`crate::workspace::workflow_mark`]),
+//! which wins over the followed tip until cleared — a pin as well as a
+//! switch. Resolution consults the mark
 //! fresh at every step boundary — nearest mark on the agent's descent
 //! wins — so the switch is effective at the agent's next step with no
 //! re-fork, no rebase and no migration; `--clear` deletes the mark,
@@ -51,7 +53,7 @@ pub struct Args {
     /// config-naming verb gives an unnamed config.
     #[arg(long, conflicts_with = "clear")]
     pub config: Option<String>,
-    /// Remove the mark: the governing config commit's workflow governs
+    /// Remove the mark: the followed config commit's workflow governs
     /// again from the agent's next step boundary on.
     #[arg(long)]
     pub clear: bool,
@@ -67,7 +69,7 @@ pub fn run(args: Args, _fx: &mut Fx) -> Result<Outcome, Error> {
     if args.clear {
         workflow_mark::clear(&args.workspace, &args.agent, &git).map_err(|s| e(&s))?;
         eprintln!(
-            "litany: workflow mark cleared for [{}] — its governing config's workflow \
+            "litany: workflow mark cleared for [{}] — its followed config's workflow \
              governs from its next step (ARCH §6)",
             args.agent,
         );

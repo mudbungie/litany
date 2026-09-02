@@ -5,12 +5,23 @@ use super::*;
 
 #[test]
 fn a_target_that_does_not_yet_govern_resolves_to_its_commit() {
+    // Under follow-the-tip (§2.2, bl-403b) a same-lineage advance is
+    // already the agent's next resolution, so what still preflights to a
+    // commit is a change of lineage.
+    let (_h, ws, _wt) = agent();
+    let target = variant(&ws, &[("souls/worker.md", "an amended soul\n")]);
+    assert_eq!(preflight(&ws, "a", "variant", &g()).unwrap(), Some(target));
+}
+
+#[test]
+fn a_targets_own_lineage_advance_resolves_to_none_under_follow_the_tip() {
+    // The inverted freeze pin: the agent's next step reads this head
+    // anyway, so retargeting onto it is a clean no-op (bl-403b).
     let (_h, ws, _wt) = agent();
     fixture::amend_config(&ws, &[("souls/worker.md", "an amended soul\n")]);
-    let target = head_of(&ws, DEFAULT_CONFIG_NAME);
     assert_eq!(
         preflight(&ws, "a", DEFAULT_CONFIG_NAME, &g()).unwrap(),
-        Some(target),
+        None
     );
 }
 
@@ -51,7 +62,7 @@ fn a_grant_the_target_does_not_describe_is_declined_before_the_mark() {
     // disagree inside the target commit, so the retarget is refused
     // there rather than forking a branch whose tree cannot be cut.
     let (_h, ws, _wt) = agent();
-    fixture::amend_config(
+    variant(
         &ws,
         &[(
             "providers.yaml",
@@ -59,7 +70,7 @@ fn a_grant_the_target_does_not_describe_is_declined_before_the_mark() {
              tools: [no_such_tool]\n",
         )],
     );
-    let err = preflight(&ws, "a", DEFAULT_CONFIG_NAME, &g()).unwrap_err();
+    let err = preflight(&ws, "a", "variant", &g()).unwrap_err();
     assert!(err.to_string().contains("no_such_tool"), "{err}");
     assert!(err.to_string().contains("does not describe"), "{err}");
 }
@@ -67,6 +78,6 @@ fn a_grant_the_target_does_not_describe_is_declined_before_the_mark() {
 #[test]
 fn a_target_whose_providers_yaml_is_malformed_is_declined() {
     let (_h, ws, _wt) = agent();
-    fixture::amend_config(&ws, &[("providers.yaml", "roles: [not, a, map]\n")]);
-    assert!(preflight(&ws, "a", DEFAULT_CONFIG_NAME, &g()).is_err());
+    variant(&ws, &[("providers.yaml", "roles: [not, a, map]\n")]);
+    assert!(preflight(&ws, "a", "variant", &g()).is_err());
 }

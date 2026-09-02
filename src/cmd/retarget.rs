@@ -1,9 +1,10 @@
-//! `litany retarget` — the exit from the config freeze (ARCH §2.2, §3.4).
+//! `litany retarget` — the change of config lineage (ARCH §2.2, §3.4).
 //!
-//! Fork is the freeze: an agent's governing config commit is derived from
-//! its branch's ancestry, so a config edit after the fork governs nothing
-//! it does. This verb is the one deliberate, auditable break of that — and
-//! it breaks nothing else, because it writes no branch. It writes a **ref
+//! Fork chooses the lineage, and resolution follows that lineage's tip
+//! by itself (§2.2, bl-403b) — so what this verb changes is *which
+//! lineage* an agent follows (or, where diverged lineages left the
+//! agent held on its fork commit, which one settles it). It writes no
+//! branch. It writes a **ref
 //! mark**, `refs/litany/retarget/<agent-id>`, at the target config commit
 //! ([`crate::workspace::retarget`]); the agent's own executor consumes it
 //! at its next `advance` step boundary and lands the re-fork there

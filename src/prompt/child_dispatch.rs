@@ -120,11 +120,19 @@ pub fn run(
     // all read this commit — never a worktree file.
     let parent_ref = workspace::agent_ref(req.parent_branch);
     let fork_ref = req.fork_point.unwrap_or(&parent_ref);
-    let commit =
-        workspace::governing_config(req.repo, fork_ref, git).map_err(|source| Error::Git {
-            op: "governing config",
+    // Followed, not frozen (§2.2 *Fork chooses the lineage*, bl-403b):
+    // the child's soul, grant, descriptors and §6 budgets read the
+    // lineage's current tip — the same commit the child's own later
+    // step resolutions read, so dispatch-time artifacts and step-time
+    // resolution stay one answer. Diverged lineages resolve the fork
+    // commit (the step resolver is the surface that says so).
+    let commit = workspace::current_config::current_config(req.repo, fork_ref, git)
+        .map_err(|source| Error::Git {
+            op: "followed config",
             source,
-        })?;
+        })?
+        .commit()
+        .to_string();
     // §6 budget gate — the one enforcement point for *every* dispatch
     // (see [`run`]'s docs). Evaluated against the child's own prospective
     // branch name, so `max_depth` refuses the fork that would breach it

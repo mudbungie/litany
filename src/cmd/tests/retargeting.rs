@@ -27,20 +27,47 @@ fn run(ws: &std::path::Path, agent: &str, config: Option<&str>) {
 
 #[test]
 fn a_retarget_writes_the_mark_at_the_named_lineages_head() {
+    // A diverged lineage: under follow-the-tip (§2.2, bl-403b) a
+    // same-lineage advance is already the agent's next resolution, so
+    // what still marks is a change of lineage.
     let (_h, ws) = fixture::workspace();
     fixture::spawn_root(&ws, "20260101-a1");
-    fixture::amend_config(&ws, &[("souls/worker.md", "an amended soul\n")]);
     let git = RealGit::new();
-    let head = git
+    let fork = git
         .run_capture(&workspace::repo_git(&ws), &["rev-parse", "config/default"])
         .unwrap()
         .trim()
         .to_string();
-    run(&ws, "20260101-a1", None);
+    git.run(
+        &workspace::repo_git(&ws),
+        &["update-ref", "refs/heads/config/variant", &fork],
+    )
+    .unwrap();
+    fixture::amend_lineage(&ws, "variant", &[("souls/worker.md", "an amended soul\n")]);
+    let head = git
+        .run_capture(&workspace::repo_git(&ws), &["rev-parse", "config/variant"])
+        .unwrap()
+        .trim()
+        .to_string();
+    run(&ws, "20260101-a1", Some("variant"));
     assert_eq!(
         workspace::retarget::read(&ws, "20260101-a1", &git),
         Some(head),
         "the mark is the verb's whole effect",
+    );
+}
+
+#[test]
+fn a_retarget_onto_the_agents_own_advanced_lineage_is_a_clean_no_op() {
+    // The inverted freeze pin (bl-403b): the agent's next step reads the
+    // advanced head anyway, so nothing is marked.
+    let (_h, ws) = fixture::workspace();
+    fixture::spawn_root(&ws, "20260101-a1");
+    fixture::amend_config(&ws, &[("souls/worker.md", "an amended soul\n")]);
+    run(&ws, "20260101-a1", None);
+    assert_eq!(
+        workspace::retarget::read(&ws, "20260101-a1", &RealGit::new()),
+        None,
     );
 }
 

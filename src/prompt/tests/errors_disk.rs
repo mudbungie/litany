@@ -24,10 +24,12 @@ use crate::prompt::Error;
 /// follow). Control resolution follows (§2.2), and it is now the
 /// *ancestry* derivation
 /// against that fork point — 2 the `config/*` head enumeration, 3 its
-/// one `merge-base` — then 4-8 the five `show` control reads —
+/// one `merge-base` — then the follow-the-tip derivation (§2.2,
+/// bl-403b) — 4 the head-tip enumeration, 5 its one containment
+/// `merge-base --is-ancestor` — then 6-10 the five `show` control reads —
 /// `version` (the §10 schema-version guard, read before anything it could
 /// misparse), then providers, workflow, manifest (§5.2), soul. Branch
-/// work follows: 9 worktree add, 10 the dispatch commit's control-file
+/// work follows: 11 worktree add, 12 the dispatch commit's control-file
 /// removal (§2.3 step 2), then the descriptor derivation
 /// ([`DESCRIPTOR_OPS`]), then the settled-name stage ([`NAME_SETTLE_INDEX`],
 /// §2.3), then dispatch add, dispatch commit, the step-1
@@ -36,7 +38,7 @@ use crate::prompt::Error;
 /// delivered through the front door before step 1's read state is
 /// captured), and rev-parse. Pinned as constants so the
 /// transcript/terminal op-index labels stay readable.
-pub(super) const WORKTREE_ADD_INDEX: usize = 9;
+pub(super) const WORKTREE_ADD_INDEX: usize = 11;
 /// The dispatch commit's descriptor derivation (§3.3, bl-a900): one
 /// `cat-file -e` per granted tool's schema (the described-grant check),
 /// one per its claimed skill frontmatter, and the single `checkout` that

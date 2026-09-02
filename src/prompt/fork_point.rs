@@ -13,9 +13,9 @@
 //!   any agent (fork-back-in, §7.2), a stopped agent's tip (§2.9), a
 //!   config commit. There is no special prefix and no distinct
 //!   operation — provenance is the ancestry (§7.2), and the governing
-//!   config commit is derived from that ancestry like any other agent's
-//!   ([`workspace::governing_config`]), so **fork is the freeze**
-//!   whatever the fork point is.
+//!   lineage is derived from that ancestry like any other agent's and
+//!   followed to its tip ([`workspace::current_config`], §2.2 bl-403b),
+//!   so **fork chooses the lineage** whatever the fork point is.
 //!
 //! Naming neither is not a special case: it is `--config default`
 //! ([`workspace::DEFAULT_CONFIG_NAME`]) — the general path with empty

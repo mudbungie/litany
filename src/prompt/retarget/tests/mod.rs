@@ -94,6 +94,25 @@ fn subjects(wt: &Path) -> Vec<String> {
         .collect()
 }
 
+/// A diverged `config/variant` lineage: forked at `config/default`'s
+/// current head, then advanced with `files`. Under follow-the-tip
+/// (§2.2, bl-403b) a same-lineage advance reaches the agent by
+/// resolution alone, so what a retarget addresses is a change of
+/// **lineage** — this shape.
+pub(crate) fn variant(ws: &Path, files: &[(&str, &str)]) -> String {
+    g().run(
+        &repo_git(ws),
+        &[
+            "update-ref",
+            "refs/heads/config/variant",
+            &head_of(ws, DEFAULT_CONFIG_NAME),
+        ],
+    )
+    .unwrap();
+    fixture::amend_lineage(ws, "variant", files);
+    head_of(ws, "variant")
+}
+
 /// Mark and land in one move, as an executor's boundary does.
 fn retarget(ws: &Path, wt: &Path, target: &str) -> Option<Outcome> {
     crate::workspace::retarget::write(ws, "a", target, &g()).unwrap();
@@ -114,8 +133,7 @@ fn a_retarget_re_forks_the_branch_onto_the_target_and_replays_its_history() {
         "transcript 001: user [a]",
     );
     step(&wt, "code.txt", "v1\n", "transcript 002: tool [a]");
-    fixture::amend_config(&ws, &[("souls/worker.md", "a newer soul\n")]);
-    let target = head_of(&ws, DEFAULT_CONFIG_NAME);
+    let target = variant(&ws, &[("souls/worker.md", "a newer soul\n")]);
     assert_ne!(before, target);
 
     assert_eq!(retarget(&ws, &wt, &target), Some(Outcome::Landed));
@@ -163,8 +181,8 @@ fn the_soul_is_re_pinned_from_the_target_config() {
     // commit, so the pin is re-read from the target — which is the point
     // of retargeting a lineage whose soul moved.
     let (_h, ws, wt) = agent();
-    fixture::amend_config(&ws, &[("souls/worker.md", "a newer soul\n")]);
-    retarget(&ws, &wt, &head_of(&ws, DEFAULT_CONFIG_NAME));
+    let target = variant(&ws, &[("souls/worker.md", "a newer soul\n")]);
+    retarget(&ws, &wt, &target);
     assert_eq!(
         std::fs::read_to_string(wt.join("soul.md")).unwrap(),
         "a newer soul",
@@ -179,7 +197,7 @@ fn the_descriptor_cut_is_re_derived_from_the_target_not_replayed() {
     // A target that narrows the grant narrows the branch's own tree.
     let (_h, ws, wt) = agent();
     assert!(wt.join("descriptions/tools/bash.json").exists());
-    fixture::amend_config(
+    let target = variant(
         &ws,
         &[(
             "providers.yaml",
@@ -187,7 +205,7 @@ fn the_descriptor_cut_is_re_derived_from_the_target_not_replayed() {
              tools: [read_file]\n",
         )],
     );
-    retarget(&ws, &wt, &head_of(&ws, DEFAULT_CONFIG_NAME));
+    retarget(&ws, &wt, &target);
     assert!(wt.join("descriptions/tools/read_file.json").exists());
     assert!(
         !wt.join("descriptions/tools/bash.json").exists(),
@@ -202,11 +220,8 @@ fn the_control_files_stay_gone_so_no_modify_delete_can_arise() {
     // parent carries it, the old dispatch commit deletes it — has no
     // occasion to happen.
     let (_h, ws, wt) = agent();
-    fixture::amend_config(&ws, &[("souls/worker.md", "an amended soul\n")]);
-    assert_eq!(
-        retarget(&ws, &wt, &head_of(&ws, DEFAULT_CONFIG_NAME)),
-        Some(Outcome::Landed),
-    );
+    let target = variant(&ws, &[("souls/worker.md", "an amended soul\n")]);
+    assert_eq!(retarget(&ws, &wt, &target), Some(Outcome::Landed));
     for control in crate::workspace::CONTROL_PATHS {
         assert!(
             !wt.join(control).exists(),
@@ -233,11 +248,11 @@ fn an_unmarked_branch_lands_nothing_which_is_every_boundary_but_one() {
 #[test]
 fn the_mark_is_consumed_whatever_the_outcome() {
     let (_h, ws, wt) = agent();
-    fixture::amend_config(&ws, &[("souls/worker.md", "an amended soul\n")]);
-    retarget(&ws, &wt, &head_of(&ws, DEFAULT_CONFIG_NAME));
+    let target = variant(&ws, &[("souls/worker.md", "an amended soul\n")]);
+    retarget(&ws, &wt, &target);
     assert_eq!(crate::workspace::retarget::read(&ws, "a", &g()), None);
     // And a no-op consumes it too — the question was answered.
-    retarget(&ws, &wt, &head_of(&ws, DEFAULT_CONFIG_NAME));
+    retarget(&ws, &wt, &head_of(&ws, "variant"));
     assert_eq!(crate::workspace::retarget::read(&ws, "a", &g()), None);
 }
 
@@ -248,8 +263,8 @@ fn a_failed_landing_still_consumes_the_mark_rather_than_re_asking() {
     // again at every subsequent boundary.
     let (_h, ws) = fixture::workspace();
     let wt = fixture::spawn_root(&ws, "a"); // subject `dispatch`, not a founding one
-    fixture::amend_config(&ws, &[("souls/worker.md", "an amended soul\n")]);
-    crate::workspace::retarget::write(&ws, "a", &head_of(&ws, DEFAULT_CONFIG_NAME), &g()).unwrap();
+    let target = variant(&ws, &[("souls/worker.md", "an amended soul\n")]);
+    crate::workspace::retarget::write(&ws, "a", &target, &g()).unwrap();
     let err = land(&ws, "a", &wt, &g()).unwrap_err();
     assert!(
         err.to_string().contains("no dispatch commit founds"),

@@ -24,7 +24,7 @@ There should be one — and ideally only one — correct way through the system 
 Workflow, prompts, and assembly rules are configuration, not code. Experiments become config diffs measured against a task suite, so improvements can be validated without shipping new software.
 
 ## Everything through git
-A workspace is one repo, agents are branches plus worktrees, configs are commits on descriptively-named branches, steps are commits, returns are messages, and nothing merges — compaction lands by rebase-forward (§2.6). Using git as the substrate gets history, branching, rollback, and replay for free — and fork *is* the freeze: an agent's config is the immutable commit it forked from (§2.2).
+A workspace is one repo, agents are branches plus worktrees, configs are commits on descriptively-named branches, steps are commits, returns are messages, and nothing merges — compaction lands by rebase-forward (§2.6). Using git as the substrate gets history, branching, rollback, and replay for free — and fork chooses the *lineage*: an agent's control resolves, at every step boundary, from its governing lineage's current tip (§2.2, bl-403b — configuration is changeable at any time, on any turn), while every commit it ever resolved stays reachable.
 
 ## One writer per branch
 There is no `main`. A config branch advances only by user config edits; an agent branch advances only by its executor (§2.3). Every commit is provenanced to its lineage's single writer, and even the compaction landing — the one sanctioned rewrite — is a rebase-forward the receiving branch's own executor lands (§2.6).

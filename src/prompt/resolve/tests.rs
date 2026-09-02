@@ -55,8 +55,8 @@ impl Launcher for NoLauncher {
 
 /// Owns the deps components; `models.yaml` names an `adapter:` override
 /// so the `bz --version` guard is skipped (§4.4).
-struct Fx {
-    git: RealGit,
+pub(super) struct Fx {
+    pub(super) git: RealGit,
     clock: SystemClock,
     id: NanoIdGen,
     adapter: NoAdapter,
@@ -67,7 +67,7 @@ struct Fx {
     cfg: TempDir,
 }
 impl Fx {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let cfg = TempDir::new().unwrap();
         std::fs::write(cfg.path().join("models.yaml"), "adapter: /bin/true\n").unwrap();
         Self {
@@ -82,7 +82,7 @@ impl Fx {
             cfg,
         }
     }
-    fn deps(&self) -> Deps<'_> {
+    pub(super) fn deps(&self) -> Deps<'_> {
         Deps {
             adapter: &self.adapter,
             sleeper: &self.sleeper,
@@ -100,7 +100,7 @@ impl Fx {
 }
 
 /// The head of `config/default`.
-fn head(ws: &Path) -> String {
+pub(super) fn head(ws: &Path) -> String {
     RealGit::new()
         .run_capture(
             &workspace::repo_git(ws),
@@ -113,7 +113,8 @@ fn head(ws: &Path) -> String {
 
 /// A `workflow.yaml` whose retry cap identifies it — valid under the
 /// closed §6 vocabulary, distinguishable from the shipped default's 3.
-const SWITCHED_WORKFLOW: &str = "events: {}\nretry:\n  max_attempts: 7\n  backoff: exponential\n";
+pub(super) const SWITCHED_WORKFLOW: &str =
+    "events: {}\nretry:\n  max_attempts: 7\n  backoff: exponential\n";
 
 #[test]
 fn an_unmarked_agent_resolves_the_governing_workflow_the_basic_agentic_loop() {
@@ -129,12 +130,14 @@ fn an_unmarked_agent_resolves_the_governing_workflow_the_basic_agentic_loop() {
 }
 
 #[test]
-fn a_marked_agent_resolves_the_marked_workflow_and_nothing_else_moves() {
-    // The switch: the marked commit answers the workflow question alone —
-    // the soul (and every other control fact) still resolves from the
-    // governing commit, so the mark moves policy, not identity.
+fn a_marked_agent_pins_the_marked_workflow_while_every_other_fact_follows_the_tip() {
+    // The mark under follow-the-tip (§2.2 bl-403b × §6 bl-f928): control
+    // follows the lineage's current head — the soul here — while the
+    // marked commit keeps answering the workflow question alone. The
+    // mark moves (and pins) policy, not identity.
     let (_h, ws) = fixture::workspace();
     fixture::spawn_root(&ws, "20260101-r1");
+    let fork = head(&ws);
     fixture::amend_config(
         &ws,
         &[
@@ -143,25 +146,44 @@ fn a_marked_agent_resolves_the_marked_workflow_and_nothing_else_moves() {
         ],
     );
     let fx = Fx::new();
-    workflow_mark::write(&ws, "20260101-r1", &head(&ws), &fx.git).unwrap();
+    workflow_mark::write(&ws, "20260101-r1", &fork, &fx.git).unwrap();
     let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
-    assert_eq!(cfg.workflow.retry.max_attempts, 7, "the marked workflow");
+    assert_eq!(
+        cfg.workflow.retry.max_attempts, 3,
+        "the marked (fork) workflow stands against the moved tip",
+    );
     assert!(
-        !cfg.soul.contains("a switched soul"),
-        "the soul is still the governing commit's — the mark switches the workflow fact alone",
+        cfg.soul.contains("a switched soul"),
+        "every unmarked control fact follows the tip (operator ruling 2026-09-01)",
     );
 }
 
 #[test]
-fn clearing_the_mark_returns_resolution_to_the_governing_workflow() {
+fn an_unmarked_agent_follows_the_tips_workflow_like_every_other_control_fact() {
+    // The inversion of the retired freeze pin: a config edit after the
+    // fork reaches the running agent's workflow at its next step.
     let (_h, ws) = fixture::workspace();
     fixture::spawn_root(&ws, "20260101-r1");
     fixture::amend_config(&ws, &[("workflow.yaml", SWITCHED_WORKFLOW)]);
     let fx = Fx::new();
-    workflow_mark::write(&ws, "20260101-r1", &head(&ws), &fx.git).unwrap();
+    let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
+    assert_eq!(cfg.workflow.retry.max_attempts, 7);
+}
+
+#[test]
+fn clearing_the_mark_returns_resolution_to_the_followed_workflow() {
+    // Cleared, the workflow rejoins every other control fact on the
+    // lineage's current tip — not on the fork commit the retired freeze
+    // would have answered.
+    let (_h, ws) = fixture::workspace();
+    fixture::spawn_root(&ws, "20260101-r1");
+    let fork = head(&ws);
+    fixture::amend_config(&ws, &[("workflow.yaml", SWITCHED_WORKFLOW)]);
+    let fx = Fx::new();
+    workflow_mark::write(&ws, "20260101-r1", &fork, &fx.git).unwrap();
     workflow_mark::clear(&ws, "20260101-r1", &fx.git).unwrap();
     let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
-    assert_eq!(cfg.workflow.retry.max_attempts, 3, "back to the default");
+    assert_eq!(cfg.workflow.retry.max_attempts, 7, "the tip's workflow");
 }
 
 #[test]
@@ -218,71 +240,25 @@ fn a_fresh_fork_has_no_descent_and_resolves_the_governing_workflow() {
 }
 
 #[test]
-fn a_marked_commit_failing_the_version_guard_declines_resolution() {
-    // §10 discipline holds for the marked commit too: its workflow may
-    // carry shapes this harness cannot read, so the guard runs before
-    // the parse — declined loudly, not misread.
+fn diverged_lineages_resolve_the_fork_commit_and_say_so_loudly() {
+    // The held arm (§2.2, `docs/DESIGN_CONFIG_FOLLOW.md`): a variant
+    // lineage forked at the fork commit, then the default advanced —
+    // two distinct tips reach the agent, so control resolves the fork
+    // commit itself (the conservative pre-ruling answer, with the
+    // per-step notice) rather than guessing a lineage.
     let (_h, ws) = fixture::workspace();
     fixture::spawn_root(&ws, "20260101-r1");
-    fixture::amend_config(
-        &ws,
-        &[
-            ("version", "not-a-version\n"),
-            ("workflow.yaml", SWITCHED_WORKFLOW),
-        ],
+    let fx = Fx::new();
+    fx.git
+        .run(
+            &workspace::repo_git(&ws),
+            &["update-ref", "refs/heads/config/variant", &head(&ws)],
+        )
+        .unwrap();
+    fixture::amend_config(&ws, &[("workflow.yaml", SWITCHED_WORKFLOW)]);
+    let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
+    assert_eq!(
+        cfg.workflow.retry.max_attempts, 3,
+        "held on the fork commit: the advanced default's workflow does not reach it",
     );
-    let fx = Fx::new();
-    workflow_mark::write(&ws, "20260101-r1", &head(&ws), &fx.git).unwrap();
-    let err = match resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()) {
-        Err(err) => err,
-        Ok(_) => panic!("a marked commit with a bad version must decline"),
-    };
-    assert!(err.to_string().contains("version"), "{err}");
-}
-
-#[test]
-fn a_marked_commit_whose_workflow_does_not_parse_declines_resolution() {
-    // The verb pre-flights this, but a mark is a ref anyone can write:
-    // resolution still declines loudly rather than stepping on a policy
-    // it cannot read.
-    let (_h, ws) = fixture::workspace();
-    fixture::spawn_root(&ws, "20260101-r1");
-    fixture::amend_config(
-        &ws,
-        &[(
-            "workflow.yaml",
-            "events:\n  user_message: [not_an_action]\n",
-        )],
-    );
-    let fx = Fx::new();
-    workflow_mark::write(&ws, "20260101-r1", &head(&ws), &fx.git).unwrap();
-    assert!(resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).is_err());
-}
-
-#[test]
-fn a_mark_at_a_commit_with_no_workflow_declines_as_a_control_read() {
-    // A mark aimed at a commit that carries no `workflow.yaml` at all —
-    // an agent's own tip, say — is a defective mark; the control read
-    // names the missing address instead of silently falling back.
-    let (_h, ws) = fixture::workspace();
-    fixture::spawn_root(&ws, "20260101-r1");
-    let fx = Fx::new();
-    let orphan = orphan_commit(&ws, &fx.git);
-    workflow_mark::write(&ws, "20260101-r1", &orphan, &fx.git).unwrap();
-    assert!(resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).is_err());
-}
-
-/// An empty orphan commit in the workspace repo — a commit-ish carrying
-/// none of the control files.
-fn orphan_commit(ws: &Path, git: &RealGit) -> String {
-    let repo = workspace::repo_git(ws);
-    let tree = git
-        .run_capture(&repo, &["mktree"])
-        .unwrap()
-        .trim()
-        .to_string();
-    git.run_capture(&repo, &["commit-tree", "-m", "empty", &tree])
-        .unwrap()
-        .trim()
-        .to_string()
 }

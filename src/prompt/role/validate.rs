@@ -111,7 +111,12 @@ pub fn validate(
     // validate against a commit the soul is not read from.
     let branch_ref = workspace::agent_ref(branch);
     let start = fork_point.unwrap_or(&branch_ref);
-    let commit = workspace::governing_config(repo, start, git).map_err(gov)?;
+    // Followed, not frozen (§2.2, bl-403b): validity is asked of the
+    // same commit the soul and grant will be read from.
+    let commit = workspace::current_config::current_config(repo, start, git)
+        .map_err(gov)?
+        .commit()
+        .to_string();
     let providers_raw =
         workspace::show_control(repo, &commit, PER_REPO_PROVIDERS_FILE, git).map_err(gov)?;
     let origin = PathBuf::from(format!("{commit}:{PER_REPO_PROVIDERS_FILE}"));

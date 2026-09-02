@@ -123,9 +123,9 @@ make install LITANY_HOME=/opt/litany          # collapse both homes -> /opt/lita
    `models.yaml` (or any operator-added pool entry) survives a re-install.
    The shipped assets are embedded in the binary, so `prime` needs no
    source tree — `LITANY_HOME=<dir> litany prime` seeds any fresh home.
-   There is no frozen profile pool: the config a workspace runs under is
+   There is no profile pool: the config a workspace runs under is
    its own `config/default` commit, authored from
-   [`template/`](template/) at `litany new` (fork is the freeze, ARCH §2.2).
+   [`template/`](template/) at `litany new` (ARCH §2.2).
 4. Smoke-tests the freshly installed binaries with `litany --version`
    and a throwaway `litany new`. Failure aborts the install with a
    non-zero exit.
@@ -498,7 +498,7 @@ control files into it, snapshots the data-root pools into
 `descriptions/{tools,skills}/` (ARCH §3.3 descriptions-always), commits
 (`config: init [config/default]`), and tears the checkout down. The
 workspace is left with exactly one ref — the config commit every fresh
-root agent forks off (fork is the freeze, §2.2). The destination must
+root agent forks off, and the lineage its resolution follows (§2.2). The destination must
 either not exist or be an empty directory. With no path argument, the
 destination is `<data-root>/workspaces/<auto-id>/`; the created path is
 printed on stdout. `goal.md`, `soul.md` and `name` are intentionally not in the
@@ -629,9 +629,12 @@ leave the checkout behind, and the next pass clears it before starting
 (ARCH §2.11 "the next touch heals") — at the cost of the killed pass's
 unsaved edit, which was never committed.
 
-This is the **only** act that advances a config branch (ARCH §2.3);
-agents forked before it keep their governing config, and agents forked
-after it govern under the new head (fork is the freeze, §2.2).
+This is the **only** act that advances a config branch (ARCH §2.3) —
+and since bl-403b it *reaches running agents*: every agent on the
+lineage resolves the new head at its next step boundary (§2.2
+follow-the-tip; "configuration is changeable at any time, on any
+turn"). Only a step already in flight finishes on the config it
+started with.
 
 A lineage you author this way is **startable by name**: `litany prompt
 <ws> '<message>' --config <name>` forks the root off `config/<name>`'s
@@ -639,12 +642,15 @@ head instead of `config/default`'s, and the agent is governed by that
 lineage (§2.2). A lineage the workspace does not have is declined by
 name, with the pool that does exist.
 
-## Moving a running agent onto a new config: `litany retarget`
+## Moving a running agent onto a new config lineage: `litany retarget`
 
-Fork is the freeze, so the config edit you just authored governs nothing
-an already-running agent does. That is deliberate — but it left no exit
-at all, so fixing an expired model id on a live conversation meant
-throwing the conversation away. `litany retarget` is the exit:
+A same-lineage config edit needs no verb at all: resolution follows the
+lineage's current tip at every step boundary (§2.2 follow-the-tip,
+bl-403b), so fixing an expired model id on `config/default` reaches
+every running conversation on it at its next step. What `litany
+retarget` still does is change the **lineage** — move an agent onto a
+different `config/*` line, or settle an agent held on its fork commit
+because diverged lineages both reach it:
 
 ```
 litany retarget <workspace> <agent>                 # onto config/default's head
@@ -684,11 +690,12 @@ products — are untouched.
 ## Switching a running agent's workflow: `litany workflow`
 
 The workflow — the config's `workflow.yaml`, the named declaration of
-what happens at every step (ARCH §6) — has an exit of its own from the
-freeze, lighter than a retarget: the engine operates by workflows, a
-workflow only determines the next step, and it is consulted fresh at
-every step boundary, so switching it is just changing which one is
-consulted (ARCH §6 *The workflow mark*):
+what happens at every step (ARCH §6) — follows the lineage tip like
+every other control fact, and carries the one per-agent override: the
+engine operates by workflows, a workflow only determines the next step,
+and it is consulted fresh at every step boundary, so switching one
+agent is just changing which commit is consulted for it (ARCH §6 *The
+workflow mark*):
 
 ```
 litany workflow <workspace> <agent>                 # config/default's workflow
@@ -701,10 +708,11 @@ the named lineage's head — and nothing else. From the agent's next step
 boundary on, that commit's `workflow.yaml` governs — bindings,
 compaction clock, retry, budgets, tool-output bounds, tool control —
 while the soul, providers, manifest and everything else stay with the
-governing config. No re-fork, no rebase, no branch written. The mark
-stands until re-marked or cleared, and the **nearest mark on the
-agent's descent wins**, so marking the root switches its whole tree and
-a child's own mark overrides it.
+followed config. No re-fork, no rebase, no branch written. The mark
+stands until re-marked or cleared — winning over the followed tip, so
+it is also how one agent is held out of a lineage-wide change — and the
+**nearest mark on the agent's descent wins**, so marking the root
+switches its whole tree and a child's own mark overrides it.
 
 The shipped default workflow has a name: the **basic agentic loop** —
 `template/workflow.yaml`, the declaration every workspace's
@@ -782,8 +790,12 @@ returns by depositing a result message at the address its epitaph names
    is about to fork off — for the ordinary start that is
    `config/default`'s head, which answers itself; for a `--from` start
    it is that ref's own governing commit. `litany advance` asks it of
-   an existing agent's branch. Either way the fork is the freeze, and
-   what it freezes is that commit — never the fork point's tree.
+   an existing agent's branch. Either way that governing commit is then
+   **followed to its lineage's current tip** (§2.2, bl-403b): exactly
+   one config head standing over it is followed; diverged heads hold
+   the agent on its fork commit, with a `litany: notice:` line saying
+   so at every step until a retarget settles the lineage. Control is
+   read from the followed commit — never the fork point's tree.
 2. Run the load-time version guard: `bz --version` must equal the
    linked brazen crate version (§4.4). Under an `adapter:` override the
    guard is skipped and the in-band `MessageStart.v` handshake governs.

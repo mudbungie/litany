@@ -2,11 +2,13 @@
 //! (ARCH §6 *The workflow mark*, `docs/DESIGN_WORKFLOW_SWITCH.md`).
 //!
 //! The workflow is the named what-happens-next policy — the config's
-//! `workflow.yaml` (§6) — and by default it is frozen at fork like every
-//! other control fact (§2.2). The mark is the workflow fact's own exit
-//! (operator ruling 2026-08-31): a **standing** per-agent ref naming the
-//! config commit whose `workflow.yaml` governs the agent from its next
-//! step boundary on. Resolution consults it fresh at every hop
+//! `workflow.yaml` (§6) — and by default it follows the governing
+//! lineage's current tip like every other control fact (§2.2,
+//! bl-403b). The mark is the workflow fact's per-agent override
+//! (operator ruling 2026-08-31): a **standing** ref naming the config
+//! commit whose `workflow.yaml` governs the agent from its next step
+//! boundary on — winning over the followed tip, which is exactly what
+//! makes it a deliberate pin as well as a switch. Resolution consults it fresh at every hop
 //! ([`crate::prompt`]'s `resolve::workflow_source` — nearest mark on the
 //! agent's descent, else the governing config commit), so writing the
 //! ref *is* the switch, effective at the next step, with no landing, no

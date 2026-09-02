@@ -201,11 +201,12 @@ pub(in crate::prompt) fn run(
         return Ok(AdvanceOutcome::NothingToDo);
     }
 
-    // §2.2 *Fork is the freeze*, and its one exit: a retarget mark
-    // (`litany retarget`, §3.4) lands **here** — at the step boundary,
-    // before anything resolves config — so the step below is the first one
-    // the target config governs. Unmarked, which is every agent at every
-    // boundary bar one, costs a single ref read.
+    // §2.2 *Fork chooses the lineage* (bl-403b): a retarget mark
+    // (`litany retarget`, §3.4) — the lineage change — lands **here**,
+    // at the step boundary, before anything resolves config — so the
+    // step below is the first one the target lineage governs. Unmarked,
+    // which is every agent at every boundary bar one, costs a single
+    // ref read.
     report_retarget(
         agent_id,
         retarget::land(workspace, agent_id, &worktree, deps.git)?,

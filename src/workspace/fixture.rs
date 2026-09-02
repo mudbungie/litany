@@ -66,13 +66,14 @@ pub(crate) fn spawn_root(ws: &Path, id: &str) -> PathBuf {
     spawn_agent(ws, id, &config_ref(DEFAULT_CONFIG_NAME))
 }
 
-/// Advance `config/default` with the given control files — the
+/// Advance `config/<name>` with the given control files — the
 /// harness-assisted user act of §2.2, over the shipped authoring core
-/// ([`authoring::author`], `Origin::Advance`). Agents forked after this
-/// govern under the new head. Fixtures carry no data-root pools, so the
+/// ([`authoring::author`], `Origin::Advance`). Under follow-the-tip
+/// (§2.2, bl-403b) the new head reaches every agent on the lineage at
+/// its next step. Fixtures carry no data-root pools, so the
 /// descriptions refresh reads an absent pool (an empty tree, §3.3) — any
 /// nonexistent path serves as the `data_root`.
-pub(crate) fn amend_config(ws: &Path, files: &[(&str, &str)]) {
+pub(crate) fn amend_lineage(ws: &Path, name: &str, files: &[(&str, &str)]) {
     let owned: Vec<(String, String)> = files
         .iter()
         .map(|(r, c)| (r.to_string(), c.to_string()))
@@ -80,7 +81,7 @@ pub(crate) fn amend_config(ws: &Path, files: &[(&str, &str)]) {
     authoring::author(
         ws,
         &ws.join(".no-pools"),
-        DEFAULT_CONFIG_NAME,
+        name,
         Origin::Advance,
         move |dir| {
             for (rel, content) in &owned {
@@ -93,4 +94,9 @@ pub(crate) fn amend_config(ws: &Path, files: &[(&str, &str)]) {
         &RealGit::new(),
     )
     .unwrap();
+}
+
+/// [`amend_lineage`] on the default lineage.
+pub(crate) fn amend_config(ws: &Path, files: &[(&str, &str)]) {
+    amend_lineage(ws, DEFAULT_CONFIG_NAME, files);
 }

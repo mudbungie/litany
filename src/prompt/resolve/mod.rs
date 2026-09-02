@@ -2,13 +2,15 @@
 //! (ARCH §2.2, §4.2, §4.3, §6).
 //!
 //! Control is read from a **config commit** (ARCH §2.2), never from a
-//! worktree file: `litany prompt` (a fresh root) resolves against the
-//! **governing config commit of the ref it is about to fork off** — the
-//! config commit itself for the ordinary fresh start, its nearest
-//! `config/*` ancestor when the start forks from history (§2.3, §7.2) —
-//! and `litany advance` (the §6 hop) resolves the governing config
-//! commit of the existing agent's branch. Both are the one ancestry
-//! derivation ([`crate::workspace::governing_config`]). The reads —
+//! worktree file — and since bl-403b (operator ruling 2026-09-01) that
+//! commit is the **followed** one: the governing lineage's *current
+//! tip*, re-derived at every resolution, so a config edit reaches every
+//! conversation at its next step boundary and only a step in flight
+//! finishes on the commit it started with. `litany prompt` (a fresh
+//! root) asks it of the ref it is about to fork off, `litany advance`
+//! (the §6 hop) of the existing agent's branch — one derivation
+//! ([`crate::workspace::current_config`], over the unchanged governing
+//! ancestry query). The reads —
 //! `providers.yaml`, `workflow.yaml` policy, the role soul — go through
 //! `git show <commit>:<path>`; the global `models.yaml` and the adapter
 //! binary with its load-time version guard (§4.4) resolve as before.
@@ -17,12 +19,18 @@
 //! consumes. `litany advance` resolves *lazily*: a no-op hop (lost
 //! acquire, nothing due) exits before any config is read (§6).
 
+mod source;
 pub(in crate::prompt) mod workflow_source;
+
+pub(in crate::prompt) use source::ConfigSource;
+use source::{agent_role, config_commit};
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_declines;
 
-use super::{Deps, Error, GLOBAL_MODELS_FILE, PER_REPO_PROVIDERS_FILE, SOULS_DIR, WORKER_ROLE};
+use super::{Deps, Error, GLOBAL_MODELS_FILE, PER_REPO_PROVIDERS_FILE, SOULS_DIR};
 use crate::config::manifest::{Manifest, RoleRules};
 use crate::config::version::Version;
 use crate::config::{ModelsConfig, Workflow, cross};
@@ -38,19 +46,6 @@ const VERSION_FILE: &str = "version";
 /// Control file declaring the per-role context-assembly rules (ARCH
 /// §5.2), read from the config commit (§2.2).
 const MANIFEST_FILE: &str = "manifest.yaml";
-
-/// Which config commit governs the resolution (ARCH §2.2).
-pub(super) enum ConfigSource<'a> {
-    /// A fresh root about to fork off this ref (§2.3 *Any ref is a legal
-    /// fork point*): a config lineage's head, or any commit of any agent
-    /// (`--from`, §7.2). Either way the governing config commit is the
-    /// nearest `config/*` ancestor of that ref — a config head answers
-    /// itself — so the fork is the freeze whatever it forks off.
-    Fork(&'a str),
-    /// An existing agent: its governing config commit, the nearest
-    /// `config/*` ancestor of its branch (§2.2), derived from ancestry.
-    Agent(&'a str),
-}
 
 /// The owned resolution of the worker role against one workspace:
 /// everything a step needs that is not on the branch itself. Owned (not
@@ -75,9 +70,10 @@ pub(super) struct WorkerConfig {
     pub(super) provider_row: String,
     /// The role's declared tool names (§4.3 `tools:`).
     pub(super) tools: Vec<String>,
-    /// The config commit every control file above was read from (§2.2) —
-    /// a config branch's head for a fresh root, the ancestry derivation
-    /// for an existing agent. Carried because the dispatch commit derives
+    /// The config commit every control file above was read from — the
+    /// **followed** commit (§2.2, bl-403b): the governing lineage's
+    /// current tip, or the fork commit while lineages diverge. Carried
+    /// because the dispatch commit derives
     /// the agent's `descriptions/**` from it (§3.3), and it must be the
     /// *same* commit the grant came from.
     pub(super) config_commit: String,
@@ -87,8 +83,8 @@ pub(super) struct WorkerConfig {
     /// The agent's workflow — the one control fact with its own source
     /// derivation (§6 *The workflow mark*, [`workflow_source`]): the
     /// nearest workflow mark's commit when one stands, else the
-    /// governing config commit (§2.2), which is every unmarked agent's
-    /// path. Carries the event→action bindings the §6 interpreter runs, and
+    /// followed config commit (§2.2, bl-403b), which is every unmarked
+    /// agent's path. Carries the event→action bindings the §6 interpreter runs, and
     /// is the single home for the retry policy and budgets — `as_resolved`
     /// derives both from it rather than mirroring them into their own
     /// fields (`docs/PRINCIPLES.md` Single source of truth).
@@ -222,48 +218,6 @@ pub(super) fn resolve_worker(
         workflow,
         manifest,
         expect_handshake,
-    })
-}
-
-/// The agent's role (§6 role-aware resolution). A fresh root about to
-/// fork has no dispatch commit yet, so it is the worker default; an
-/// existing agent's role is derived from its own dispatch commit subject
-/// — the single authoritative home ([`crate::prompt::role`]) — falling
-/// back to the worker default for a root branch (whose subject lacks the
-/// `dispatch: <role>` prefix).
-fn agent_role(
-    workspace: &Path,
-    source: &ConfigSource<'_>,
-    deps: &Deps<'_>,
-) -> Result<String, Error> {
-    match source {
-        ConfigSource::Fork(_) => Ok(WORKER_ROLE.to_string()),
-        ConfigSource::Agent(agent_id) => Ok(crate::prompt::role::derive(
-            &workspace::repo_git(workspace),
-            &workspace::agent_ref(agent_id),
-            agent_id,
-            deps.git,
-        )?
-        .unwrap_or_else(|| WORKER_ROLE.to_string())),
-    }
-}
-
-/// Resolve the governing config commit sha for the source (§2.2) — one
-/// ancestry derivation for both, asked of the fork point for a fresh
-/// root and of its own ref for an existing agent
-/// ([`workspace::governing_config`]).
-fn config_commit(
-    workspace: &Path,
-    source: &ConfigSource<'_>,
-    deps: &Deps<'_>,
-) -> Result<String, Error> {
-    let rev = match source {
-        ConfigSource::Fork(fork_point) => (*fork_point).to_owned(),
-        ConfigSource::Agent(agent_id) => workspace::agent_ref(agent_id),
-    };
-    workspace::governing_config(workspace, &rev, deps.git).map_err(|source| Error::Git {
-        op: "governing config",
-        source,
     })
 }
 

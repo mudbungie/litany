@@ -140,9 +140,11 @@ fn unbounded_workflow_never_triggers_a_budget_stop() {
 #[test]
 fn budget_ref_write_failure_surfaces_as_a_git_error() {
     // Indices below are relative to the first post-control op; the
-    // start's preamble precedes them with eight: the fork-point
+    // start's preamble precedes them with ten: the fork-point
     // lineage query (§2.3), the `config/*` head enumeration and its
-    // merge-base (the governing-config ancestry derivation, §2.2), and
+    // merge-base (the governing ancestry derivation, §2.2), the
+    // followed-tip enumeration and its containment merge-base (§2.2,
+    // bl-403b), and
     // five `show` reads (`version` first, the §10 schema-version guard;
     // manifest.yaml last before the soul, §5.2).
     // The marker `update-ref` is git op #20 in the exhaustion path (0
@@ -165,7 +167,7 @@ fn budget_ref_write_failure_surfaces_as_a_git_error() {
         StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&tool_use_stream()),
     ]);
-    let git = StubGit::failing_at(30);
+    let git = StubGit::failing_at(32);
     let (clock, id) = (FixedClock::default(), FixedIdGen);
     let (sleeper, tool_executor) = (StubSleeper::default(), StubToolExecutor::ok());
 

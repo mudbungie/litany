@@ -141,7 +141,8 @@ const INHERITED_GIT_ENV: &[&str] = &[
 ///    `git add -A`, commit.
 /// 4. Remove the authoring worktree. The workspace is left with exactly
 ///    one ref, `config/default`, whose head is the config commit every
-///    fresh root agent forks off (§2.3) — the fork is the freeze.
+///    fresh root agent forks off (§2.3) — the lineage resolution
+///    follows from then on (§2.2, bl-403b).
 pub fn scaffold<G: GitRunner>(dest: &Path, roots: &Roots, git: &G) -> Result<(), ScaffoldError> {
     check_dest(dest)?;
     let repo = crate::workspace::repo_git(dest);

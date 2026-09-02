@@ -66,10 +66,10 @@ pub(crate) const SYSTEM_SLOT_FILES: [&str; 3] = [
 /// against the workspace's bare `repo.git` (§2.2): fork the fresh root
 /// agent off the ref the start named — a config lineage's head, or any
 /// ref at all (§2.3 *Any ref is a legal fork point*, §7.2
-/// fork-from-history). The fork is the freeze (§2.2), and what it
-/// freezes is the *governing config commit* of that ref, which
-/// `resolved` already carries — so this call is the same operation with
-/// a different argument, never a second kind of start. Root id
+/// fork-from-history). The fork chooses the lineage (§2.2, bl-403b),
+/// and what `resolved` already carries is that lineage's followed
+/// commit — so this call is the same operation with a different
+/// argument, never a second kind of start. Root id
 /// uniqueness per workspace is structural: the `-b` creation fails if
 /// the ref already exists.
 pub(super) fn spawn_branch(

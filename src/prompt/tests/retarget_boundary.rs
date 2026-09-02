@@ -16,25 +16,21 @@ use super::stubs::{StubSleeper, unreachable_adapter};
 use super::tool_stub::StubToolExecutor;
 use crate::prompt::Deps;
 use crate::prompt::dispatch::advance::{AdvanceOutcome, run};
-use crate::template::{GitRunner, RealGit};
-use crate::workspace::{self, DEFAULT_CONFIG_NAME, agent_ref, fixture, repo_git};
+use crate::template::RealGit;
+use crate::workspace::{self, agent_ref};
 use std::path::Path;
 
 #[test]
 fn the_executor_lands_a_marked_retarget_at_its_next_step_boundary() {
     let (_h, ws, wt) = crate::prompt::retarget::tests::agent();
     let git = RealGit::new();
-    fixture::amend_config(&ws, &[("souls/worker.md", "the newer soul\n")]);
-    let target = git
-        .run_capture(
-            &repo_git(&ws),
-            &["rev-parse", &workspace::config_ref(DEFAULT_CONFIG_NAME)],
-        )
-        .unwrap()
-        .trim()
-        .to_string();
+    // A diverged lineage: under follow-the-tip (§2.2, bl-403b) a
+    // same-lineage advance reaches the agent by resolution alone, so
+    // what a retarget lands is a change of lineage.
+    let target =
+        crate::prompt::retarget::tests::variant(&ws, &[("souls/worker.md", "the newer soul\n")]);
     let before = workspace::governing_config(&ws, &agent_ref("a"), &git).unwrap();
-    assert_ne!(before.trim(), target, "the freeze is real before the mark");
+    assert_ne!(before.trim(), target, "the lineage change is real");
     workspace::retarget::write(&ws, "a", &target, &git).unwrap();
 
     let adapter = unreachable_adapter();

@@ -84,8 +84,13 @@ impl crate::template::GitRunner for Script {
             Some("log") => self.log.into(),
             Some("merge-base") => self.rev_parse.into(),
             // `config_names` asks for short names, `config_lineage` for
-            // full ones — the two readings of the same registry (§2.3).
+            // full ones, and the follow-the-tip derivation (§2.2,
+            // bl-403b) for tips — three readings of one registry (§2.3).
+            // The tip answers `gsha`, so the followed answer stays the
+            // governing sha and the default script's mark (`tsha`) is a
+            // real landing rather than a no-op.
             Some("for-each-ref") if joined.contains(":short") => "config/default\n".into(),
+            Some("for-each-ref") if joined.contains("%(objectname)") => "gsha\n".into(),
             Some("for-each-ref") => "refs/heads/config/default\n".into(),
             Some("show") => self.providers.into(),
             Some("write-tree") => "wsha".into(),
@@ -124,7 +129,7 @@ fn a_governing_config_derivation_failure_surfaces() {
         fail_capture: Some("merge-base"),
         ..Script::default()
     };
-    assert_op(s.land().unwrap_err(), "retarget governing config");
+    assert_op(s.land().unwrap_err(), "retarget followed config");
 }
 
 #[test]

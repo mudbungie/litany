@@ -1,12 +1,12 @@
-//! **Retarget** — the exit from the config freeze (ARCH §2.2, §3.4).
+//! **Retarget** — the change of config lineage (ARCH §2.2, §3.4).
 //!
-//! Fork is the freeze (§2.2): the config commit governing an agent is the
-//! nearest `config/*` ancestor of its branch, derived from ancestry and
-//! never stored, so a config edit after the fork governs nothing that
-//! agent does. Without an exit, a running agent is welded to the config it
-//! forked off for life — an operator who fixes an expired model id watches
-//! the very next step dispatch the old one, and the only alternative is to
-//! abandon a live conversation's whole history to change one pointer.
+//! Fork chooses the lineage, and resolution follows its current tip at
+//! every step boundary (§2.2, bl-403b) — an operator who fixes an
+//! expired model id sees every conversation on the lineage pick it up
+//! at its next step, no retarget needed. What remains this landing's to
+//! do is the *lineage* itself: moving an agent onto a different
+//! `config/*` line, or settling one held on its fork commit because
+//! diverged lineages both reach it.
 //!
 //! **Retarget is a re-fork, and it is the compaction landing's own two
 //! moves** (§2.6) — no merge appears anywhere, because §2.3's invariant is
@@ -143,13 +143,17 @@ fn grant_of(
     Ok((role, tools))
 }
 
-/// The agent's governing config commit (§2.2) — the pure ancestry query,
-/// unchanged by any of this.
+/// The commit the agent already resolves — the followed answer (§2.2
+/// *Fork chooses the lineage*, bl-403b): a target the agent's next step
+/// would read anyway is a clean no-op, so under follow-the-tip a
+/// retarget onto the agent's own advanced lineage head no-ops, and what
+/// retargets is a change of *lineage* (or the healing of a diverged
+/// one).
 fn governing(workspace_dir: &Path, branch: &str, git: &dyn GitRunner) -> Result<String, Error> {
-    workspace::governing_config(workspace_dir, branch, git)
-        .map(|sha| sha.trim().to_string())
+    workspace::current_config::current_config(workspace_dir, branch, git)
+        .map(|resolved| resolved.commit().trim().to_string())
         .map_err(|source| Error::Git {
-            op: "retarget governing config",
+            op: "retarget followed config",
             source,
         })
 }

@@ -2,11 +2,11 @@
 //! mark*, `docs/DESIGN_WORKFLOW_SWITCH.md`).
 //!
 //! The workflow — the named what-happens-next policy, `workflow.yaml`
-//! (§6) — is the one control fact with an exit of its own from the §2.2
-//! config freeze: a standing **workflow mark**
-//! ([`crate::workspace::workflow_mark`]) names the config commit whose
-//! `workflow.yaml` governs the agent instead of the governing config
-//! commit's. Because resolution runs fresh at every hop (§6 "no resident
+//! (§6) — is the one control fact with a per-agent override: a standing
+//! **workflow mark** ([`crate::workspace::workflow_mark`]) names the
+//! config commit whose `workflow.yaml` governs the agent instead of
+//! the followed config commit's (§2.2 follow-the-tip, bl-403b — so the
+//! mark both switches the workflow and pins it against tip movement). Because resolution runs fresh at every hop (§6 "no resident
 //! interpreter"), consulting the mark here makes the switch effective at
 //! the agent's next step boundary with no landing machinery at all —
 //! writing the ref *is* the switch.
@@ -17,8 +17,8 @@
 //! whole tree, and a child's own mark overrides its ancestors', the same
 //! nearest-wins shape as governing-config ancestry (§2.2). A fresh root
 //! about to fork ([`ConfigSource::Fork`]) has no id yet and so no mark:
-//! the governing commit answers, which is the whole path every unmarked
-//! agent takes — today's behavior, byte for byte.
+//! the followed commit answers, which is the whole path every unmarked
+//! agent takes.
 
 use super::{ConfigSource, VERSION_FILE, control_origin, read_control};
 use crate::config::Workflow;

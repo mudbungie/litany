@@ -212,7 +212,7 @@ fn missing_soul_is_surfaced_as_control_read_before_any_spawn() {
 
 #[test]
 fn a_parent_with_no_config_ancestor_fails_as_git() {
-    // An orphan parent branch has no governing config; the derivation
+    // An orphan parent branch has no governing config; the followed-config derivation
     // fails loudly (§2.2) before any fork.
     let (_h, ws) = fixture::workspace();
     let g = crate::template::RealGit::new();
@@ -247,7 +247,7 @@ fn a_parent_with_no_config_ancestor_fails_as_git() {
         matches!(
             err,
             Error::Git {
-                op: "governing config",
+                op: "followed config",
                 ..
             }
         ),

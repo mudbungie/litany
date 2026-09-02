@@ -209,8 +209,9 @@ pub fn config_lineage(
 /// asks it of the ref it is about to fork off (§2.3 *Any ref is a legal
 /// fork point*). A config branch's head answers itself — it is its own
 /// nearest config ancestor — so "fork off a config head" needs no
-/// second rule, and **fork is the freeze** holds whatever the fork
-/// point is: the grants derive from the governing config commit, never
+/// second rule, and **fork chooses the lineage** whatever the fork
+/// point is (§2.2, bl-403b): the grants derive from a config commit —
+/// the lineage's tip, by [`current_config`] over this query — never
 /// from the fork point's own tree (§3.3, §5.1).
 pub fn governing_config(workspace: &Path, rev: &str, git: &dyn GitRunner) -> io::Result<String> {
     let repo = repo_git(workspace);
@@ -271,6 +272,7 @@ pub fn control_exists(workspace: &Path, commit: &str, path: &str, git: &dyn GitR
 }
 
 pub mod agent_name;
+pub mod current_config;
 pub mod cwd;
 mod guard;
 pub mod hold;
