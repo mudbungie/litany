@@ -1,5 +1,6 @@
-//! The model call: build a typed canonical request, exec `bz` once per
-//! attempt, own the retry loop (ARCH §4.4, §2.10, §3.5).
+//! The model call: exec `bz` once per attempt and own the retry loop
+//! (ARCH §4.4, §2.10, §3.5). The typed request every attempt sends is
+//! composed apart, in [`super::canonical`].
 //!
 //! brazen never retries — each `bz` process performs exactly one HTTP
 //! round-trip (§4.4). The harness owns the retry loop: on an in-band
@@ -41,9 +42,7 @@ use super::stop_signal;
 use crate::config::RetryConfig;
 use crate::prompt::Error;
 use crate::prompt::adapter::AdapterRunner;
-use brazen::{
-    CanonicalError, CanonicalRequest, Content, EVENT_SCHEMA_VERSION, Event, Message, Tool,
-};
+use brazen::{CanonicalError, EVENT_SCHEMA_VERSION, Event};
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::Write;
@@ -98,29 +97,6 @@ pub(super) struct ModelCall<'a> {
     /// skipped and the in-band `MessageStart.v == EVENT_SCHEMA_VERSION`
     /// handshake governs the completed segment instead (§4.4).
     pub(super) expect_handshake: bool,
-}
-
-/// Build a typed [`CanonicalRequest`] (§4.4 "the vocabulary is linked"):
-/// building the struct directly makes brazen's fail-open `extra` map
-/// unreachable. `stream` is left `None` — streaming is brazen's default
-/// and litany never overrides it (§4.4). `tools` carries the role's
-/// composed toolset (§3.3 — the schemas the model is told it may call);
-/// an empty vec is "no tools declared/available".
-pub(super) fn build_request(
-    model_id: &str,
-    system: &str,
-    messages: Vec<Message>,
-    tools: Vec<Tool>,
-    max_tokens: u32,
-) -> CanonicalRequest {
-    CanonicalRequest {
-        model: model_id.to_string(),
-        system: Some(vec![Content::Text(system.to_string())]),
-        messages,
-        tools,
-        max_tokens: Some(max_tokens),
-        ..CanonicalRequest::default()
-    }
 }
 
 /// Drive one model call to resolution: `bz --json --provider <row>` per

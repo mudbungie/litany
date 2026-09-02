@@ -15,6 +15,7 @@
 //! just noisy. (Phase 1 of the v0.3 layout migration warned; Phase 4
 //! escalated to error once the v0.2 template was retired.)
 
+use crate::config::effort::Effort;
 use crate::config::error::LoadError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -35,12 +36,16 @@ pub struct PerRepoProviders {
 /// (§4.2). Endpoint and auth resolve inside brazen at call time (§4.1 —
 /// no `auth_env` / `endpoint_env` here). `tools` selects which tools
 /// the role's agent may call (§3.3); omitted or empty means none.
+/// `effort` is the role's reasoning-effort level ([`Effort`], §4.3);
+/// omitted means none requested — the general path with empty inputs.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct RoleAssignment {
     pub provider: String,
     pub model: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effort: Option<Effort>,
 }
 
 const LEGACY_KEYS: &[&str] = &["providers", "models"];
@@ -123,6 +128,38 @@ roles:
         // defaults empty (the compactor's toolset is built-in, §2.7).
         assert_eq!(p.roles["worker"].tools, vec!["bash", "read_file"]);
         assert!(p.roles["compactor"].tools.is_empty());
+        // An omitted `effort:` is none requested (§4.3) — the general
+        // path with empty inputs, not a default level.
+        assert!(p.roles["worker"].effort.is_none());
+    }
+
+    #[test]
+    fn parses_the_role_effort_level() {
+        let yaml = r#"
+roles:
+  worker:
+    provider: anthropic
+    model: claude-sonnet-5
+    effort: high
+"#;
+        let p = parse(yaml).unwrap();
+        assert_eq!(p.roles["worker"].effort, Some(Effort::High));
+    }
+
+    #[test]
+    fn rejects_an_effort_outside_the_vocabulary() {
+        // The vocabulary is closed (`low|medium|high`, ARCH §4.3); a
+        // stray spelling is a structural load error, never a silent
+        // none — decline illegal operations.
+        let yaml = r#"
+roles:
+  worker:
+    provider: anthropic
+    model: claude-sonnet-5
+    effort: maximal
+"#;
+        let err = parse(yaml).unwrap_err();
+        assert!(matches!(err, LoadError::Yaml { .. }));
     }
 
     #[test]

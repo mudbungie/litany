@@ -12,6 +12,7 @@ mod tests;
 
 pub mod action;
 pub mod cross;
+pub mod effort;
 pub mod error;
 pub mod manifest;
 pub mod models;
@@ -23,6 +24,7 @@ pub mod version;
 pub mod workflow;
 
 pub use action::Action;
+pub use effort::Effort;
 pub use error::LoadError;
 pub use models::Models;
 pub use per_repo_providers::PerRepoProviders;

@@ -58,6 +58,7 @@ mod tests {
                 provider: "anthropic".to_string(),
                 model: "claude-sonnet-5".to_string(),
                 tools: Vec::new(),
+                effort: None,
             },
         );
         PerRepoProviders { roles }

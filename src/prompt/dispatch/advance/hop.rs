@@ -10,8 +10,8 @@
 //! `stopped`-epitaph terminal rather than riding into a successor.
 
 use super::super::{
-    assembler, child_result, model_call, result_deposit, step_commit, stop_signal, terminal,
-    tool_step, tools, transcript,
+    assembler, canonical, child_result, model_call, result_deposit, step_commit, stop_signal,
+    terminal, tool_step, tools, transcript,
 };
 use crate::config::Event;
 use crate::prompt::inbox::Epitaph;
@@ -102,12 +102,13 @@ pub(super) fn step(
         &messages,
         &tools::injected(resolved.grant.role, deps.tool_executor, workspace, agent_id),
     )?;
-    let request = model_call::build_request(
+    let request = canonical::build_request(
         resolved.model_id,
         &system_with_goal,
         messages,
         tools,
         step_commit::DEFAULT_MAX_TOKENS,
+        resolved.effort,
     );
     let request_value =
         serde_json::to_value(&request).expect("CanonicalRequest is always serializable");

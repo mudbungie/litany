@@ -25,8 +25,8 @@ use super::step_commit::{
 };
 use super::tool_step::{self, run_tool_calls};
 use super::{
-    Resolved, assembler, child_result, drain, driver, model_call, result_deposit, stop_signal,
-    terminal, tools, transcript,
+    Resolved, assembler, canonical, child_result, drain, driver, model_call, result_deposit,
+    stop_signal, terminal, tools, transcript,
 };
 use crate::prompt::inbox::{self, Epitaph};
 use crate::prompt::resolve::{ConfigSource, WorkerConfig, resolve_worker};
@@ -169,12 +169,13 @@ pub(in crate::prompt) fn run_exchange(
             &messages,
             &tools::injected(resolved.grant.role, deps.tool_executor, repo, &conv_id),
         )?;
-        let request = model_call::build_request(
+        let request = canonical::build_request(
             resolved.model_id,
             &system_with_goal,
             messages,
             tools,
             DEFAULT_MAX_TOKENS,
+            resolved.effort,
         );
         let request_value =
             serde_json::to_value(&request).expect("CanonicalRequest is always serializable");

@@ -68,6 +68,10 @@ pub(super) struct WorkerConfig {
     pub(super) model_id: String,
     /// brazen provider-row name passed as `bz --provider <row>` (§4.4).
     pub(super) provider_row: String,
+    /// The role's reasoning-effort level (§4.3 `effort:`), from the same
+    /// assignment as the model pointer — carried to every model call's
+    /// `reasoning` knob; `None` means none requested.
+    pub(super) effort: Option<crate::config::Effort>,
     /// The role's declared tool names (§4.3 `tools:`).
     pub(super) tools: Vec<String>,
     /// The config commit every control file above was read from — the
@@ -116,6 +120,7 @@ impl WorkerConfig {
             },
             model_id: &self.model_id,
             provider_row: &self.provider_row,
+            effort: self.effort,
             soul: self.soul.clone(),
             binary: self.binary.clone(),
             retry: self.workflow.retry,
@@ -211,6 +216,7 @@ pub(super) fn resolve_worker(
         role,
         model_id: assignment.model.clone(),
         provider_row: assignment.provider.clone(),
+        effort: assignment.effort,
         tools: assignment.tools.clone(),
         config_commit: commit,
         soul,

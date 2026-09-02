@@ -7,7 +7,7 @@
 
 use super::Grant;
 use crate::config::manifest::RoleRules;
-use crate::config::{Budgets, RetryConfig, Workflow};
+use crate::config::{Budgets, Effort, RetryConfig, Workflow};
 use std::ffi::OsString;
 
 /// Inputs resolved by [`super::run`] before branch work starts.
@@ -23,6 +23,9 @@ pub(in crate::prompt) struct Resolved<'a> {
     pub(in crate::prompt) model_id: &'a str,
     /// brazen provider-row name passed as `bz --provider <row>` (§4.4).
     pub(in crate::prompt) provider_row: &'a str,
+    /// The role's reasoning-effort level (§4.3 `effort:`) — rides every
+    /// model call's `reasoning` knob; `None` leaves it unset.
+    pub(in crate::prompt) effort: Option<Effort>,
     pub(in crate::prompt) soul: String,
     /// The adapter binary (`bz` or the `adapter:` override, §4.2).
     pub(in crate::prompt) binary: OsString,

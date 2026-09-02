@@ -18,6 +18,7 @@
 
 pub mod advance;
 mod assembler;
+mod canonical;
 mod child_result;
 mod drain;
 pub mod driver;
