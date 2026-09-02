@@ -6,6 +6,7 @@
 //! runs at read time, never stored beside them (PRINCIPLES "Single
 //! source of truth").
 
+use crate::experiment::Experiment;
 use crate::metrics::RunMetrics;
 use crate::stats::TaskResult;
 use serde::{Deserialize, Serialize};
@@ -38,6 +39,64 @@ pub struct Provenance {
     pub driver_version: Option<String>,
     /// Runs per task (N).
     pub runs_per_task: usize,
+}
+
+/// The **controls** of one evaluation (bl-f838): every reproducibility
+/// input other than the experiment itself — what must be held equal
+/// across the variants of a comparison for the workflow to be the only
+/// declared difference. One `agent-eval run` invocation holds them
+/// equal by construction: they are given (and probed) once, and each
+/// variant's [`Provenance`] is this plus that variant's identity.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Controls {
+    pub suite: String,
+    pub suite_revision: Option<String>,
+    pub fixture_digest: Option<String>,
+    pub driver: String,
+    pub driver_version: Option<String>,
+    pub runs_per_task: usize,
+}
+
+impl Controls {
+    /// One variant's provenance: these controls plus its identity.
+    pub fn provenance(&self, experiment: &Experiment) -> Provenance {
+        Provenance {
+            experiment: experiment.name.clone(),
+            workflow: experiment.workflow.display().to_string(),
+            suite: self.suite.clone(),
+            suite_revision: self.suite_revision.clone(),
+            fixture_digest: self.fixture_digest.clone(),
+            driver: self.driver.clone(),
+            driver_version: self.driver_version.clone(),
+            runs_per_task: self.runs_per_task,
+        }
+    }
+}
+
+/// The control fields on which two provenances differ, by display name
+/// (empty = held). The experiment and its workflow are the treatment,
+/// never listed: they are *supposed* to differ.
+pub fn controls_diff(a: &Provenance, b: &Provenance) -> Vec<&'static str> {
+    let mut diffs = Vec::new();
+    if a.suite != b.suite {
+        diffs.push("suite");
+    }
+    if a.suite_revision != b.suite_revision {
+        diffs.push("suite revision");
+    }
+    if a.fixture_digest != b.fixture_digest {
+        diffs.push("starting fixture");
+    }
+    if a.driver != b.driver {
+        diffs.push("driver");
+    }
+    if a.driver_version != b.driver_version {
+        diffs.push("driver version");
+    }
+    if a.runs_per_task != b.runs_per_task {
+        diffs.push("runs/task");
+    }
+    diffs
 }
 
 /// One task's runs.
@@ -132,6 +191,24 @@ impl Record {
         }
         set.into_iter().collect()
     }
+}
+
+/// Save an evaluation's records where `path` points (bl-f838): one
+/// record is written to `path` as a file (the bl-36fa contract,
+/// unchanged); several land under it as a directory, one
+/// `<experiment>.json` each — every variant's record stays a
+/// first-class `compare` input on its own. Distinct filenames are
+/// guaranteed upstream: [`crate::experiment::resolve_all`] refuses a
+/// duplicate name.
+pub fn save_all(records: &[Record], path: &Path) -> io::Result<()> {
+    if let [one] = records {
+        return one.save(path);
+    }
+    std::fs::create_dir_all(path)?;
+    for r in records {
+        r.save(&path.join(format!("{}.json", r.provenance.experiment)))?;
+    }
+    Ok(())
 }
 
 /// [`Record::task_results`] over any task slice (the comparison uses it

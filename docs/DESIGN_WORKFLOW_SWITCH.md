@@ -167,4 +167,7 @@ Deferred, filed: the in-process root loop (`run_exchange`) resolves once per
 exchange, so a mark written *mid-exchange* takes effect from the next
 advance-driven step — the same latency retarget already has there; dissolved
 by the §6 prompt→advance collapse (bl-e580). Surfacing the
-derivation in `litany scan` (bl-5c02). The eval A/B driver (bl-f838).
+derivation in `litany scan` (bl-5c02). The eval A/B driver (bl-f838 —
+since landed: `agent-eval run` takes `--config` repeatably and reports
+the baseline → candidate comparison per variant, §9.3 shipped-state
+note).

@@ -7,7 +7,10 @@
 //! four usage counters). Deltas are computed only over the shared task
 //! set; tasks present on one side alone are named, never silently
 //! dropped. A metric missing on either side yields `Δ —`, never a
-//! fabricated zero, and nothing here infers price.
+//! fabricated zero, and nothing here infers price. A `controls:` line
+//! (bl-f838) derives whether the two records held everything but the
+//! experiment equal — one invocation's variants always did, records
+//! from separate invocations get told what differed.
 
 use crate::metrics::Efficiency;
 use crate::record::{self, Record, TaskRecord};
@@ -37,19 +40,44 @@ pub fn render(baseline: &Record, candidate: &Record) -> String {
     let mc = stats::compute(&record::task_results(&shared_c));
 
     let mut out = format!(
-        "baseline → candidate comparison over {} shared task(s)\n",
+        "baseline {} → candidate {}: comparison over {} shared task(s)\n",
+        baseline.provenance.experiment,
+        candidate.provenance.experiment,
         shared_b.len()
     );
     out.push_str("\nbaseline:");
     out.push_str(&indent(&report::reproducibility_block(baseline)));
     out.push_str("\ncandidate:");
     out.push_str(&indent(&report::reproducibility_block(candidate)));
+    out.push_str(&controls_line(baseline, candidate));
     out.push_str(&total_block(&mb, &mc, &shared_b, &shared_c));
     out.push_str(&category_block(&mb, &mc));
     out.push_str(&task_block(&shared_b, &c_by_id));
     out.push_str(&unmatched_block("baseline", &baseline.tasks, &c_by_id));
     out.push_str(&unmatched_block("candidate", &candidate.tasks, &b_by_id));
     out
+}
+
+/// Whether the two records' controls — every reproducibility input
+/// other than the experiment (`record::controls_diff`, bl-f838) — were
+/// held equal, plus the observed model sets when both sides reported
+/// one. A difference is a fact to see, never a refusal: cross-time and
+/// cross-harness comparison is this report's charter, and the line is
+/// what says the deltas below compare more than the experiment.
+fn controls_line(baseline: &Record, candidate: &Record) -> String {
+    let mut diffs = record::controls_diff(&baseline.provenance, &candidate.provenance);
+    let (mb, mc) = (baseline.observed_models(), candidate.observed_models());
+    if !mb.is_empty() && !mc.is_empty() && mb != mc {
+        diffs.push("observed models");
+    }
+    if diffs.is_empty() {
+        "\ncontrols: held — the experiment is the only declared difference\n".to_string()
+    } else {
+        format!(
+            "\ncontrols differ: {} — the deltas below compare more than the experiment\n",
+            diffs.join(", ")
+        )
+    }
 }
 
 /// Total quality and efficiency deltas over the shared tasks.

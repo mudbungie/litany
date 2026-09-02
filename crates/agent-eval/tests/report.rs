@@ -132,3 +132,46 @@ fn unknowns_render_as_unknown_never_as_zero() {
     assert!(text.contains("tool invocations/run: —"));
     assert!(text.contains("input —  output —  cache_read —  cache_write —"));
 }
+
+#[test]
+fn render_all_of_one_is_the_single_report() {
+    let record = Record {
+        provenance: known_provenance(),
+        tasks: vec![task(
+            "t",
+            &["early_termination"],
+            vec![run(true, 100, None)],
+        )],
+    };
+    assert_eq!(
+        report::render_all(std::slice::from_ref(&record)),
+        report::render(&record)
+    );
+}
+
+#[test]
+fn render_all_of_many_is_a_comparison_per_candidate() {
+    let named = |name: &str| {
+        let mut p = known_provenance();
+        p.experiment = name.to_string();
+        Record {
+            provenance: p,
+            tasks: vec![task(
+                "t",
+                &["early_termination"],
+                vec![run(true, 100, None)],
+            )],
+        }
+    };
+    let records = [named("baseline"), named("alt-a"), named("alt-b")];
+    let text = report::render_all(&records);
+    // The first record is the baseline of every comparison block.
+    assert!(text.contains("baseline baseline → candidate alt-a"));
+    assert!(text.contains("baseline baseline → candidate alt-b"));
+    assert!(!text.contains("baseline alt-a"));
+}
+
+#[test]
+fn render_all_of_nothing_is_empty() {
+    assert!(report::render_all(&[]).is_empty());
+}

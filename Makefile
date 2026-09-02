@@ -152,8 +152,12 @@ new-workspace:
 	@test -n "$(DEST)" || { echo "usage: make new-workspace DEST=<path>"; exit 1; }
 	@cargo run --quiet --bin litany -- new "$(DEST)"
 
-# Run the evaluation runner (ARCH §9.3): experiment × suite × N.
+# Run the evaluation runner (ARCH §9.3): experiments × suite × N.
 #   make eval CONFIG=baseline SUITE=tests/suite RUNS=5 AGENT=target/debug/litany-eval-agent
+#   make eval CONFIG="baseline single-attempt" SUITE=tests/suite RUNS=5 AGENT=litany-eval-agent
+# CONFIG takes one or more experiment names (bl-f838): several run the
+# same suite under each — the first is the comparison's baseline — and
+# print the baseline → candidate comparison per later variant.
 # AGENT is REQUIRED and has no default: which driver runs the agent under
 # test (the §9.3 agent seam) is an experiment-defining input — a hidden
 # default would silently bind every measurement to it. The shipped driver
@@ -161,15 +165,17 @@ new-workspace:
 # it execs `litany` from PATH per run, so have `make install` done first.
 # Any program honouring the contract in README "Run the suite" works.
 # RECORD=<path> (optional) saves the machine-readable evaluation record
-# (bl-36fa) — the input `agent-eval compare <baseline> <candidate>` takes.
-# A live-model eval is always this explicit operator command, never CI.
+# (bl-36fa) — the input `agent-eval compare <baseline> <candidate>` takes;
+# with several CONFIG names it is a directory, one `<experiment>.json`
+# per variant. A live-model eval is always this explicit operator
+# command, never CI.
 eval:
 	@test -n "$(CONFIG)" -a -n "$(AGENT)" || { \
-	  echo "usage: make eval CONFIG=<experiment> SUITE=<dir> RUNS=<n> AGENT=<driver-cmd> [RECORD=<out.json>]"; \
+	  echo "usage: make eval CONFIG=\"<experiment>...\" SUITE=<dir> RUNS=<n> AGENT=<driver-cmd> [RECORD=<path>]"; \
 	  echo "AGENT is required; the shipped driver is litany-eval-agent (README, \"Run the suite\")"; \
 	  exit 1; }
 	@cargo build --quiet -p litany-eval-agent
-	@cargo run --quiet -p agent-eval -- run --config "$(CONFIG)" --suite "$(SUITE)" --runs "$(RUNS)" --agent "$(AGENT)" $(if $(RECORD),--record "$(RECORD)")
+	@cargo run --quiet -p agent-eval -- run $(foreach c,$(CONFIG),--config "$(c)") --suite "$(SUITE)" --runs "$(RUNS)" --agent "$(AGENT)" $(if $(RECORD),--record "$(RECORD)")
 
 # The disclosure gate (scripts/leak-rules.sh is the table, leak-scan.sh the
 # mechanism; from rust-bootstrap bl-2c4e). --self-test first: a leak gate dies

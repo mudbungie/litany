@@ -8,6 +8,13 @@
 //! reproducibility inputs. `--record <path>` additionally saves the
 //! machine-readable evaluation record.
 //!
+//! `--config` is repeatable (bl-f838): several run the same suite under
+//! each named experiment in one invocation — the first is the baseline
+//! — and print the baseline → candidate comparison per later variant.
+//! The controls (suite, fixtures, driver, N) are given once, so the
+//! variants differ in exactly the workflow; `--record <path>` then
+//! names a directory receiving one `<experiment>.json` per variant.
+//!
 //! `agent-eval compare <baseline.json> <candidate.json>` renders the
 //! baseline → candidate deltas from two saved records — no run happens;
 //! comparison never invokes a driver or a model.
@@ -26,7 +33,7 @@
 //! logic and its coverage live there.
 
 use agent_eval::agent::{CommandAgent, CommandBundler};
-use agent_eval::record::{Provenance, Record};
+use agent_eval::record::{self, Controls, Record};
 use agent_eval::runner::{self, EvalConfig};
 use agent_eval::{compare, experiment, report, repro, suite};
 use clap::{Parser, Subcommand};
@@ -60,8 +67,10 @@ enum Cmd {
 #[derive(Parser)]
 struct RunArgs {
     /// Experiment name: `experiments/<config>/workflow.yaml` (§9.3).
-    #[arg(long)]
-    config: String,
+    /// Repeatable (bl-f838): several run the same suite under each —
+    /// the first is the baseline — and report the comparisons.
+    #[arg(long, required = true)]
+    config: Vec<String>,
     /// Path to the task-suite directory (e.g. `tests/suite`, §9.1).
     #[arg(long)]
     suite: PathBuf,
@@ -84,7 +93,9 @@ struct RunArgs {
     #[arg(long, default_value = "litany")]
     litany: String,
     /// Save the machine-readable evaluation record here (bl-36fa) — the
-    /// input `agent-eval compare` consumes.
+    /// input `agent-eval compare` consumes. With one `--config`, a
+    /// file; with several, a directory receiving one
+    /// `<experiment>.json` per variant (bl-f838).
     #[arg(long)]
     record: Option<PathBuf>,
 }
@@ -111,7 +122,7 @@ fn main() -> ExitCode {
 }
 
 fn run(cli: RunArgs) -> Result<String, Box<dyn std::error::Error>> {
-    let experiment = experiment::resolve(&cli.config, &cli.experiments_dir)?;
+    let experiments = experiment::resolve_all(&cli.config, &cli.experiments_dir)?;
     let tasks = suite::load(&cli.suite)?;
     let base = tempfile::tempdir()?;
 
@@ -121,36 +132,34 @@ fn run(cli: RunArgs) -> Result<String, Box<dyn std::error::Error>> {
         runs: cli.runs,
         bundle_dir: cli.bundle_dir,
     };
-    let task_records = runner::evaluate(
+    // The controls are probed exactly once per invocation — every
+    // variant of the comparison shares them by construction (bl-f838).
+    let controls = Controls {
+        suite: cli.suite.display().to_string(),
+        suite_revision: repro::suite_revision(&cli.suite),
+        fixture_digest: repro::fixture_digest(&cli.suite),
+        driver: cli.agent.clone(),
+        driver_version: repro::driver_version(&cli.agent),
+        runs_per_task: cli.runs,
+    };
+    let records = runner::evaluate_all(
+        &experiments,
         &tasks,
-        &experiment,
         base.path(),
         &agent,
         Some(&bundler),
         &cfg,
+        &controls,
     )?;
-    let record = Record {
-        provenance: Provenance {
-            experiment: experiment.name.clone(),
-            workflow: experiment.workflow.display().to_string(),
-            suite: cli.suite.display().to_string(),
-            suite_revision: repro::suite_revision(&cli.suite),
-            fixture_digest: repro::fixture_digest(&cli.suite),
-            driver: cli.agent.clone(),
-            driver_version: repro::driver_version(&cli.agent),
-            runs_per_task: cli.runs,
-        },
-        tasks: task_records,
-    };
     if let Some(path) = &cli.record {
-        record.save(path)?;
+        record::save_all(&records, path)?;
     }
-    Ok(report::render(&record))
+    Ok(report::render_all(&records))
 }
 
 fn run_compare(
-    baseline: &PathBuf,
-    candidate: &PathBuf,
+    baseline: &std::path::Path,
+    candidate: &std::path::Path,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let baseline = Record::load(baseline)?;
     let candidate = Record::load(candidate)?;

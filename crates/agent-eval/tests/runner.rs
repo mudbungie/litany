@@ -8,7 +8,7 @@
 
 use agent_eval::agent::{Agent, AgentOutcome, BundleTarget, Bundler, Dispatch};
 use agent_eval::experiment::Experiment;
-use agent_eval::record::{self, TaskRecord};
+use agent_eval::record::{self, Controls, TaskRecord};
 use agent_eval::runner::{self, EvalConfig};
 use agent_eval::stats;
 use agent_eval::suite::Task;
@@ -176,4 +176,96 @@ fn no_bundling_when_dir_or_bundler_absent() {
         runner::evaluate(&tasks, &experiment(), base.path(), &FakeAgent, None, &cfg).unwrap();
     let m = stats::compute(&record::task_results(&records));
     assert_eq!(m.overall.pass_at_1, 0.0);
+}
+
+#[rustfmt::skip]
+fn controls() -> Controls {
+    Controls {
+        suite: "tests/suite".to_string(),
+        suite_revision: Some("abc123".to_string()),
+        fixture_digest: Some("00ff".to_string()),
+        driver: "fake-driver".to_string(),
+        driver_version: None,
+        runs_per_task: 2,
+    }
+}
+
+#[rustfmt::skip]
+fn experiment_named(name: &str) -> Experiment {
+    Experiment { name: name.to_string(), workflow: PathBuf::from("/x/workflow.yaml") }
+}
+
+#[test]
+fn evaluate_all_runs_every_variant_over_the_same_tasks_in_fresh_dirs() {
+    let base = tempfile::tempdir().unwrap();
+    // The setup refuses a reused directory — it fails when the seed it
+    // writes already exists — so a pass on every (variant, run) proves
+    // each got a working directory of its own (the per-variant
+    // namespacing under `base/<experiment>`).
+    let tasks = vec![task(
+        "t",
+        Some("test ! -e seed && printf x > seed"),
+        "work",
+        "test -f out.txt",
+    )];
+    let cfg = EvalConfig {
+        runs: 2,
+        bundle_dir: None,
+    };
+    let experiments = [experiment_named("baseline"), experiment_named("variant")];
+    let records = runner::evaluate_all(
+        &experiments,
+        &tasks,
+        base.path(),
+        &FakeAgent,
+        None,
+        &cfg,
+        &controls(),
+    )
+    .unwrap();
+
+    // Order preserved: the first record is the comparison's baseline.
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0].provenance.experiment, "baseline");
+    assert_eq!(records[1].provenance.experiment, "variant");
+    for r in &records {
+        // Each variant's provenance carries the one shared controls
+        // value; each of its 2 runs passed in a fresh directory.
+        assert_eq!(r.provenance.driver, "fake-driver");
+        assert_eq!(r.provenance.runs_per_task, 2);
+        let m = stats::compute(&r.task_results());
+        assert!((m.overall.pass_at_1 - 1.0).abs() < 1e-9);
+    }
+}
+
+#[test]
+fn failing_run_archives_are_namespaced_by_variant() {
+    let base = tempfile::tempdir().unwrap();
+    let bundle_dir = tempfile::tempdir().unwrap();
+    let tasks = vec![task("f", None, "bundleable", "test -f out.txt")];
+    let cfg = EvalConfig {
+        runs: 1,
+        bundle_dir: Some(bundle_dir.path().to_path_buf()),
+    };
+    let bundler = RecordingBundler::default();
+    let experiments = [experiment_named("baseline"), experiment_named("variant")];
+    runner::evaluate_all(
+        &experiments,
+        &tasks,
+        base.path(),
+        &FakeAgent,
+        Some(&bundler),
+        &cfg,
+        &controls(),
+    )
+    .unwrap();
+
+    // One failing run per variant, archived under its own name — the
+    // two never collide on `f-0`, and each parent directory exists.
+    let invocations = bundler.invocations.lock().unwrap();
+    assert_eq!(invocations.len(), 2);
+    assert_eq!(invocations[0], bundle_dir.path().join("baseline/f-0"));
+    assert_eq!(invocations[1], bundle_dir.path().join("variant/f-0"));
+    assert!(bundle_dir.path().join("baseline").is_dir());
+    assert!(bundle_dir.path().join("variant").is_dir());
 }

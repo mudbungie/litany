@@ -1818,7 +1818,22 @@ usage counters) and the run's reproducibility inputs (bl-36fa):
 agent-eval run --config baseline --suite tests/suite --runs 5 --agent litany-eval-agent
 ```
 
-`--record <out.json>` also saves the machine-readable evaluation record, and
+`--config` is repeatable (bl-f838), and repeating it is how workflows are
+tested against each other: one invocation runs the same suite under every
+named experiment — the first is the baseline — and prints the baseline →
+candidate comparison per later variant. Because the controls (suite,
+fixtures, driver, run count) are given once, the variants differ in exactly
+the workflow, held equal by construction rather than checked after the fact;
+each variant's run and failing-run-archive directories are namespaced by
+experiment name, so the arms share nothing:
+
+```
+agent-eval run --config baseline --config single-attempt \
+  --suite tests/suite --runs 5 --agent litany-eval-agent --record records/
+```
+
+`--record` saves the machine-readable evaluation record — a file with one
+`--config`, a directory of `<experiment>.json` with several — and
 
 ```
 agent-eval compare baseline.json candidate.json
@@ -1828,9 +1843,12 @@ renders per-task, per-category, and total baseline → candidate deltas from two
 saved records — quality and efficiency side by side, each record carrying its
 own reproducibility inputs (suite revision, starting fixture identity,
 experiment, driver command + version, observed models/providers, run count).
-`compare` runs nothing: no driver, no model. A metric one side never reported
-is `—`, never a fabricated zero, and no price is ever inferred — litany has no
-tokenizer and reports only provider-reported counters.
+A `controls:` line says whether the two records held everything but the
+experiment equal, naming what differed when they did not — cross-time and
+cross-harness comparison is legitimate, so a difference is stated, never
+refused. `compare` runs nothing: no driver, no model. A metric one side never
+reported is `—`, never a fabricated zero, and no price is ever inferred —
+litany has no tokenizer and reports only provider-reported counters.
 
 `--config <name>` names an experiment — a `workflow.yaml` variant under
 `experiments/<name>/` (a config diff, no code changes; see `experiments/README.md`).
@@ -1938,7 +1956,7 @@ first use — no manual `rustup` step. This is what keeps `fmt-check` and
 | `make fmt-check`      | `cargo fmt --check`                                   |
 | `make schemas`        | Regenerate `schemas/*.json` from the Rust types       |
 | `make new-workspace DEST=<path>` | Create a workspace (bare repo.git + first config commit from `template/`) |
-| `make eval CONFIG=<exp> SUITE=<dir> RUNS=<n> AGENT=<driver-cmd> [RECORD=<out.json>]` | Run the evaluation runner (ARCH §9.3): experiment × suite × N (see **Task suite** above). `AGENT` is required and has no default — the shipped driver is `litany-eval-agent` (see "Run the suite"), and naming it is deliberate: the driver is an experiment-defining input. `RECORD` saves the evaluation record `agent-eval compare` consumes (bl-36fa). Always an explicit operator command — a live-model eval names its run count and spends money, so it is never CI |
+| `make eval CONFIG="<exp>..." SUITE=<dir> RUNS=<n> AGENT=<driver-cmd> [RECORD=<path>]` | Run the evaluation runner (ARCH §9.3): experiments × suite × N (see **Task suite** above). `CONFIG` takes one or more experiment names (bl-f838): several run the same suite under each — the first is the baseline — and print the comparison per later variant. `AGENT` is required and has no default — the shipped driver is `litany-eval-agent` (see "Run the suite"), and naming it is deliberate: the driver is an experiment-defining input. `RECORD` saves the evaluation record(s) `agent-eval compare` consumes (bl-36fa; a directory with several `CONFIG` names). Always an explicit operator command — a live-model eval names its run count and spends money, so it is never CI |
 | `make check`          | `fmt-check` + `lint` + `coverage` + `test-install`    |
 | `make ci`             | Alias for `check`                                     |
 | `make smoke`          | Live-wire smoke test: one real `litany prompt` against the shipped defaults (override with `SMOKE_PROVIDER`/`SMOKE_MODEL`); the default needs a `bz` anthropic credential and spends money; NOT part of `check` |

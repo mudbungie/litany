@@ -27,7 +27,7 @@
 use crate::agent::{Agent, BundleTarget, Bundler, Dispatch};
 use crate::experiment::Experiment;
 use crate::metrics;
-use crate::record::{RunRecord, TaskRecord};
+use crate::record::{Controls, Record, RunRecord, TaskRecord};
 use crate::suite::Task;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -40,6 +40,40 @@ pub struct EvalConfig {
     pub runs: usize,
     /// When set, failing runs are bundled here for triage (§9.2).
     pub bundle_dir: Option<PathBuf>,
+}
+
+/// Run one evaluation per experiment over the same tasks (bl-f838):
+/// the comparison unit, experiments × suite × N. The controls are one
+/// value for every variant — held equal by construction, not checked
+/// after the fact — and each variant's runs are namespaced under
+/// `base/<experiment>` so the arms share no run directory. The order
+/// given is preserved: the first record is the comparison's baseline.
+pub fn evaluate_all(
+    experiments: &[Experiment],
+    tasks: &[Task],
+    base: &Path,
+    agent: &dyn Agent,
+    bundler: Option<&dyn Bundler>,
+    cfg: &EvalConfig,
+    controls: &Controls,
+) -> io::Result<Vec<Record>> {
+    experiments
+        .iter()
+        .map(|experiment| {
+            let tasks = evaluate(
+                tasks,
+                experiment,
+                &base.join(&experiment.name),
+                agent,
+                bundler,
+                cfg,
+            )?;
+            Ok(Record {
+                provenance: controls.provenance(experiment),
+                tasks,
+            })
+        })
+        .collect()
 }
 
 /// Run the whole evaluation, yielding every task's per-run observations.
@@ -113,7 +147,11 @@ fn run_once(
         && let (Some(dest_root), Some(b), Some(target)) =
             (&cfg.bundle_dir, bundler, &outcome.target)
     {
-        let dest = dest_root.join(format!("{}-{run}", task.id));
+        // Namespaced by experiment so the variants of one comparison
+        // (bl-f838) never collide on a failing run's archive.
+        let dest_dir = dest_root.join(&experiment.name);
+        std::fs::create_dir_all(&dest_dir)?;
+        let dest = dest_dir.join(format!("{}-{run}", task.id));
         b.bundle(target, &dest)?;
     }
     Ok(RunRecord {

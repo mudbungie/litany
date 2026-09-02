@@ -10,9 +10,26 @@
 //! off the interval, not asserted here (this crate never runs a live
 //! model). An unreported value renders as `—`, never as 0.
 
+use crate::compare;
 use crate::metrics::Efficiency;
 use crate::record::Record;
 use crate::stats::{self, Summary};
+
+/// Render an evaluation's whole product (bl-f838): one record is the
+/// single-experiment report below; several are the side-by-side —
+/// the first record is the baseline, and each later one renders as a
+/// baseline → candidate [`compare`] block over the same suite.
+pub fn render_all(records: &[Record]) -> String {
+    match records {
+        [one] => render(one),
+        [baseline, candidates @ ..] => candidates
+            .iter()
+            .map(|candidate| compare::render(baseline, candidate))
+            .collect::<Vec<String>>()
+            .join("\n"),
+        [] => String::new(),
+    }
+}
 
 /// Render the full report for one evaluation record.
 pub fn render(record: &Record) -> String {

@@ -14,6 +14,7 @@
 //! resolver — one file under two names resolves like any other, so
 //! "the baseline is the template" costs no code here.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 /// A resolved experiment: its name and the `workflow.yaml` that defines
@@ -24,11 +25,18 @@ pub struct Experiment {
     pub workflow: PathBuf,
 }
 
-/// Every way [`resolve`] can fail.
+/// Every way [`resolve`] or [`resolve_all`] can fail.
 #[derive(Debug, thiserror::Error)]
 pub enum ExperimentError {
     #[error("experiment {name:?} has no workflow.yaml at {path}")]
     Missing { name: String, path: PathBuf },
+    #[error(
+        "experiment {name:?} named more than once — an evaluation's \
+         variants are distinct experiments (a deliberate noise \
+         measurement wants a second name resolving to the same content, \
+         e.g. a symlinked variant directory)"
+    )]
+    Duplicate { name: String },
 }
 
 /// Resolve `config` to `<experiments_root>/<config>/workflow.yaml`,
@@ -52,4 +60,27 @@ pub fn resolve(config: &str, experiments_root: &Path) -> Result<Experiment, Expe
             path: named,
         }),
     }
+}
+
+/// Resolve every named variant of one evaluation, in the order given —
+/// the first is the comparison's baseline (bl-f838). A repeated name is
+/// refused: the variants of a comparison are distinct experiments, and
+/// a duplicate would also collide in the record directory
+/// (`crate::record::save_all`).
+pub fn resolve_all(
+    configs: &[String],
+    experiments_root: &Path,
+) -> Result<Vec<Experiment>, ExperimentError> {
+    let mut seen = BTreeSet::new();
+    configs
+        .iter()
+        .map(|config| {
+            if !seen.insert(config.as_str()) {
+                return Err(ExperimentError::Duplicate {
+                    name: config.clone(),
+                });
+            }
+            resolve(config, experiments_root)
+        })
+        .collect()
 }

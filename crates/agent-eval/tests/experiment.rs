@@ -53,3 +53,39 @@ fn the_shipped_baseline_resolves_to_the_template_itself() {
         repo.join("template/workflow.yaml").canonicalize().unwrap(),
     );
 }
+
+#[test]
+fn resolve_all_preserves_the_given_order() {
+    let d = tempfile::tempdir().unwrap();
+    for name in ["baseline", "variant"] {
+        let dir = d.path().join(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("workflow.yaml"), "events: {}\n").unwrap();
+    }
+    let configs = vec!["baseline".to_string(), "variant".to_string()];
+    let all = experiment::resolve_all(&configs, d.path()).unwrap();
+    // Order is the comparison's meaning: the first is the baseline.
+    assert_eq!(all.len(), 2);
+    assert_eq!(all[0].name, "baseline");
+    assert_eq!(all[1].name, "variant");
+}
+
+#[test]
+fn resolve_all_refuses_a_repeated_name() {
+    let d = tempfile::tempdir().unwrap();
+    let dir = d.path().join("baseline");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("workflow.yaml"), "events: {}\n").unwrap();
+    let configs = vec!["baseline".to_string(), "baseline".to_string()];
+    let err = experiment::resolve_all(&configs, d.path()).unwrap_err();
+    assert!(matches!(err, ExperimentError::Duplicate { .. }));
+    assert!(err.to_string().contains("baseline"));
+    assert!(err.to_string().contains("more than once"));
+}
+
+#[test]
+fn resolve_all_surfaces_a_missing_variant() {
+    let d = tempfile::tempdir().unwrap();
+    let err = experiment::resolve_all(&["ghost".to_string()], d.path()).unwrap_err();
+    assert!(matches!(err, ExperimentError::Missing { .. }));
+}

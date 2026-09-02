@@ -2,8 +2,9 @@
 //! load failures, the stats projection, and the derived observation
 //! sets.
 
+use agent_eval::experiment::Experiment;
 use agent_eval::metrics::RunMetrics;
-use agent_eval::record::{Provenance, Record, RecordError, RunRecord, TaskRecord};
+use agent_eval::record::{self, Controls, Provenance, Record, RecordError, RunRecord, TaskRecord};
 
 pub fn provenance() -> Provenance {
     Provenance {
@@ -116,4 +117,85 @@ fn observed_sets_are_sorted_unions_over_disclosed_runs() {
         r.observed_providers(),
         vec!["acme".to_string(), "other".to_string()]
     );
+}
+
+fn controls() -> Controls {
+    Controls {
+        suite: "tests/suite".to_string(),
+        suite_revision: Some("abc123".to_string()),
+        fixture_digest: Some("00ff".to_string()),
+        driver: "fake-driver".to_string(),
+        driver_version: Some("fake-driver 1.0".to_string()),
+        runs_per_task: 2,
+    }
+}
+
+#[test]
+fn controls_plus_an_experiment_is_a_provenance() {
+    let exp = Experiment {
+        name: "baseline".to_string(),
+        workflow: "/x/workflow.yaml".into(),
+    };
+    assert_eq!(controls().provenance(&exp), provenance());
+}
+
+#[test]
+fn controls_diff_is_empty_when_held_even_across_experiments() {
+    // The experiment and its workflow are the treatment, never listed.
+    let mut variant = provenance();
+    variant.experiment = "variant".to_string();
+    variant.workflow = "/y/workflow.yaml".to_string();
+    assert!(record::controls_diff(&provenance(), &variant).is_empty());
+}
+
+#[test]
+fn controls_diff_names_every_differing_control() {
+    let mut other = provenance();
+    other.suite = "elsewhere".to_string();
+    other.suite_revision = None;
+    other.fixture_digest = None;
+    other.driver = "other-driver".to_string();
+    other.driver_version = None;
+    other.runs_per_task = 9;
+    assert_eq!(
+        record::controls_diff(&provenance(), &other),
+        vec![
+            "suite",
+            "suite revision",
+            "starting fixture",
+            "driver",
+            "driver version",
+            "runs/task",
+        ]
+    );
+}
+
+#[test]
+fn save_all_writes_one_record_as_a_file() {
+    // The bl-36fa single-record contract, byte-for-byte: `path` is the
+    // file itself, not a directory.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("record.json");
+    record::save_all(std::slice::from_ref(&record()), &path).unwrap();
+    assert_eq!(Record::load(&path).unwrap(), record());
+}
+
+#[test]
+fn save_all_writes_several_records_as_a_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("records");
+    let mut variant = record();
+    variant.provenance.experiment = "variant".to_string();
+    record::save_all(&[record(), variant.clone()], &out).unwrap();
+    assert_eq!(Record::load(&out.join("baseline.json")).unwrap(), record());
+    assert_eq!(Record::load(&out.join("variant.json")).unwrap(), variant);
+}
+
+#[test]
+fn save_all_of_nothing_is_an_empty_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("records");
+    record::save_all(&[], &out).unwrap();
+    assert!(out.is_dir());
+    assert_eq!(std::fs::read_dir(&out).unwrap().count(), 0);
 }

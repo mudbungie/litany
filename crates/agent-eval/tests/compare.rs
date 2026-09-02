@@ -158,3 +158,77 @@ fn zero_run_tasks_render_no_nan_anywhere() {
     assert!(!text.contains("NaN"), "NaN leaked into the report:\n{text}");
     assert!(text.contains("pass@1: 0.0% [0.0%, 0.0%] → 0.0% [0.0%, 0.0%]"));
 }
+
+#[test]
+fn the_header_names_both_experiments() {
+    let baseline = Record {
+        provenance: provenance("driver-a"),
+        tasks: vec![task("t", "early_termination", vec![run(true, 100, None)])],
+    };
+    let mut candidate = Record {
+        provenance: provenance("driver-a"),
+        tasks: vec![task("t", "early_termination", vec![run(true, 100, None)])],
+    };
+    candidate.provenance.experiment = "single-attempt".to_string();
+    let text = compare::render(&baseline, &candidate);
+    assert!(text.contains("baseline baseline → candidate single-attempt"));
+}
+
+#[test]
+fn held_controls_render_as_held_across_experiments() {
+    // Same controls, different experiment (the treatment): held — the
+    // one-invocation comparison (bl-f838) always reads this way.
+    let baseline = Record {
+        provenance: provenance("driver-a"),
+        tasks: vec![task(
+            "t",
+            "early_termination",
+            vec![run(true, 100, Some(metrics(1, 1, Some(1))))],
+        )],
+    };
+    let mut candidate = baseline.clone();
+    candidate.provenance.experiment = "variant".to_string();
+    candidate.provenance.workflow = "/y/workflow.yaml".to_string();
+    let text = compare::render(&baseline, &candidate);
+    assert!(text.contains("controls: held — the experiment is the only declared difference"));
+    assert!(!text.contains("controls differ"));
+}
+
+#[test]
+fn differing_controls_and_observed_models_are_named() {
+    let baseline = Record {
+        provenance: provenance("driver-a"),
+        tasks: vec![task(
+            "t",
+            "early_termination",
+            vec![run(true, 100, Some(metrics(1, 1, Some(1))))],
+        )],
+    };
+    let mut candidate = baseline.clone();
+    candidate.provenance.driver = "driver-b".to_string();
+    candidate.provenance.driver_version = Some("driver-b 1.0".to_string());
+    candidate.tasks[0].runs[0].metrics.as_mut().unwrap().models = vec!["m2".to_string()];
+    let text = compare::render(&baseline, &candidate);
+    assert!(text.contains(
+        "controls differ: driver, driver version, observed models — \
+         the deltas below compare more than the experiment"
+    ));
+}
+
+#[test]
+fn an_unreported_model_set_is_never_called_a_difference() {
+    // Candidate disclosed no workspace: its observed set is empty —
+    // unknown, not different (missing is never treated as a value).
+    let baseline = Record {
+        provenance: provenance("driver-a"),
+        tasks: vec![task(
+            "t",
+            "early_termination",
+            vec![run(true, 100, Some(metrics(1, 1, Some(1))))],
+        )],
+    };
+    let mut candidate = baseline.clone();
+    candidate.tasks[0].runs[0].metrics = None;
+    let text = compare::render(&baseline, &candidate);
+    assert!(text.contains("controls: held"));
+}
