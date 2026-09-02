@@ -1,7 +1,8 @@
 +++
 title = "the built-in tool set is crate-private, so a host with a total injection must restate which names this engine can perform"
 created = 1788236205
-updated = 1788236205
+updated = 1788317799
+claimant = "Tinker"
 priority = 3
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["seam"]
