@@ -5,8 +5,9 @@
 //! [`crate::harness_root`] — the XDG split, collapsed to one directory by
 //! `LITANY_HOME`) and lays down what a ready installation carries — the
 //! default `models.yaml` (ARCH §4.2), the `tools/` schema pool and the
-//! `skills/` pool (ARCH §3.3), and the empty `workflows/` / `workspaces/`
-//! directories — **creating what is absent and never clobbering what
+//! `skills/` pool (ARCH §3.3), the `workflows/` template pool holding the
+//! shipped default (`basic-agentic-loop.yaml`, ARCH §6) and the empty
+//! `workspaces/` directory — **creating what is absent and never clobbering what
 //! exists**. `models.yaml` is hand-edited by contract (§4.2), so it is
 //! seeded only if absent; every pool entry is likewise seed-if-absent, so
 //! a second run changes nothing and a hand-edited entry survives.
@@ -28,6 +29,13 @@ use std::path::{Path, PathBuf};
 
 /// Config-root subdir holding workflow templates (ARCH §2.2).
 const WORKFLOWS_DIR: &str = "workflows";
+/// The shipped default workflow's file name in that pool: the **basic
+/// agentic loop** (ARCH §6, `docs/TAXONOMY.md` §1), under the name the
+/// 2026-08-31 ruling gave it. The bytes are the config template's own
+/// `workflow.yaml` — the declaration `litany new` freezes into every
+/// `config/default` — so the pool's default entry and the freeze are one
+/// asset read twice, never two declarations that can disagree.
+const BASIC_AGENTIC_LOOP: &str = "basic-agentic-loop.yaml";
 /// Data-root subdir holding the workspaces tree (ARCH §2.2).
 const WORKSPACES_DIR: &str = "workspaces";
 
@@ -91,7 +99,12 @@ impl Founding {
 pub fn prime(roots: &Roots) -> Result<Founding, Error> {
     let mut founding = Founding::default();
     // Config lifetime (§2.2): the hand-edited declarations.
-    ensure_dir(&roots.config.join(WORKFLOWS_DIR))?;
+    let workflows = roots.config.join(WORKFLOWS_DIR);
+    ensure_dir(&workflows)?;
+    founding.count(seed_file(
+        &workflows.join(BASIC_AGENTIC_LOOP),
+        basic_agentic_loop(),
+    )?);
     founding.count(seed_file(
         &models_path(&roots.config),
         MODELS_YAML.as_bytes(),
@@ -102,6 +115,18 @@ pub fn prime(roots: &Roots) -> Result<Founding, Error> {
     extract_dir(&TOOLS, &roots.data.join(TOOLS_SUBDIR), &mut founding)?;
     extract_dir(&SKILLS, &roots.data.join(SKILLS_SUBDIR), &mut founding)?;
     Ok(founding)
+}
+
+/// The basic agentic loop's bytes, read out of the embedded config
+/// template rather than embedded a second time — one asset, two seeding
+/// paths (the freeze at `litany new`, this pool entry). The template
+/// always ships it (`crate::template::TEMPLATE`, pinned by
+/// `tests::shipped_template`), so the `None` arm is a programmer error.
+fn basic_agentic_loop() -> &'static [u8] {
+    crate::template::TEMPLATE
+        .get_file(crate::prompt::WORKFLOW_FILE)
+        .expect("the config template ships a workflow.yaml")
+        .contents()
 }
 
 /// Recursively seed an embedded directory into `target`, seed-if-absent

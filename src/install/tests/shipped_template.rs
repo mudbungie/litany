@@ -78,3 +78,31 @@ fn the_shipped_compactor_entry_composes_the_summary_chain() {
             .expect("the shipped template parses");
     assert_eq!(shipped.roles["compactor"].order, vec!["summary/**"]);
 }
+
+/// The named default exists in the pool config commits are authored from
+/// (ARCH §2.2, §6): `prime` seeds `workflows/basic-agentic-loop.yaml`.
+///
+/// The pool was founded empty, so the **basic agentic loop** — the default
+/// the 2026-08-31 ruling named, and the declaration every `config/default`
+/// freezes — had no file there to read, copy or fork a variant from; an
+/// operator authoring an alternative workflow had nothing to start from but
+/// a workspace checkout. The entry is not a second declaration: both
+/// seeding paths read the one embedded `template/workflow.yaml`, so the
+/// pool's default and the freeze cannot disagree. Seed-if-absent like every
+/// other entry, so a curated file survives a re-prime (§2.2).
+#[test]
+fn prime_seeds_the_basic_agentic_loop_into_the_workflow_pool() {
+    let home = TempDir::new().unwrap();
+    prime(&collapsed(home.path())).unwrap();
+
+    let seeded = home.path().join(WORKFLOWS_DIR).join(BASIC_AGENTIC_LOOP);
+    let template = crate::template::TEMPLATE
+        .get_file("workflow.yaml")
+        .expect("the template ships workflow.yaml")
+        .contents();
+    assert_eq!(fs::read(&seeded).unwrap(), template);
+
+    fs::write(&seeded, "events: {}\n").unwrap();
+    prime(&collapsed(home.path())).unwrap();
+    assert_eq!(fs::read_to_string(&seeded).unwrap(), "events: {}\n");
+}

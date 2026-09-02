@@ -154,10 +154,17 @@ the §6 dispatch budget gate reading the same derivation
 TAXONOMY amendments; tests in each seam plus an end-to-end switch on the
 stub-adapter harness.
 
+Shipped since, by bl-fcd8: the named default is a file. `litany prime` seeds
+`<config-root>/workflows/basic-agentic-loop.yaml` (`src/install.rs`), reading
+the embedded `template/workflow.yaml` the `litany new` freeze already reads,
+so the pool entry and the freeze are one asset and cannot become two
+declarations of one default. Seed-if-absent like every other pool entry, so a
+curated file survives. Before it, §3's "adding a second workflow is config"
+started from an empty directory: the default the ruling named had no file to
+copy or fork from.
+
 Deferred, filed: the in-process root loop (`run_exchange`) resolves once per
 exchange, so a mark written *mid-exchange* takes effect from the next
 advance-driven step — the same latency retarget already has there; dissolved
-by the §6 prompt→advance collapse (bl-e580). Seeding
-`workflows/basic-agentic-loop.yaml` into the config-root template pool from
-the same embedded asset (bl-fcd8, install-area coordination). Surfacing the
+by the §6 prompt→advance collapse (bl-e580). Surfacing the
 derivation in `litany scan` (bl-5c02). The eval A/B driver (bl-f838).

@@ -76,12 +76,12 @@ find out, because it says what it founded:
 $ litany prime
 litany prime: config root /home/u/.config/litany — models.yaml, workflows/
 litany prime: data root /home/u/.local/share/litany — tools/, skills/, workspaces/
-litany prime: harness root founded: 15 files seeded, 0 already present and left alone (seed-if-absent, ARCH §2.2)
+litany prime: harness root founded: 18 files seeded, 0 already present and left alone (seed-if-absent, ARCH §2.2)
 ```
 
 That report is on **stderr** — `prime` has no stdout product (ARCH §3.4)
 — and a re-run prints the same three lines with the counts swapped
-(`0 files seeded, 15 already present`), which is how you tell an
+(`0 files seeded, 18 already present`), which is how you tell an
 already-founded root from a fresh one.
 
 ### From a GitHub release
@@ -118,7 +118,9 @@ make install LITANY_HOME=/opt/litany          # collapse both homes -> /opt/lita
    `models.yaml` under the **config root** (mechanism only: the optional
    `adapter:` override — no models, endpoints, or auth), the `tools/` and
    `skills/` pools and the `workspaces/` tree under the **data root**,
-   and the empty `workflows/` templates dir. It is **seed-if-absent
+   and the `workflows/` templates dir holding the shipped default,
+   `basic-agentic-loop.yaml` (ARCH §6 — the same declaration `litany
+   new` freezes into `config/default`). It is **seed-if-absent
    throughout**: a second run changes nothing, and a hand-edited
    `models.yaml` (or any operator-added pool entry) survives a re-install.
    The shipped assets are embedded in the binary, so `prime` needs no
@@ -451,7 +453,8 @@ installs). Three distinct on-disk locations:
   (default `~/.config/litany`). Holds the global
   [`models.yaml`](docs/ARCHITECTURE.md#42-model-abstraction) (the
   optional `adapter:` binary override — §4.2; no model policy) and the
-  `workflows/` templates. Provider endpoints and auth live in brazen's
+  `workflows/` templates, seeded with the shipped default
+  `basic-agentic-loop.yaml`. Provider endpoints and auth live in brazen's
   config, not here (§4.1); each role's model is named in a repo's
   `providers.yaml` (§4.3).
 - **Data root** — machine-populated pools, `$XDG_DATA_HOME/litany`
@@ -1942,7 +1945,7 @@ first use — no manual `rustup` step. This is what keeps `fmt-check` and
 | `make install-hooks`  | Point git at `.githooks/`                             |
 | `make install-bz`     | Install the provider adapter `bz` on your `PATH` at the version Cargo.toml pins (ARCH §4.4); a no-op when the `bz` there already matches. For *running* litany — the tests feed themselves (below) |
 | `make brazen-pin`     | Print that pinned version and nothing else — CI keys its `bz` cache on it so no workflow file names a version |
-| `make install` [`INSTALL_PREFIX=<p>` `LITANY_HOME=<h>`] | Release-build; drop `litany`/`agent-eval` into `$INSTALL_PREFIX/bin` (default: `~/.local/bin`); install the provider adapter `bz` via `make install-bz` at the version Cargo.toml pins (the ARCH §4.4 version pin — the number's one home); then invoke `litany prime` to found the harness root — config root (default `~/.config/litany`) with a default `models.yaml` and an empty `workflows/` templates dir, data root (default `~/.local/share/litany`) with the `tools/`/`skills/` pools and the `workspaces/` tree — seed-if-absent (ARCH §2.2); `LITANY_HOME` collapses both |
+| `make install` [`INSTALL_PREFIX=<p>` `LITANY_HOME=<h>`] | Release-build; drop `litany`/`agent-eval` into `$INSTALL_PREFIX/bin` (default: `~/.local/bin`); install the provider adapter `bz` via `make install-bz` at the version Cargo.toml pins (the ARCH §4.4 version pin — the number's one home); then invoke `litany prime` to found the harness root — config root (default `~/.config/litany`) with a default `models.yaml` and a `workflows/` templates dir holding `basic-agentic-loop.yaml`, data root (default `~/.local/share/litany`) with the `tools/`/`skills/` pools and the `workspaces/` tree — seed-if-absent (ARCH §2.2); `LITANY_HOME` collapses both |
 | `make uninstall` [`INSTALL_PREFIX=<p>` `LITANY_HOME=<h>`] | Remove the installed binaries; leaves the harness homes (config + data roots) in place |
 | `make image` [`CONTAINER_ENGINE=docker`] | Build the OCI image from `Containerfile`, tagged `litany:<Cargo.toml version>` and `litany:latest`, then run `image-scan` on it. Pushes nothing (see "As a container image") |
 | `make image-scan` | The image-side disclosure gate: the planted-secret self-test, then the built image's authored layers and config against `scripts/leak-rules.sh`. A step of `image`; run it alone to re-judge an image already built |
