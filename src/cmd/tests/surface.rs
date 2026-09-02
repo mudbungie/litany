@@ -2,7 +2,7 @@
 //! (byte-for-byte parse parity, §3.4), the [`Error`] Display shape, the
 //! [`Outcome`] handoff mapping, and the [`prelude`] re-exports.
 
-use crate::cmd::{Cli, Command, Error, Outcome, advance, prelude};
+use crate::cmd::{BUILTIN_TOOLS, Cli, Command, Error, Outcome, advance, prelude};
 use crate::prompt::dispatch::advance::cli::AdvanceHandoff;
 use clap::{CommandFactory, Parser};
 use std::path::PathBuf;
@@ -227,10 +227,23 @@ fn tool_name_help_names_the_built_in_pool() {
         .expect("tool verb");
     let arg = tool.get_positionals().next().expect("<NAME> positional");
     let help = arg.get_help().expect("help").to_string();
-    for name in crate::prompt::tool::builtin::NAMES {
+    for name in BUILTIN_TOOLS {
         assert!(help.contains(name), "{help}");
     }
     assert!(!help.contains("write_summary"), "{help}");
+}
+
+/// The pool is readable on the surface (ARCH §3.3): a host that installs
+/// a `ToolInjection` routes every invocation itself, so it must be able
+/// to *ask* which names this engine performs instead of restating them.
+/// The export and the human render are the same list, so an eighth
+/// built-in reaches a host without either side being edited.
+#[test]
+fn the_built_in_pool_is_readable_on_the_command_surface() {
+    assert_eq!(
+        BUILTIN_TOOLS.join(", "),
+        crate::prompt::tool::builtin::pool()
+    );
 }
 
 #[test]

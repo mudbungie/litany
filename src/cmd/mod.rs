@@ -24,6 +24,12 @@
 //! here, and a model's `message` / `dispatch` tool re-enters through it
 //! (§3.4) — so one guard per verb covers every supplier.
 
+/// The closed set of names this engine performs behind its own front door
+/// (`litany tool <name>`, ARCH §3.3 third hop), sorted — the same const the
+/// unknown-tool decline and `litany tool --help` render. On the surface
+/// because a host installing a [`ToolInjection`] routes every invocation
+/// itself, so it must ask which names the engine answers, not restate them.
+pub use crate::prompt::tool::builtin::NAMES as BUILTIN_TOOLS;
 pub use crate::prompt::tool::inject::{InjectedTool, RoutedCall, RoutedCapture, ToolInjection};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;

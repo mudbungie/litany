@@ -60,6 +60,11 @@ const SEAM: &[&str] = &[
     "use RoutedCall",
     "use RoutedCapture",
     "use ToolInjection",
+    // The companion fact to that seam (ARCH §3.3, bl-4cbb): an injecting
+    // host answers every name itself, so the set the engine can perform
+    // must be readable rather than restated downstream. Re-exported for
+    // the same reason — `prompt::tool::builtin` is below the surface.
+    "use BUILTIN_TOOLS",
     "struct Error",
     "derive Error: Debug",
     "method Error::new",

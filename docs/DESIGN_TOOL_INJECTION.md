@@ -318,6 +318,11 @@ reaches the executor.
 - `src/prompt/tool/inject.rs` — the trait and its three data types. The
   whole seam; re-exported from `src/cmd/mod.rs` because the halves that
   consume it are below the surface and may not name `crate::cmd`.
+- `src/prompt/tool/builtin/mod.rs` — `NAMES`, the closed set of names
+  the engine performs behind its own front door, re-exported from
+  `src/cmd/mod.rs` as `BUILTIN_TOOLS` for the same reason (bl-4cbb). The
+  companion fact to the seam: the router's scope is total, so a host must
+  be able to ask which names this engine can answer.
 - `src/prompt/tool/spawn.rs` + `spawn/batch.rs` — the two backends.
   `execute` and `execute_all` each `match self.injection` exactly once,
   choosing `route`/`route_fan` or `spawn_one`/`spawn_fan` for the whole
@@ -429,10 +434,17 @@ an absent binary produced behind the front door too. It is no longer a
     this bullet once worried about is not a carve-out in the invariant at
     all. The principle it falls out of: context management happens in the
     composing host.
-  - **Nothing is asked of litany.** The surface a host needs already
-    exists and is the one yog used — the `tool` verb on the public
-    `cmd::Command` surface, the same front door ARCH §3.3's third
-    resolver hop addresses as `<driver_target> tool <name>`. A host
+  - **Almost nothing is asked of litany.** The surface a host needs
+    already existed and is the one yog used — the `tool` verb on the
+    public `cmd::Command` surface, the same front door ARCH §3.3's third
+    resolver hop addresses as `<driver_target> tool <name>`. One thing
+    was missing and is now there (bl-4cbb): *which names* that door
+    answers to. A host was restating the set from memory, and no gate on
+    either side of the crate boundary could see that restatement go
+    stale — an eighth built-in would simply refuse on a host that never
+    heard of it, in a voice that reads as the host's. `cmd::BUILTIN_TOOLS`
+    is the same const the decline and the `--help` render, so there is
+    one list and the host reads it. A host
     re-enters it with the caller identity on the child's environment
     (`LITANY_CONV_REPO` / `LITANY_CONV_BRANCH`, ARCH §3.3, taken from
     `RoutedCall`'s own `workspace` / `agent`) and the `tool_use` input on
