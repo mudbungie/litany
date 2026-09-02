@@ -30,6 +30,8 @@ fn loop_runs_each_tool_use_block_in_one_step_in_emission_order() {
     let adapter = StubAdapter::scripted([
         StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&two_tool_use),
+        // Step 2 re-resolves at its boundary (bl-e580) — its own guard.
+        StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&final_stream()),
     ]);
     let git = StubGit::ok();

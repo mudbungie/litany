@@ -7,6 +7,7 @@ mod budget_depth_boundary;
 mod budget_enforcement;
 mod compaction_not_eligible;
 mod compaction_toolset;
+mod config_per_step;
 mod cwd_seed;
 mod descriptor_prune;
 mod errors;

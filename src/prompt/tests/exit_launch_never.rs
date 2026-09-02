@@ -64,6 +64,9 @@ fn budget_exhausted_exit_never_launches() {
                 input: serde_json::json!({"cmd": "ls"}),
             }],
         )),
+        // The step-2 boundary re-resolves before its budget check
+        // (bl-e580), so the load-time guard runs once more.
+        StubAdapter::reply_ok(&version_line()),
     ]);
     let git = StubGit::ok();
     let (clock, id) = (FixedClock::default(), FixedIdGen);

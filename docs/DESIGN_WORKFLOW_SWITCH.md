@@ -163,10 +163,17 @@ curated file survives. Before it, §3's "adding a second workflow is config"
 started from an empty directory: the default the ruling named had no file to
 copy or fork from.
 
-Deferred, filed: the in-process root loop (`run_exchange`) resolves once per
-exchange, so a mark written *mid-exchange* takes effect from the next
-advance-driven step — the same latency retarget already has there; dissolved
-by the §6 prompt→advance collapse (bl-e580). Surfacing the
+Shipped since, by bl-e580: the mid-exchange latency is gone. `run_exchange`
+re-resolves at the top of every loop iteration, through the same
+`resolve::resolve_worker` and the same `ConfigSource::Agent` an `advance` hop
+uses, so a mark written during a fresh root's first exchange governs its next
+step rather than waiting for a later hop. Step 1 keeps the caller's own
+resolution — the fork, resolved moments before the branch existed, which is
+step 1's boundary — so nothing resolves twice. The §6 prompt→advance collapse
+is still open, but it is now a simplification of the *process model* alone:
+the resolution question it was carrying has been answered without it.
+
+Deferred, filed: surfacing the
 derivation in `litany scan` (bl-5c02). The eval A/B driver (bl-f838 —
 since landed: `agent-eval run` takes `--config` repeatably and reports
 the baseline → candidate comparison per variant, §9.3 shipped-state

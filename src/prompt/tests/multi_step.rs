@@ -43,9 +43,13 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     let harness = scaffold_harness_root();
     let r1 = tool_use_stream("toolu_01", "bash", "cmd", "ls");
     let r2 = final_stream();
+    // Two model calls, and a version guard before each: config resolves
+    // at every step boundary (bl-e580), so step 2's load-time guard
+    // (§4.4) runs again with it.
     let adapter = StubAdapter::scripted([
         StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&r1),
+        StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&r2),
     ]);
     let git = StubGit::ok();
@@ -136,14 +140,25 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     // stray-probe) + 2 (user-message delivery add+commit) + 1 (step 1
     // rev-parse) + 2 (step-1 model-output transcript entry add+commit)
     // + 1 (the tool window's unconditional hold-mark probe, §3.3 *Tool
-    // control*) + 2 (the tool transcript entry add+commit) + 1 (step-2
-    // drain stray-probe) + 1 (step 2 rev-parse) + 2 (step-2 model-output
-    // entry add+commit) = 34. The terminal result deposit adds none: the
+    // control*) + 2 (the tool transcript entry add+commit) + 12 (the step-2
+    // boundary's own config resolution — bl-e580: the config question is
+    // asked again here, because a `litany config` edit or a `litany
+    // workflow` mark that landed during step 1 governs step 2, so the
+    // lineage enumeration and containment merge-base run again (4), the
+    // role is derived from the branch this time rather than defaulted for
+    // a fork (1), and `version`/`providers.yaml`, the workflow-mark
+    // probe, the mark's own §10 guard, `workflow.yaml`, `manifest.yaml`
+    // and the soul are read again (7 — `StubGit` answers every
+    // `rev-parse` with a sha, so the mark probe reads as a standing mark
+    // and pays a second `version` read a live unmarked agent does not))
+    // + 1 (step-2 drain stray-probe) + 1 (step 2 rev-parse) + 2 (step-2
+    // model-output entry add+commit) = 46. The terminal result deposit
+    // adds none: the
     // last prompter is `user` (the on-ramp message), so the reply
     // addresses no inbox and neither the branch-tip read nor the returned
     // mark runs (§2.6). Merge-back is gone. The version guard runs no git.
     let runs = git.runs.borrow();
-    assert_eq!(runs.len(), 34);
+    assert_eq!(runs.len(), 46);
     assert_eq!(runs[18].1, vec!["add", "name"]);
     assert_eq!(runs[19].1, vec!["add", "goal.md", "soul.md"]);
     assert!(runs[20].1[2].contains("step 001: dispatch"));
@@ -166,13 +181,24 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     // worktree side effect the tool produced lands with its result entry.
     assert_eq!(runs[28].1, vec!["add", "-A"]);
     assert!(runs[29].1[2].contains("transcript 003: tool"));
-    // Step 2 opens with its own boundary drain (empty inbox → stray-probe
-    // only), then the branch-tip capture (advanced by step 1's transcript
-    // commits), then commits its own model-output entry (004).
-    assert_eq!(runs[30].1, vec!["status", "--porcelain", "--", "messages"]);
-    assert_eq!(runs[31].1, vec!["rev-parse", "HEAD"]);
-    assert_eq!(runs[32].1, vec!["add", "messages/004-claude-sonnet-5.json"]);
-    assert!(runs[33].1[2].contains("transcript 004: claude-sonnet-5"));
+    // Step 2 opens by resolving config at its own boundary (bl-e580):
+    // the governing-lineage enumeration, this branch's role, and the
+    // control reads — the same `resolve_worker` a `litany advance` hop
+    // makes, against this agent's own ref rather than the fork point.
+    assert_eq!(runs[30].1[..2], ["for-each-ref", "--format=%(refname)"]);
+    assert_eq!(runs[31].1[..2], ["merge-base", "agents/ct-1-deadbeef"]);
+    assert_eq!(runs[34].1[0], "log");
+    assert_eq!(
+        runs[41].1[1],
+        "cafecafecafecafecafecafecafecafecafecafe:souls/worker.md"
+    );
+    // Then its boundary drain (empty inbox → stray-probe only), the
+    // branch-tip capture (advanced by step 1's transcript commits), and
+    // its own model-output entry (004).
+    assert_eq!(runs[42].1, vec!["status", "--porcelain", "--", "messages"]);
+    assert_eq!(runs[43].1, vec!["rev-parse", "HEAD"]);
+    assert_eq!(runs[44].1, vec!["add", "messages/004-claude-sonnet-5.json"]);
+    assert!(runs[45].1[2].contains("transcript 004: claude-sonnet-5"));
     // The terminal result deposit is one structural no-op — the operator
     // prompted this agent, so its reply addresses no inbox (§2.6) — so
     // the entry commit is the last git op and no merge-back follows.
@@ -192,10 +218,13 @@ fn loop_runs_three_steps_when_two_completions_in_a_row_are_tool_use() {
     let r1 = tool_use_stream("toolu_01", "bash", "cmd", "ls");
     let r2 = tool_use_stream("toolu_02", "bash", "cmd", "pwd");
     let r3 = final_stream();
+    // One version guard per step boundary (bl-e580, above).
     let adapter = StubAdapter::scripted([
         StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&r1),
+        StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&r2),
+        StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&r3),
     ]);
     let git = StubGit::ok();

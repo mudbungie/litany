@@ -34,13 +34,17 @@ fn exhausted_conversation_stops_before_next_model_call_and_marks_the_ref() {
         Some("body"),
     );
     let harness = scaffold_harness_root();
-    // Only two adapter replies are scripted (version guard + step 1). Had
-    // the budget check failed to stop the loop, step 2 would invoke the
-    // adapter a third time and the stub would panic — so "no third call"
-    // is enforced structurally as well as asserted below.
+    // Three adapter replies are scripted: the step-1 version guard, step
+    // 1's model call, and the step-2 boundary's own version guard — its
+    // resolution precedes the budget check, because the ceiling being
+    // checked is the freshly followed one (bl-e580). Had the check failed
+    // to stop the loop, step 2's model call would invoke the adapter a
+    // fourth time and the stub would panic — so "no model call" is
+    // enforced structurally as well as asserted below.
     let adapter = StubAdapter::scripted([
         StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&tool_use_stream()),
+        StubAdapter::reply_ok(&version_line()),
     ]);
     let git = StubGit::ok();
     let (clock, id) = (FixedClock::default(), FixedIdGen);
@@ -68,8 +72,9 @@ fn exhausted_conversation_stops_before_next_model_call_and_marks_the_ref() {
     assert_eq!(branch, "ct-1-deadbeef");
 
     // Step 1 landed 8 tokens; the step-2 boundary check tripped (8 >= 8),
-    // so the adapter was invoked exactly twice: version guard + step 1.
-    assert_eq!(adapter.observed.borrow().len(), 2);
+    // so the adapter was invoked exactly three times: the two version
+    // guards and step 1's model call — never a step-2 model call.
+    assert_eq!(adapter.observed.borrow().len(), 3);
     assert!(repo.path().join("steps/ct-1-deadbeef/001").exists());
     // Step 2 was abandoned before its model call — no step-2 record.
     assert!(!repo.path().join("steps/ct-1-deadbeef/002").exists());
@@ -147,15 +152,18 @@ fn budget_ref_write_failure_surfaces_as_a_git_error() {
     // bl-403b), and
     // five `show` reads (`version` first, the §10 schema-version guard;
     // manifest.yaml last before the soul, §5.2).
-    // The marker `update-ref` is git op #20 in the exhaustion path (0
+    // The marker `update-ref` is git op #32 in the exhaustion path (0
     // worktree add, 1 control rm, 2-6 the descriptor derivation (§3.3 —
     // four `cat-file -e` existence reads against the governing config
     // commit and one `checkout`), 7 dispatch add, 8 dispatch commit, 9
     // step-1 drain stray-probe, 10/11 user-message delivery add+commit,
     // 12 step-1 rev-parse, 13/14 step-1 model-output transcript
     // add+commit, 15 the tool window's hold-mark probe (§3.3 *Tool
-    // control*), 16/17 the tool transcript add+commit, 18 step-2 drain
-    // stray-probe, 19 step-2 rev-parse, 20 mark_exhausted update-ref).
+    // control*), 16/17 the tool transcript add+commit, 18-29 the step-2
+    // boundary's own config resolution (bl-e580 — the ceiling checked
+    // below is the freshly followed one, so it is read before the
+    // check), 30 step-2 drain stray-probe, 31 step-2 rev-parse, 32
+    // mark_exhausted update-ref).
     // Failing it surfaces the §6 exhaustion write's error arm.
     let repo = scaffold_repo_with_workflow(
         VALID_PER_REPO_PROVIDERS_YAML,
@@ -166,8 +174,9 @@ fn budget_ref_write_failure_surfaces_as_a_git_error() {
     let adapter = StubAdapter::scripted([
         StubAdapter::reply_ok(&version_line()),
         StubAdapter::reply_ok(&tool_use_stream()),
+        StubAdapter::reply_ok(&version_line()),
     ]);
-    let git = StubGit::failing_at(32);
+    let git = StubGit::failing_at(44);
     let (clock, id) = (FixedClock::default(), FixedIdGen);
     let (sleeper, tool_executor) = (StubSleeper::default(), StubToolExecutor::ok());
 

@@ -106,8 +106,14 @@ PRINCIPLES, TAXONOMY and README amendments; every freeze-pinning test
 inverted to pin the ruling (never deleted — each asserts the followed
 behavior its predecessor denied).
 
-Deferred, filed: the in-process root loop resolves once per exchange, so a
-config edit mid-*first*-exchange lands from the next advance-driven step —
-bl-e580, re-scoped to this ruling. The stale dispatch-time descriptions cut
+Shipped since, by bl-e580: the in-process root loop resolves per step too, so
+"at every step boundary" now holds for both drivers with no exception. A
+config edit landing during a fresh root's first exchange governs that
+exchange's next step — the loop calls `resolve_worker` at the top of each
+iteration and re-reads the soul, the model binding, the retry policy, the
+budgets, the grant and the manifest rules with it. Step 1 keeps the fork
+resolution the start already took, which is step 1's own boundary.
+
+Deferred, filed: the stale dispatch-time descriptions cut
 under a grant-changing tip — bl-37cd. Per-step config provenance in
 `meta.json` — bl-e4a0.
