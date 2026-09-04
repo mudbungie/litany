@@ -1,7 +1,8 @@
 +++
 title = "keep_recent_tokens: the retained tail as a provider-reported prompt-token budget, the compaction point derived from successive usage reports"
 created = 1788493095
-updated = 1788493095
+updated = 1788493716
+claimant = "Clockwright"
 parent = "bl-8175"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
