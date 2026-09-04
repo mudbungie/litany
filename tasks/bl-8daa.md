@@ -1,7 +1,8 @@
 +++
 title = "Stale brazen pin: Cargo.toml pins =0.0.7 while brazen 0.0.8 is published, and yog cannot move until litany does"
 created = 1788493189
-updated = 1788493189
+updated = 1788493216
+claimant = "Spellbind-Y"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
