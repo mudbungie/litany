@@ -1,7 +1,8 @@
 +++
 title = "context files: AGENTS.md/CLAUDE.md on the cwd's path, not yet shown to this agent, appended to the next tool result — a workflow.yaml context_files list"
 created = 1788493096
-updated = 1788493096
+updated = 1788493610
+claimant = "Wayfinder"
 parent = "bl-8175"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
