@@ -2,6 +2,7 @@
 title = "context economy design: durable facts, history search, usage-triggered compaction with a token tail and a deterministic extract, nested context files, recoverability — docs/DESIGN_CONTEXT_ECONOMY.md"
 created = 1788493049
 updated = 1788493049
+claimant = "Thrift"
 parent = "bl-8175"
 priority = 1
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
