@@ -26,6 +26,8 @@ reaching a release.
 
 ## [Unreleased]
 
+## [0.0.7](https://github.com/mudbungie/litany/compare/litany-v0.0.6...litany-v0.0.7) - 2026-09-03
+
 - **the pinned adapter moves to brazen 0.0.8, which names the headless sign-in a provider row serves.** brazen's `[provider.oauth]` table replaced `device_url` with `device = { url, style }` and `bz --list-providers --json` gained a `device` column carrying that style (`codex`, `rfc8628`, or absent) — a flow VARIANT selected by row data, because OpenAI's own device-code endpoint does not speak the RFC 8628 grammar. litany authors no oauth row and reads no column but `name` off that listing, so nothing here changes behaviour: the bump is the chain's middle link, taken so a consumer pinning both crates can resolve exactly one brazen (the exact pins make litany's `brazen = "="` line the gate on every downstream bump). Cargo.toml is the pin's one home and the README's spellings derive from it [bl-8daa]
 
 ## [0.0.6](https://github.com/mudbungie/litany/compare/litany-v0.0.5...litany-v0.0.6) - 2026-09-01
