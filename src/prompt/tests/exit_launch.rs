@@ -173,6 +173,7 @@ fn parentless_agent_deposit_noops_but_exit_launch_still_fires() {
         id_gen: &id,
         tool_executor: &tool_executor,
         config_root: harness.path(),
+        data_root: harness.path(),
         adapter_target: None,
         stop: never_stopped(),
         launcher: &launcher,

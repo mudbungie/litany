@@ -7,6 +7,10 @@ use tempfile::TempDir;
 /// keep this file under the repo's per-file line cap.
 mod toolspec;
 
+/// What the shipped `python` definition promises the model, split out
+/// for the same reason.
+mod toolspec_python;
+
 /// The seeded `models.yaml` / `providers.yaml` provider names against
 /// brazen's actual resolved table (bl-9391), split out for the same reason.
 mod brazen_providers;
@@ -14,6 +18,15 @@ mod brazen_providers;
 /// Pins on the shipped `template/` config — the role grant and the
 /// manifest entries a fresh install carries — split out for the same reason.
 mod shipped_template;
+
+/// The seeded `learning-loop.yaml` against the basic agentic loop it
+/// extends (`docs/DESIGN_LEARNING_LOOP.md` §2), split out for the same
+/// reason.
+mod learning_loop;
+
+/// The shipped `reviewer` role — soul, grant and manifest entry — split
+/// out for the same reason.
+mod reviewer_role;
 
 /// `LITANY_HOME`-style collapsed roots: config and data are one directory
 /// (ARCH §2.2) — the shape yog drives via `LITANY_HOME=<dir> litany prime`.

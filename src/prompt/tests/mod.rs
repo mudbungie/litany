@@ -31,6 +31,7 @@ mod pin;
 mod pinned;
 mod reply_address;
 mod retarget_boundary;
+mod reviewer_proposal;
 mod stop_deposit;
 mod streams;
 mod stubs;

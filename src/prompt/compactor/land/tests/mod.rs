@@ -103,7 +103,10 @@ fn a_landing_squashes_the_span_and_replays_the_live_tail() {
     );
     commit(wt, "step 004", &[("messages/004-c.md", "c\n")], &[]);
 
-    assert_eq!(land(wt, "p1", "p1-cmp", &g()).unwrap(), LandOutcome::Landed);
+    assert_eq!(
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
+        LandOutcome::Landed
+    );
     // The product landed and the live tail survived.
     assert!(!wt.join("messages/001-user.md").exists(), "deletion landed");
     assert!(wt.join("summary/001.md").exists(), "summary landed");
@@ -164,7 +167,10 @@ fn live_branch_wins_on_a_work_product_the_compaction_deleted() {
     );
     commit(wt, "step 002 rewrite", &[("code.txt", "v2\n")], &[]);
 
-    assert_eq!(land(wt, "p1", "p1-cmp", &g()).unwrap(), LandOutcome::Landed);
+    assert_eq!(
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
+        LandOutcome::Landed
+    );
     assert_eq!(
         std::fs::read_to_string(wt.join("code.txt")).unwrap(),
         "v2\n",
@@ -183,4 +189,5 @@ fn assert_op(err: Error, want: &str) {
 }
 
 mod edges;
+mod extract;
 mod stub;

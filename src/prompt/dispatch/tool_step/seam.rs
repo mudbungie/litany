@@ -18,7 +18,7 @@ use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
 /// What the seam decided for one invocation.
-pub(super) enum Gate {
+pub(in crate::prompt::dispatch) enum Gate {
     /// Enter the executor (no control configured, or it passed).
     Proceed,
     /// Never enter the executor; commit `reason` as an in-band
@@ -36,7 +36,7 @@ pub(super) enum Gate {
 
 /// Consult the configured control (if any) about one invocation.
 #[allow(clippy::too_many_arguments)] // one seam, every fact it adjudicates on
-pub(super) fn adjudicate(
+pub(in crate::prompt::dispatch) fn adjudicate(
     configured: Option<&ToolControl>,
     role: &str,
     id: &str,
@@ -75,7 +75,7 @@ pub(super) fn adjudicate(
 /// `is_error` `tool_result` — the model reads why and steps on, exactly
 /// like the grant decline ([`super::refusal`]). No result envelope: no
 /// child ran, so there is no exit code and none is invented (§3.3).
-pub(super) fn refusal_text(tool: &str, reason: &str) -> String {
+pub(in crate::prompt::dispatch) fn refusal_text(tool: &str, reason: &str) -> String {
     format!(
         "{tool:?} was refused by the workflow's tool control (ARCH §3.3 Tool control): {reason}"
     )

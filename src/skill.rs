@@ -50,5 +50,9 @@ pub fn parse(yaml_body: &str) -> Result<Frontmatter, serde_yaml_ng::Error> {
     serde_yaml_ng::from_str(yaml_body)
 }
 
+/// The `litany skills` derivation (`docs/DESIGN_LEARNING_LOOP.md` §5) —
+/// the census of both skill homes, derived from git and stored nowhere.
+pub(crate) mod census;
+
 #[cfg(test)]
 mod tests;

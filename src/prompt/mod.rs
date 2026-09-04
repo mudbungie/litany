@@ -44,6 +44,7 @@ pub mod pinned_doc;
 pub(crate) mod rebase_forward;
 mod resolve;
 pub mod retarget;
+pub(crate) mod reviewer;
 pub mod role;
 pub mod step;
 pub mod stop;
@@ -91,8 +92,7 @@ const GLOBAL_MODELS_FILE: &str = "models.yaml";
 /// stubs inline. `config_root` is the config-lifetime harness root
 /// (ARCH §2.2), which holds the global `models.yaml` (ARCH §4.2);
 /// production passes [`crate::harness_root::Roots::config`], tests pass
-/// a temp dir. The data-lifetime root reaches [`run`] only through
-/// `tool_executor`, which already carries it.
+/// a temp dir.
 pub struct Deps<'a> {
     pub adapter: &'a dyn AdapterRunner,
     pub sleeper: &'a dyn Sleeper,
@@ -101,6 +101,22 @@ pub struct Deps<'a> {
     pub id_gen: &'a dyn IdGen,
     pub tool_executor: &'a dyn ToolExecutor,
     pub config_root: &'a Path,
+    /// The data-lifetime harness root (ARCH §2.2), holding the `skills/`
+    /// and `tools/` pools. Production passes
+    /// [`crate::harness_root::Roots::data`].
+    ///
+    /// It reaches the executor for one act, the reviewer's landing
+    /// (`stage_proposal`, `docs/DESIGN_LEARNING_LOOP.md` §3), which asks
+    /// the pool one question and hands it to a second asker. The
+    /// question is **what names the install already provides**: a
+    /// proposal may touch `skills/<name>/` only for a name the pool does
+    /// not hold (§3 step 3), and the same set is what the
+    /// config-authoring routine judges a workspace skill's name against
+    /// (ARCH §3.3 — the pool-name collision). Handing a landing the
+    /// wrong root would let a proposal claim a shipped skill's name.
+    /// Every other executor path leaves it untouched: the data root
+    /// reaches a tool through `tool_executor`, which carries its own.
+    pub data_root: &'a Path,
     /// The binding-injected adapter target (`cmd::Fx::adapter_target`,
     /// ARCH §3.4): an embedding host naming itself (or another binary) as
     /// the provider adapter, the same injection philosophy as

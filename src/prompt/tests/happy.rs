@@ -132,9 +132,10 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
     // head-tip enumeration and its containment merge-base — plus
     // five `show` reads — `version` first, the §10 schema-version guard,
     // then providers/workflow/manifest/soul)
-    // + 1 (branch spawn off the fork point) + 9 (dispatch commit:
+    // + 1 (branch spawn off the fork point) + 11 (dispatch commit:
     // control-file removal, the descriptor derivation's four `cat-file
-    // -e` existence reads and one `checkout` — §3.3 — the settled-name
+    // -e` existence reads and one `checkout` — §3.3 — the facts cut's
+    // own existence read and `checkout` (§5.5), the settled-name
     // stage (§2.3, `workspace::agent_name`), then add, commit —
     // §2.3 step 2) + 1 (drain
     // stray-probe, §2.11) + 2 (user-message delivery commit, §2.11) + 1
@@ -145,7 +146,7 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
     // returned mark runs (§2.6). Merge-back is gone (§2.6): the root
     // branch persists on its own ref. The version guard runs no git.
     let runs = git.runs.borrow();
-    assert_eq!(runs.len(), 27);
+    assert_eq!(runs.len(), 29);
     for (dest, _args) in &runs[0..12] {
         assert_eq!(dest, &repo_git, "control + spawn run against repo.git");
     }
@@ -201,7 +202,7 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
     );
     assert_eq!(args8[4], worktree.to_string_lossy().to_string());
     assert_eq!(args8[5], "config/default");
-    for (dest, _args) in &runs[12..27] {
+    for (dest, _args) in &runs[12..29] {
         assert_eq!(dest, &worktree, "post-spawn git runs inside the worktree");
     }
     // Dispatch commit (§2.3 step 2): the config commit's control files
@@ -212,40 +213,46 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
     );
     let removed: Vec<&str> = runs[12].1[5..].iter().map(String::as_str).collect();
     assert_eq!(removed, crate::workspace::CONTROL_PATHS);
-    // 12-16 are the descriptor derivation (§3.3): the grant checked
+    // 13-17 are the descriptor derivation (§3.3): the grant checked
     // against the governing config commit, then checked out of it —
-    // asserted arg-for-arg in [`super::descriptor_prune`].
-    // 18 stages the settled name (§2.3): the trim's fourth part, always
+    // asserted arg-for-arg in [`super::descriptor_prune`]. 18-19 are
+    // the facts cut (§5.5), the same shape over one path.
+    // 20 stages the settled name (§2.3): the trim's sixth part, always
     // written — and since yog bl-aca4 never empty at creation: this root
     // was started without one, so the pre-flight minted a name.
-    assert_eq!(runs[18].1, vec!["add", "name"]);
+    assert_eq!(
+        runs[18].1,
+        vec!["cat-file", "-e", &format!("{STUB_SHA}:facts.md")]
+    );
+    assert_eq!(runs[19].1, vec!["checkout", STUB_SHA, "--", "facts.md"]);
+    assert_eq!(runs[20].1, vec!["add", "name"]);
     let minted = std::fs::read_to_string(worktree.join("name")).unwrap();
     let minted = minted.trim();
     assert!(
         crate::workspace::agent_name::mint::is_minted_shape(minted),
         "a minted name is two PascalCase words (bl-79a2), got {minted:?}"
     );
-    assert_eq!(runs[19].1, vec!["add", "goal.md", "soul.md"]);
-    assert_eq!(runs[20].1[0], "commit");
-    assert!(runs[20].1[2].contains("step 001: dispatch"));
-    assert!(runs[20].1[2].contains("[ct-1-deadbeef]"));
+    assert_eq!(runs[21].1, vec!["add", "goal.md", "soul.md"]);
+    assert_eq!(runs[22].1[0], "commit");
+    assert!(runs[22].1[2].contains("step 001: dispatch"));
+    assert!(runs[22].1[2].contains("[ct-1-deadbeef]"));
     // The step-1 drain (§2.11 *Delivery*): a stray-recovery probe over
     // messages/ (clean here — no add/commit), then the initial user
     // message delivered from the inbox as the first transcript entry,
     // before step 1's read state is captured.
-    assert_eq!(runs[21].1, vec!["status", "--porcelain", "--", "messages"]);
-    assert_eq!(runs[22].1, vec!["add", "messages/001-user.md"]);
-    assert!(runs[23].1[2].contains("transcript 001: user"));
-    assert_eq!(runs[24].1, vec!["rev-parse", "HEAD"]);
+    assert_eq!(runs[23].1, vec!["status", "--porcelain", "--", "messages"]);
+    assert_eq!(runs[24].1, vec!["add", "messages/001-user.md"]);
+    assert!(runs[25].1[2].contains("transcript 001: user"));
+    assert_eq!(runs[26].1, vec!["rev-parse", "HEAD"]);
 
     // The transcript writer commits the model-output entry (§2.3): the
     // sealed staging file is renamed to messages/002-<model-id>.json —
     // the origin token is the model that authored it (§2.3) — and
     // committed.
-    assert_eq!(runs[25].1, vec!["add", "messages/002-claude-sonnet-5.json"]);
-    assert_eq!(runs[26].1[0], "commit");
-    assert!(runs[26].1[2].contains("transcript 002: claude-sonnet-5"));
-    assert!(runs[26].1[2].contains("[ct-1-deadbeef]"));
+    assert_eq!(runs[27].1, vec!["add", "messages/002-claude-sonnet-5.json"]);
+    assert_eq!(runs[28].1[0], "commit");
+    assert!(runs[28].1[2].contains("transcript 002: claude-sonnet-5"));
+    assert!(runs[28].1[2].contains("[ct-1-deadbeef]"));
     // The renamed entry is on disk in the worktree and holds the
     // canonical model-output blocks (the "hi there" text block) plus the
     // provider's own token usage (§2.3 *Usage rides the entry*) — so a transcript reader
@@ -266,5 +273,5 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
     // no-op here — the operator prompted this agent, so its reply is
     // read in this conversation and addresses no inbox — so the entry
     // commit is the last git op and no merge-back follows.
-    assert_eq!(runs.len(), 27);
+    assert_eq!(runs.len(), 29);
 }

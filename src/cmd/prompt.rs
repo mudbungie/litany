@@ -92,6 +92,7 @@ fn go(args: Args, fx: &mut Fx) -> Result<String, Box<dyn std::error::Error>> {
         id_gen: &NanoIdGen,
         tool_executor: &tool_executor,
         config_root: &roots.config,
+        data_root: &roots.data,
         adapter_target: fx.adapter_target.as_deref(),
         stop: fx.stop,
         launcher: &launcher,

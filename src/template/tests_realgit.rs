@@ -52,3 +52,43 @@ fn realgit_run_capture_returns_stdout() {
         .unwrap();
     assert!(out.starts_with("git "), "unexpected: {out:?}");
 }
+
+#[test]
+fn realgit_run_capture_bytes_is_untrimmed() {
+    // The raw-bytes capture is what `search_history` hands the model
+    // (ARCH §3.3): `git --version` ends in a newline, and the trimmed
+    // string capture drops it. Verbatim means the newline survives.
+    let holder = TempDir::new().unwrap();
+    let git = RealGit::new();
+    let raw = git
+        .run_capture_bytes(holder.path(), &["--version"])
+        .unwrap();
+    assert!(raw.ends_with(b"\n"), "unexpected: {raw:?}");
+    let trimmed = git.run_capture(holder.path(), &["--version"]).unwrap();
+    assert_eq!(String::from_utf8_lossy(&raw).trim(), trimmed);
+}
+
+/// A runner that answers only [`GitRunner::run_capture`] — the shape
+/// every test double in the tree has — proving the trait's default
+/// `run_capture_bytes` delegates to it rather than demanding a second
+/// answer of them.
+struct CaptureOnly;
+impl GitRunner for CaptureOnly {
+    fn run(&self, dest: &std::path::Path, args: &[&str]) -> io::Result<()> {
+        self.run_capture(dest, args).map(|_| ())
+    }
+    fn run_capture(&self, _dest: &std::path::Path, _args: &[&str]) -> io::Result<String> {
+        Ok("answered".to_string())
+    }
+}
+
+#[test]
+fn the_default_capture_bytes_delegates_to_run_capture() {
+    CaptureOnly
+        .run(std::path::Path::new("."), &["anything"])
+        .unwrap();
+    let bytes = CaptureOnly
+        .run_capture_bytes(std::path::Path::new("."), &["anything"])
+        .unwrap();
+    assert_eq!(bytes, b"answered".to_vec());
+}

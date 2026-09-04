@@ -1,0 +1,126 @@
+# The **learning loop** (`docs/DESIGN_LEARNING_LOOP.md`) — the basic
+# agentic loop plus a reviewer. `litany prime` seeds this file beside
+# `basic-agentic-loop.yaml` in `<config-root>/workflows/`, seed-if-absent
+# like every other pool entry, so it is there to copy or fork a variant
+# from. It is **not** the default: a reviewer is model spend the operator
+# opts into, and the basic agentic loop stays exactly today's stock
+# behavior (`docs/DESIGN_WORKFLOW_SWITCH.md` §3).
+#
+# Everything below the `events:` block is the basic agentic loop's own
+# declaration, unchanged — the compaction clock this loop rides, the
+# retry policy, the tool-output bounds. Only the two bindings marked
+# below are added.
+#
+# To adopt it:
+#
+#   litany config <ws> learning --from default
+#   # replace the new lineage's workflow.yaml with this file
+#   litany workflow <ws> <agent> --config learning
+#
+# Off switch: delete the `dispatch(reviewer)` line. A config with no
+# reviewer binding never forks one — policy lives in the config, never in
+# code.
+
+events:
+  user_message:
+    - dispatch(worker)
+  worker_return:
+    - deliver_result
+  # The reviewer rides the compaction checkpoint (§2 there): it forks off
+  # the same compaction point as the compactor, so the span it inspects is
+  # exactly the span about to be squashed out of the transcript. No second
+  # clock, no new trigger, and never on the critical path — its return is
+  # consumed, so the reviewed agent never reads a review.
+  worker_flush:
+    - dispatch(compactor)
+    - dispatch(reviewer)
+  compactor_return:
+    - land_compaction
+  # The reviewer's landing (§3 there): one config commit on
+  # `proposal/<reviewer-id>`, parented on the followed config commit the
+  # reviewer read, which no lineage points at until `litany proposal
+  # --accept` fast-forwards it. Vocabulary today — the action parses and
+  # the interpreter declines it until its landing ships.
+  reviewer_return:
+    - stage_proposal
+  branch_stopped:
+    - mark_abandoned
+    - notify_ui
+
+# Intermediate compaction checkpoints (ARCH §2.6–§2.7, §6). The executor
+# reads this at each step boundary: when the trigger fires it dispatches a
+# compactor off the compaction point — the branch tip, or `HEAD~keep_recent`
+# when `keep_recent` is set — and the compactor's return lands by
+# rebase-forward (the `compactor_return: land_compaction` binding above):
+# the span before the point squashes into a compaction base and the live
+# tail replays on top, zero downtime. `trigger` is one of
+# `every_n_commits`, `every_t_seconds` (both take `n`), or `on_flush` (the
+# agent-elected `flush`, no `n`). `keep_recent` (optional, default 0) keeps
+# the most recent commits out of the span; it must stay below `n` under
+# `every_n_commits`. `extract_bytes` (optional) caps the extract the
+# landing itself derives — `summary/<NNN>.refs.md`, the verbatim user
+# messages, error strings, pull-request numbers, commit shas and paths
+# the compaction takes out of context, written by code beside the
+# compactor's prose (docs/DESIGN_CONTEXT_ECONOMY.md §5.3); omit it and no
+# extract is written. Omit the whole block and the branch never compacts.
+compaction:
+  intermediate:
+    trigger: every_n_commits
+    n: 20
+    extract_bytes: 32768
+
+# Harness-owned retry policy for a step's model call (ARCH §2.10, §4.4):
+# brazen never retries — the harness re-invokes `bz` on a retryable
+# in-band Error, up to max_attempts, with exponential backoff.
+retry:
+  max_attempts: 3
+  backoff: exponential
+
+# Bounded transcript projection of tool output (ARCH §3.3, §6). Each
+# stream of a tool result (stdout and stderr independently) is bounded
+# to its first head_bytes and last tail_bytes before the result envelope
+# is rendered; the omitted middle is replaced by a marker stating the
+# original byte/line counts and where the full record lives
+# (steps/<agent-id>/<NNN>/tools/<tool-id>/output.json — always complete).
+# Counts are bytes, never tokens. Omit the block and tool output reaches
+# the transcript unbounded.
+tool_output:
+  head_bytes: 16384
+  tail_bytes: 16384
+
+# Context files (ARCH §3.3 *Context files ride the next tool result*,
+# `docs/DESIGN_CONTEXT_ECONOMY.md` §6). File NAMES, looked for in every
+# directory on the path from the enclosing repository's top level down to
+# the agent's working directory. Each one the agent has not been shown
+# yet is appended to its next tool result, framed <file path="..."> and
+# bounded by tool_output above as its own stream; "already shown" is read
+# off the transcript, so a compaction that drops the entry shows the file
+# again. Omit the block and nothing is discovered.
+context_files: [AGENTS.md, CLAUDE.md]
+
+# Tool control (ARCH §3.3 *Tool control*, §6): an adjudicator binary
+# consulted before every granted tool invocation executes — it answers
+# pass, refuse, or hold (park for out-of-band review). Deliberately not
+# configured here: no control ships, and omitting the block leaves the
+# tool window unchanged. To wire one:
+# tool_control:
+#   command: /path/to/control
+
+# Whole-tree spend limits (ARCH §6 "Budgets (v0.7)"). One frozen ceiling
+# for the whole agent tree, not a per-agent allowance: every driver in
+# the tree — root or subagent — checks the tree's total against these
+# same numbers, and a dispatch inherits no fresh budget. Checked at
+# every model-call boundary before the adapter is invoked; spend, wall,
+# and depth are derived from disk each check — no stored counter. Omit a
+# limit (or the whole block) to leave that axis unbounded.
+#
+# Deliberately not configured here (operator ruling 2026-08-16): a
+# whole-tree ceiling binds far earlier than its number reads, because a
+# root and every agent below it spend one shared allowance — an hour of
+# accumulated wall across a tree ends a conversation that is working. So
+# nothing ships bounded: tokens, wall and depth are all unbounded, and a
+# ceiling is config an operator adds. To wire one:
+# budgets:
+#   max_total_tokens: 2000000
+#   max_wall_seconds: 3600
+#   max_depth: 4

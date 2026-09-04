@@ -34,10 +34,12 @@
 //!   event vocabulary (§4.4).
 //! - `archive`: bundle/replay of an agent subtree (§9.2).
 //! - `skill`: the skill-pool descriptor surface (§3.3).
+//! - `facts`: the config lineage's durable facts file (§5.5).
 
 mod archive;
 pub mod cmd;
 mod config;
+mod facts;
 mod harness_root;
 mod install;
 pub mod mint;

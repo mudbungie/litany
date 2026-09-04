@@ -73,6 +73,19 @@ const CASES: &[Case] = &[
         expect_embedded: &["souls/compactor.md"],
     },
     Case {
+        // The facts file's seed home (ARCH §5.5,
+        // `docs/DESIGN_CONTEXT_ECONOMY.md` §3 "Per-user is
+        // per-workspace"): `<config-root>/template/facts.md` is an
+        // extra file with no embedded counterpart, so every `litany
+        // new` starts its lineage carrying it and the operator's
+        // "facts every new workspace begins with" needs no mechanism of
+        // its own.
+        name: "facts_file_seeds_from_the_override",
+        overrides: &[("facts.md", "the build runs on nightly\n")],
+        expect_exact: &[("facts.md", "the build runs on nightly\n")],
+        expect_embedded: &["manifest.yaml"],
+    },
+    Case {
         // Absent override dir = today's behavior exactly: every control
         // file is the embedded one.
         name: "absent_dir_is_embedded_exactly",
@@ -115,6 +128,32 @@ fn seed_set_is_union_with_override_winning() {
             assert_eq!(got, embedded(rel), "{}: {rel}", case.name);
         }
     }
+}
+
+#[test]
+fn an_over_cap_seeded_facts_file_refuses_the_workspace() {
+    // The cap is the artifact's, so it holds at both writers: `litany
+    // new` seeding from an override is refused exactly as a later
+    // `litany config` pass is (ARCH §5.5). The embedded template ships
+    // no facts file, so an override is the only way to reach this.
+    let holder = TempDir::new().unwrap();
+    let config = holder.path().join("conf");
+    let over = config.join(TEMPLATE_OVERRIDE_DIR);
+    fs::create_dir_all(&over).unwrap();
+    let body = "x".repeat(usize::try_from(crate::facts::MAX_BYTES).unwrap() + 1);
+    fs::write(over.join(crate::facts::FILE), &body).unwrap();
+    let roots = Roots {
+        config,
+        data: holder.path().join("no-pool"),
+    };
+    let err = scaffold(&holder.path().join("ws"), &roots, &NoopGit).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            ScaffoldError::Facts(crate::facts::OverCap::TooLarge { .. })
+        ),
+        "got {err:?}"
+    );
 }
 
 #[test]

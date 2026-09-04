@@ -7,6 +7,7 @@
 //! - `gate_return_on(verifier.approve)`
 //! - `deliver_result`
 //! - `land_compaction`
+//! - `stage_proposal`
 //! - `mark_abandoned`
 //! - `notify_ui`
 //!
@@ -44,6 +45,19 @@ pub enum Action {
     /// (bl-bc9c), but configs are frozen commits (§2.2) and a running
     /// workspace's vocabulary must keep resolving.
     LandCompaction,
+    /// Land a returning reviewer's product as a **proposal**: one config
+    /// commit on `proposal/<reviewer-id>`, parented on the followed
+    /// config commit the reviewer read, whose diff is the reviewer's own
+    /// edits and whose message is its terminal response
+    /// (`docs/DESIGN_LEARNING_LOOP.md` §3). Bound to `reviewer_return`
+    /// and epitaph-gated like [`Action::LandCompaction`]; the return is
+    /// consumed, never delivered, so a proposed skill or facts patch
+    /// reaches no lineage until `litany proposal --accept` fast-forwards
+    /// it. **Vocabulary only today** (bl-30fe): it parses, and the
+    /// interpreter declines it with `ActionUnsupported` until the
+    /// landing ships (`docs/PRINCIPLES.md` "Decline illegal
+    /// operations").
+    StageProposal,
     MarkAbandoned,
     NotifyUi,
 }
@@ -69,6 +83,7 @@ impl Action {
             "land_compaction" | "compaction_merge" => {
                 no_args(name, &args).map(|_| Action::LandCompaction)
             }
+            "stage_proposal" => no_args(name, &args).map(|_| Action::StageProposal),
             "mark_abandoned" => no_args(name, &args).map(|_| Action::MarkAbandoned),
             "notify_ui" => no_args(name, &args).map(|_| Action::NotifyUi),
             "dispatch" => parse_dispatch(&args),

@@ -13,7 +13,11 @@
 //! inbox, ARCH §2.11). [`load_skill`] realizes Body-on-demand (§3.3):
 //! it copies a pooled skill directory into the worktree at
 //! `skills/<name>/`, committed with the tool result so the next
-//! assembly composes it. [`cd`] moves the calling agent's working
+//! assembly composes it. [`search_history`] is the read over the
+//! workspace's own `agents/*` refs (§3.3,
+//! `docs/DESIGN_CONTEXT_ECONOMY.md` §4): git is the search surface, and
+//! the `<commit>:<path>` address it returns is the recovery path the
+//! model can follow back through the same tool. [`cd`] moves the calling agent's working
 //! directory for every later tool call (§3.3 *Working directory*),
 //! storing it as the agent's own mark. A dispatch returns the child's
 //! address immediately and never blocks; a message deposits
@@ -26,18 +30,22 @@
 //! identity from `LITANY_CONV_BRANCH` (§3.3), never from model input.
 //! Adding a new one is a match arm in [`run`] plus a sibling module.
 
+pub use bindings::Bindings;
 use std::io::{Read, Write};
-use std::path::Path;
 use thiserror::Error;
 
 pub mod apply_patch;
 pub mod bash;
+pub(crate) mod bindings;
 pub mod cd;
+pub(crate) mod child;
 pub mod compaction;
 pub mod dispatch;
 pub mod load_skill;
 pub mod message;
+pub mod python;
 pub mod read_file;
+pub mod search_history;
 
 /// Built-in tool name: atomic multi-file structured edit (§3.3 *The
 /// patch tool*).
@@ -54,8 +62,17 @@ const DISPATCH: &str = "dispatch";
 const LOAD_SKILL: &str = "load_skill";
 /// Built-in tool name: deposit into an existing agent's inbox (§2.11).
 const MESSAGE: &str = "message";
+/// Built-in tool name: run a model-authored python3 program that
+/// composes this agent's own tools (`docs/DESIGN_CODE_EXECUTION.md`
+/// §2.2). `pub(crate)` and not private: it is also the name the door
+/// refuses at depth 1 ([`crate::prompt::dispatch::door::COMPOSING`]),
+/// and one name has one home.
+pub(crate) const PYTHON: &str = "python";
 /// Built-in tool name: read a file's bytes (§3.3).
 const READ_FILE: &str = "read_file";
+/// Built-in tool name: search the workspace's stored transcript entries
+/// (§3.3, `docs/DESIGN_CONTEXT_ECONOMY.md` §4).
+const SEARCH_HISTORY: &str = "search_history";
 
 /// The closed set of built-in tool names `litany tool <name>` answers to,
 /// sorted — the one list behind both the [`Error::Unknown`] decline and
@@ -64,14 +81,16 @@ const READ_FILE: &str = "read_file";
 /// deliberately absent: it is injected for the compactor role alone
 /// (§2.7), never a name a general agent or an operator elects, so it is
 /// routed but not advertised.
-pub const NAMES: [&str; 7] = [
+pub const NAMES: [&str; 9] = [
     APPLY_PATCH,
     BASH,
     CD,
     DISPATCH,
     LOAD_SKILL,
     MESSAGE,
+    PYTHON,
     READ_FILE,
+    SEARCH_HISTORY,
 ];
 
 /// [`NAMES`] rendered for a human: the pool named in the unknown-tool
@@ -138,6 +157,21 @@ pub enum Error {
     /// naming the available pool (§3.3). Same stderr-concat contract.
     #[error(transparent)]
     LoadSkill(#[from] load_skill::Error),
+    /// `search_history` failed (bad input JSON, missing env, neither or
+    /// both of the two inputs, a git query that could not run, an
+    /// `entry` address naming no blob, per [`search_history::Error`],
+    /// `docs/DESIGN_CONTEXT_ECONOMY.md` §4). Same stderr-concat
+    /// contract as the other arms.
+    #[error(transparent)]
+    SearchHistory(#[from] search_history::Error),
+    /// `python` failed at the harness layer (bad input JSON, an
+    /// unresolvable caller, a stub module that could not be written,
+    /// per [`python::Error`], `docs/DESIGN_CODE_EXECUTION.md` §2.2). A
+    /// program that ran and failed is *not* this variant: its traceback
+    /// is on stderr and its exit code flows through, and a missing
+    /// interpreter is the in-band 127 (§2.4).
+    #[error(transparent)]
+    Python(#[from] python::Error),
     /// A compactor tool (`write_summary` / `mark_for_deletion`) failed
     /// (bad input JSON, missing env, deletion-only decline, etc., per
     /// [`compaction::Error`], ARCH §2.7). Same stderr-concat contract.
@@ -147,9 +181,8 @@ pub enum Error {
 
 /// Dispatch one in-process tool call. `name` is the tool name as the
 /// model spelled it (and as the harness passed via `litany tool
-/// <name>`); `driver_target` is the binding-injected re-entry path
-/// (`cmd::Fx::driver_target`, §2.11) the `dispatch` and `message`
-/// built-ins go back through the front door with; `stdin` carries the
+/// <name>`); `bindings` carries what the binding injected (above);
+/// `stdin` carries the
 /// `tool_use.input` JSON; `stdout`
 /// receives the bytes the executor will surface as
 /// `tool_result.content` on success; `stderr` receives the bytes that
@@ -166,13 +199,21 @@ pub enum Error {
 #[rustfmt::skip]
 pub fn run<R: Read, W: Write, E: Write>(
     name: &str,
-    driver_target: &Path,
+    bindings: &Bindings<'_>,
     stdin: &mut R,
     stdout: &mut W,
     stderr: &mut E,
 ) -> Result<i32, Error> {
-    let spawner = dispatch::SubprocessSpawner::with_exe(driver_target.to_path_buf());
-    let sender = message::SubprocessSender::with_exe(driver_target.to_path_buf());
+    // `python` is routed here rather than in [`run_with`]: its toolset
+    // resolution reads the whole binding, which is what this entry point
+    // holds and the injected-stub one does not (§2.7).
+    if name == PYTHON {
+        return python::run(stdin, stdout, stderr, bindings, &dispatch::ProcessEnv)
+            .map_err(Error::Python);
+    }
+    let target = bindings.driver_target.to_path_buf();
+    let spawner = dispatch::SubprocessSpawner::with_exe(target.clone());
+    let sender = message::SubprocessSender::with_exe(target);
     run_with(name, stdin, stdout, stderr, &dispatch::ProcessEnv, &spawner, &sender)
 }
 
@@ -220,6 +261,11 @@ pub fn run_with<R: Read, W: Write, E: Write>(
         return load_skill::run(stdin, stdout, env)
             .map(|()| 0)
             .map_err(Error::LoadSkill);
+    }
+    if name == SEARCH_HISTORY {
+        return search_history::run(stdin, stdout, env)
+            .map(|()| 0)
+            .map_err(Error::SearchHistory);
     }
     // The compactor toolset (§2.7), built into the primitive: available to
     // the compactor role's injected toolset, not any `providers.yaml` list.

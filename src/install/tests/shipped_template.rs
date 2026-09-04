@@ -52,6 +52,26 @@ fn the_shipped_worker_grant_is_the_whole_tool_pool() {
     assert!(shipped.roles["compactor"].tools.is_empty());
 }
 
+/// The retired multi-tool ships nowhere (`docs/DESIGN_CODE_EXECUTION.md`
+/// §5). A retirement is three deletions that must happen together — the
+/// schema (or the model is told about a tool nothing answers), the skill
+/// (or `load_skill` offers a body for it), and the grant (which the test
+/// above would catch on its own, since grant and pool must be equal).
+/// The name stays legible where it must: a transcript that already names
+/// it still assembles, with a stand-in schema
+/// (`prompt::dispatch::tools::tests_retired`).
+#[test]
+fn the_retired_multi_tool_ships_no_schema_and_no_skill() {
+    assert!(
+        TOOLS.get_file("multi_tool.json").is_none(),
+        "the retired multi-tool still ships a schema"
+    );
+    assert!(
+        SKILLS.get_dir("multi_tool").is_none(),
+        "the retired multi-tool still ships a skill"
+    );
+}
+
 /// The shipped `compactor` manifest entry composes what the compactor's
 /// goal tells it to read (bl-2c63).
 ///
@@ -105,4 +125,44 @@ fn prime_seeds_the_basic_agentic_loop_into_the_workflow_pool() {
     fs::write(&seeded, "events: {}\n").unwrap();
     prime(&collapsed(home.path())).unwrap();
     assert_eq!(fs::read_to_string(&seeded).unwrap(), "events: {}\n");
+}
+
+/// The shipped `worker` entry pins the lineage's facts file, and the
+/// `compactor` entry does not (ARCH §5.5,
+/// `docs/DESIGN_CONTEXT_ECONOMY.md` §3).
+///
+/// `worker` is the role every root resolves, so its pin is what makes a
+/// workspace's durable facts reach an ordinary conversation at all —
+/// pinned rather than ordered, because pinned is never shed by
+/// `budget_tokens` (§5.2) and a memory that can be evicted is not one.
+/// The compactor's subject is the branch's history, and a
+/// dispatch-written fact is not that (§2.7).
+#[test]
+fn the_shipped_worker_entry_pins_the_facts_file() {
+    let raw = crate::template::TEMPLATE
+        .get_file("manifest.yaml")
+        .expect("the template ships manifest.yaml")
+        .contents_utf8()
+        .expect("manifest.yaml is UTF-8");
+    let shipped =
+        crate::config::manifest::Manifest::parse(raw, Path::new("template/manifest.yaml"))
+            .expect("the shipped template parses");
+    let facts = crate::facts::FILE.to_string();
+    assert!(shipped.roles["worker"].pinned.contains(&facts));
+    assert!(!shipped.roles["compactor"].pinned.contains(&facts));
+    assert!(!shipped.roles["compactor"].order.contains(&facts));
+}
+
+/// The embedded template ships **no** facts file: a lineage's durable
+/// memory is the workspace's own, seeded by the config-root
+/// `template/facts.md` override when an operator authors one (ARCH
+/// §2.2's seed-set union — no new mechanism,
+/// `docs/DESIGN_CONTEXT_ECONOMY.md` §3 "Per-user is per-workspace").
+#[test]
+fn the_embedded_template_ships_no_facts_file() {
+    assert!(
+        crate::template::TEMPLATE
+            .get_file(crate::facts::FILE)
+            .is_none()
+    );
 }

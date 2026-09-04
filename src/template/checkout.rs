@@ -38,7 +38,7 @@ pub(crate) fn path(workspace: &Path) -> PathBuf {
 /// plus the pools plus an uncommitted edit), so removing it loses only
 /// the killed pass's unsaved edit. A path that survives all three steps
 /// surfaces as an error rather than a silent wedge.
-pub(crate) fn heal<G: GitRunner>(git: &G, repo: &Path, path: &Path) -> io::Result<()> {
+pub(crate) fn heal(git: &dyn GitRunner, repo: &Path, path: &Path) -> io::Result<()> {
     let lossy = path.to_string_lossy();
     let _ = git.run(repo, &["worktree", "prune"]);
     let _ = git.run(repo, &remove_args(&lossy));
@@ -56,8 +56,8 @@ pub(crate) fn heal<G: GitRunner>(git: &G, repo: &Path, path: &Path) -> io::Resul
 /// itself created (`-b`, i.e. a fork or an orphan lineage); unless
 /// [`Checkout::landed`] is called it is deleted along with the checkout,
 /// so a failed or declined pass leaves no dangling `config/<name>`.
-pub(crate) struct Checkout<'a, G: GitRunner> {
-    git: &'a G,
+pub(crate) struct Checkout<'a> {
+    git: &'a dyn GitRunner,
     repo: &'a Path,
     /// The checkout path as git's argv wants it — the form every
     /// teardown step spends it in.
@@ -66,7 +66,7 @@ pub(crate) struct Checkout<'a, G: GitRunner> {
     armed: bool,
 }
 
-impl<'a, G: GitRunner> Checkout<'a, G> {
+impl<'a> Checkout<'a> {
     /// Materialize the checkout by running `add_args` (the origin's
     /// `worktree add` form) in `repo`, and arm the teardown. A failing
     /// add creates no guard: there is nothing to tear down.
@@ -76,7 +76,7 @@ impl<'a, G: GitRunner> Checkout<'a, G> {
     // `tool::builtin` document); every field here runs on every call.
     #[rustfmt::skip]
     pub(crate) fn add(
-        git: &'a G,
+        git: &'a dyn GitRunner,
         repo: &'a Path,
         path: &Path,
         add_args: &[&str],
@@ -98,7 +98,7 @@ impl<'a, G: GitRunner> Checkout<'a, G> {
     }
 }
 
-impl<G: GitRunner> Drop for Checkout<'_, G> {
+impl Drop for Checkout<'_> {
     fn drop(&mut self) {
         if self.armed {
             let _ = self.git.run(self.repo, &remove_args(&self.path));

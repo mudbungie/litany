@@ -39,7 +39,7 @@
 //! ([`crate::prompt::dispatch::transcript`], bl-89f7). A branch's
 //! checkpoint reference is therefore the newest of {its dispatch commit,
 //! its last compaction base}, and the root commit only when neither
-//! exists ([`origin`]).
+//! exists ([`reference::origin`]).
 //!
 //! **A compactor is never compaction-eligible.** A compactor *is* the
 //! compaction, not a subject of one (§2.7): compacting it would fork a
@@ -60,6 +60,9 @@
 //! (yog bl-ebbd); all three are stated because they are different facts.
 
 mod inflight;
+mod reference;
+pub(in crate::prompt) mod tail;
+mod usage;
 
 use super::Error;
 use crate::config::{CompactionConfig, CompactionTrigger};
@@ -67,24 +70,16 @@ use crate::prompt::role;
 use crate::template::GitRunner;
 use std::path::Path;
 
-/// Subject prefix of a **compaction base** commit ([`super::land`]) — the
-/// single commit a landing squashes the compaction span into (ARCH §2.6).
-/// The most recent such commit marks the last checkpoint; commits after it
-/// are what a fresh `every_n_commits`/`every_t_seconds` trigger measures
-/// from — exactly the branch's uncompacted content, since everything the
-/// landing replayed on top of the base is what the span left out.
-pub(super) const BASE_SUBJECT_PREFIX: &str = "compaction base [";
-
-/// Subject prefix of a retired compaction-*merge* commit. The merge-back
-/// landing is replaced by rebase-forward (ARCH §2.6, bl-bc9c), but
-/// histories that predate the replacement still carry these commits, and
-/// the clock must keep reading them as checkpoints.
-pub(super) const MERGE_SUBJECT_PREFIX: &str = "compaction merge [";
+pub use usage::LastUsage;
+// The clock's reference commit and its subject vocabulary live one level
+// down ([`reference`]); the landing reads them through this path, so the
+// split is invisible to every consumer.
+pub(super) use reference::{BASE_SUBJECT_PREFIX, landing_subject_pattern, origin, root_of};
 
 /// Branch state a checkpoint trigger is evaluated against (§6), derived
 /// from disk by [`state`]. Every field is a live derivation, never a
 /// stored counter (`docs/PRINCIPLES.md` Single source of truth).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckpointState {
     /// Commits on the branch since the last compaction base (or branch
     /// root). Drives `every_n_commits`.
@@ -109,6 +104,11 @@ pub struct CheckpointState {
     /// buys a second pass over the same span that cannot land (module
     /// docs, §2.7).
     pub compaction_in_flight: bool,
+    /// The provider's report on the branch's newest model entry — its
+    /// prompt side and the model's context window, both as reported
+    /// ([`usage`]). Drives `window_percent`. `None` before the branch's
+    /// first model call.
+    pub last_usage: Option<LastUsage>,
 }
 
 /// Whether a checkpoint is due this boundary (§2.6, §2.7) — the one home
@@ -122,23 +122,34 @@ pub struct CheckpointState {
 /// predicate; a `None`/`0` `n` (guarded out at config load, §6) is never
 /// due, so a malformed config fails closed rather than compacting every
 /// step.
-pub fn due(cfg: Option<&CompactionConfig>, state: &CheckpointState) -> bool {
+///
+/// **Fallible for one trigger only.** `window_percent` measures against
+/// a number only the provider can state, so a branch whose last usage
+/// carries no context window is *declined* here rather than answered
+/// "not due" — the one outcome that would leave a configured trigger
+/// silently dead ([`usage`], `docs/DESIGN_CONTEXT_ECONOMY.md` §5.1).
+/// Every other trigger's answer is total, and the two suppressors above
+/// answer ahead of all of them.
+pub fn due(cfg: Option<&CompactionConfig>, state: &CheckpointState) -> Result<bool, Error> {
     if state.is_compactor || state.compaction_in_flight {
-        return false;
+        return Ok(false);
     }
     let Some(cfg) = cfg else {
-        return false;
+        return Ok(false);
     };
     let threshold = |v: u64| {
         cfg.intermediate
             .n
             .is_some_and(|n| n > 0 && v >= u64::from(n))
     };
-    match cfg.intermediate.trigger {
+    Ok(match cfg.intermediate.trigger {
         CompactionTrigger::EveryNCommits => threshold(u64::from(state.commits_since_checkpoint)),
         CompactionTrigger::EveryTSeconds => threshold(state.seconds_since_checkpoint),
         CompactionTrigger::OnFlush => state.flush_requested,
-    }
+        CompactionTrigger::WindowPercent => {
+            return usage::due(cfg.intermediate.n, state.last_usage.as_ref());
+        }
+    })
 }
 
 /// Derive [`CheckpointState`] for the agent `agent_id`, whose branch is
@@ -164,6 +175,7 @@ pub fn state(
         is_compactor: role::derive(worktree, "HEAD", agent_id, git)?.as_deref()
             == Some(super::COMPACTOR_ROLE),
         compaction_in_flight: inflight::compaction_in_flight(worktree, agent_id, git)?,
+        last_usage: usage::last(worktree)?,
     })
 }
 
@@ -202,89 +214,6 @@ fn checkpoint_time(
             source,
         })?;
     Ok(out.trim().parse::<u64>().unwrap_or(0))
-}
-
-/// The sha the branch's checkpoint clock measures from: the newest commit
-/// reachable from `start` that is **this branch's own founding commit**
-/// (its dispatch commit, matched by [`role::founding_pattern`] — the one
-/// home of that question), a **compaction base**
-/// ([`BASE_SUBJECT_PREFIX`]), or a retired **compaction merge**
-/// ([`MERGE_SUBJECT_PREFIX`]). `git log -n1` walks newest-first and stops
-/// at the first match, and multiple `--grep` patterns are OR'd, so one
-/// query answers "where does this branch's own clock start". The clock reads it from `HEAD` ([`state`]); the landing
-/// reads it from the compaction point, where it is the **span's lower
-/// bound** — the parent of the base commit it mints ([`super::land`]).
-///
-/// `None` — no such commit reachable — falls back to the branch root
-/// ([`checkpoint_time`], [`commits_since`]). That is the general path with
-/// empty inputs, not a bootstrap special case: a tree with no dispatch
-/// commit at all has nothing else to measure from.
-pub(super) fn origin(
-    worktree: &Path,
-    start: &str,
-    agent_id: &str,
-    git: &dyn GitRunner,
-) -> Result<Option<String>, Error> {
-    let founding = role::founding_pattern(agent_id);
-    let based = format!("^{}", regex_escape_brackets(BASE_SUBJECT_PREFIX));
-    let merged = format!("^{}", regex_escape_brackets(MERGE_SUBJECT_PREFIX));
-    let out = git
-        .run_capture(
-            worktree,
-            &[
-                "log",
-                "-n",
-                "1",
-                "--format=%H",
-                "-E",
-                "--grep",
-                founding.as_str(),
-                "--grep",
-                based.as_str(),
-                "--grep",
-                merged.as_str(),
-                start,
-            ],
-        )
-        .map_err(|source| Error::Git {
-            op: "checkpoint log grep",
-            source,
-        })?;
-    let sha = out.trim();
-    Ok((!sha.is_empty()).then(|| sha.to_string()))
-}
-
-/// The root commit reachable from `rev` (its eldest parentless ancestor) —
-/// the base-parent fallback when [`origin`] finds nothing, exposed for the
-/// landing ([`super::land`]) so both consumers share one derivation.
-pub(super) fn root_of(worktree: &Path, rev: &str, git: &dyn GitRunner) -> Result<String, Error> {
-    let out = git
-        .run_capture(worktree, &["rev-list", "--max-parents=0", rev])
-        .map_err(|source| Error::Git {
-            op: "checkpoint root rev-list",
-            source,
-        })?;
-    Ok(out.lines().last().unwrap_or("").trim().to_string())
-}
-
-/// Escape the one regex metacharacter a commit-subject *prefix* constant
-/// can carry (`[`), so a literal prefix reads as a literal under `git log
-/// -E`. Keeping both `--grep` patterns in one regex dialect is what lets
-/// the two questions [`origin`] asks collapse into one git call.
-fn regex_escape_brackets(literal: &str) -> String {
-    literal.replace('[', r"\[")
-}
-
-/// One anchored `-E` pattern matching either landing subject — a
-/// compaction base or a retired-mechanism merge — built from the same
-/// constants [`origin`] greps, so the span's overtaken check
-/// ([`super::land`]) and the clock cannot drift apart.
-pub(super) fn landing_subject_pattern() -> String {
-    format!(
-        "^({}|{})",
-        regex_escape_brackets(BASE_SUBJECT_PREFIX),
-        regex_escape_brackets(MERGE_SUBJECT_PREFIX)
-    )
 }
 
 #[cfg(test)]

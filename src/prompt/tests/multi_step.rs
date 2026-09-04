@@ -133,9 +133,10 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     // (§2.2, bl-403b),
     // plus five `show` reads, `version` first for the §10 schema-version
     // guard, manifest.yaml before the soul, §5.2)
-    // + 10 (step 1 setup: spawn, control rm, the descriptor
+    // + 12 (step 1 setup: spawn, control rm, the descriptor
     // derivation's five ops — four `cat-file -e` existence reads against
-    // the governing config commit and one `checkout`, §3.3 — the
+    // the governing config commit and one `checkout`, §3.3 — the facts
+    // cut's own existence read and `checkout` (§5.5), the
     // settled-name stage (§2.3), add, commit) + 1 (step-1 drain
     // stray-probe) + 2 (user-message delivery add+commit) + 1 (step 1
     // rev-parse) + 2 (step-1 model-output transcript entry add+commit)
@@ -152,53 +153,53 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     // `rev-parse` with a sha, so the mark probe reads as a standing mark
     // and pays a second `version` read a live unmarked agent does not))
     // + 1 (step-2 drain stray-probe) + 1 (step 2 rev-parse) + 2 (step-2
-    // model-output entry add+commit) = 46. The terminal result deposit
+    // model-output entry add+commit) = 48. The terminal result deposit
     // adds none: the
     // last prompter is `user` (the on-ramp message), so the reply
     // addresses no inbox and neither the branch-tip read nor the returned
     // mark runs (§2.6). Merge-back is gone. The version guard runs no git.
     let runs = git.runs.borrow();
-    assert_eq!(runs.len(), 46);
-    assert_eq!(runs[18].1, vec!["add", "name"]);
-    assert_eq!(runs[19].1, vec!["add", "goal.md", "soul.md"]);
-    assert!(runs[20].1[2].contains("step 001: dispatch"));
+    assert_eq!(runs.len(), 48);
+    assert_eq!(runs[20].1, vec!["add", "name"]);
+    assert_eq!(runs[21].1, vec!["add", "goal.md", "soul.md"]);
+    assert!(runs[22].1[2].contains("step 001: dispatch"));
     // Step-1 drain (§2.11): stray-probe, then the initial user message (001).
-    assert_eq!(runs[21].1, vec!["status", "--porcelain", "--", "messages"]);
-    assert_eq!(runs[22].1, vec!["add", "messages/001-user.md"]);
-    assert!(runs[23].1[2].contains("transcript 001: user"));
-    assert_eq!(runs[24].1, vec!["rev-parse", "HEAD"]);
+    assert_eq!(runs[23].1, vec!["status", "--porcelain", "--", "messages"]);
+    assert_eq!(runs[24].1, vec!["add", "messages/001-user.md"]);
+    assert!(runs[25].1[2].contains("transcript 001: user"));
+    assert_eq!(runs[26].1, vec!["rev-parse", "HEAD"]);
     // Step 1's transcript: model-output entry (002), then the tool result
     // entry (003) — the §2.3 ordering (model output before its tool
     // results). Counters are max-present-plus-one from the messages/
     // listing, so they never collide with the step number. The model
     // output's origin token is the authoring model id (§2.3).
-    assert_eq!(runs[25].1, vec!["add", "messages/002-claude-sonnet-5.json"]);
-    assert!(runs[26].1[2].contains("transcript 002: claude-sonnet-5"));
+    assert_eq!(runs[27].1, vec!["add", "messages/002-claude-sonnet-5.json"]);
+    assert!(runs[28].1[2].contains("transcript 002: claude-sonnet-5"));
     // The tool window opens with the unconditional hold-mark probe
     // (§3.3 *Tool control* — the mark, not the config, asserts a park).
-    assert_eq!(runs[27].1[..2], ["cat-file", "blob"]);
+    assert_eq!(runs[29].1[..2], ["cat-file", "blob"]);
     // A tool commit stages the whole worktree (`git add -A`, §2.3) so any
     // worktree side effect the tool produced lands with its result entry.
-    assert_eq!(runs[28].1, vec!["add", "-A"]);
-    assert!(runs[29].1[2].contains("transcript 003: tool"));
+    assert_eq!(runs[30].1, vec!["add", "-A"]);
+    assert!(runs[31].1[2].contains("transcript 003: tool"));
     // Step 2 opens by resolving config at its own boundary (bl-e580):
     // the governing-lineage enumeration, this branch's role, and the
     // control reads — the same `resolve_worker` a `litany advance` hop
     // makes, against this agent's own ref rather than the fork point.
-    assert_eq!(runs[30].1[..2], ["for-each-ref", "--format=%(refname)"]);
-    assert_eq!(runs[31].1[..2], ["merge-base", "agents/ct-1-deadbeef"]);
-    assert_eq!(runs[34].1[0], "log");
+    assert_eq!(runs[32].1[..2], ["for-each-ref", "--format=%(refname)"]);
+    assert_eq!(runs[33].1[..2], ["merge-base", "agents/ct-1-deadbeef"]);
+    assert_eq!(runs[36].1[0], "log");
     assert_eq!(
-        runs[41].1[1],
+        runs[43].1[1],
         "cafecafecafecafecafecafecafecafecafecafe:souls/worker.md"
     );
     // Then its boundary drain (empty inbox → stray-probe only), the
     // branch-tip capture (advanced by step 1's transcript commits), and
     // its own model-output entry (004).
-    assert_eq!(runs[42].1, vec!["status", "--porcelain", "--", "messages"]);
-    assert_eq!(runs[43].1, vec!["rev-parse", "HEAD"]);
-    assert_eq!(runs[44].1, vec!["add", "messages/004-claude-sonnet-5.json"]);
-    assert!(runs[45].1[2].contains("transcript 004: claude-sonnet-5"));
+    assert_eq!(runs[44].1, vec!["status", "--porcelain", "--", "messages"]);
+    assert_eq!(runs[45].1, vec!["rev-parse", "HEAD"]);
+    assert_eq!(runs[46].1, vec!["add", "messages/004-claude-sonnet-5.json"]);
+    assert!(runs[47].1[2].contains("transcript 004: claude-sonnet-5"));
     // The terminal result deposit is one structural no-op — the operator
     // prompted this agent, so its reply addresses no inbox (§2.6) — so
     // the entry commit is the last git op and no merge-back follows.

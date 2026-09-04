@@ -83,6 +83,12 @@ pub const CONTROL_PATHS: &[&str] = &[
     "souls",
 ];
 
+/// Worktree-relative home of elected skill bodies (§3.3) and of a config
+/// lineage's workspace skills (`docs/DESIGN_LEARNING_LOOP.md` §3) — one
+/// path, which is why the dispatch commit trims the lineage's bodies out
+/// of a forked tree by name rather than removing the directory.
+pub const SKILLS_DIR: &str = "skills";
+
 /// `<workspace>/repo.git` — where every ref-level git command runs.
 pub fn repo_git(workspace: &Path) -> PathBuf {
     workspace.join(REPO_DIR)
@@ -276,6 +282,7 @@ pub mod current_config;
 pub mod cwd;
 mod guard;
 pub mod hold;
+pub mod proposal;
 pub mod retarget;
 pub mod workflow_mark;
 pub use guard::{

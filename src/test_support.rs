@@ -36,6 +36,38 @@ pub fn with_litany_home<R>(home: &Path, f: impl FnOnce() -> R) -> R {
     r
 }
 
+/// Run `f` with the §3.3 stdio contract's whole environment set —
+/// `LITANY_HOME` plus `LITANY_CONV_REPO` / `LITANY_CONV_BRANCH` — then
+/// clear all three. The `litany invoke` verb reads the contract vars
+/// through [`crate::prompt::tool::builtin::dispatch::ProcessEnv`] like
+/// every built-in, so driving the verb itself (rather than the door
+/// beneath it) means setting them for real. Serialized against every
+/// other mutation by the same [`ENV_LOCK`], for the same reason.
+pub fn with_contract_env<R>(
+    home: &Path,
+    workspace: &Path,
+    agent: &str,
+    f: impl FnOnce() -> R,
+) -> R {
+    let _guard = ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    // SAFETY: guarded by ENV_LOCK; no other thread reads/writes these
+    // vars concurrently while the guard is held.
+    unsafe {
+        std::env::set_var("LITANY_HOME", home);
+        std::env::set_var(crate::prompt::tool::ENV_CONV_REPO, workspace);
+        std::env::set_var(crate::prompt::tool::ENV_CONV_BRANCH, agent);
+    }
+    let r = f();
+    unsafe {
+        std::env::remove_var("LITANY_HOME");
+        std::env::remove_var(crate::prompt::tool::ENV_CONV_REPO);
+        std::env::remove_var(crate::prompt::tool::ENV_CONV_BRANCH);
+    }
+    r
+}
+
 /// Roots pointing at nonexistent subdirs of `base` — no
 /// `template/` override under the config root, no data-root pools:
 /// the plain embedded-template scaffold shape most tests want.

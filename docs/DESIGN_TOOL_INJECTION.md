@@ -130,7 +130,10 @@ cancel flag. `cwd` was added for the host that routes a
 worktree-subject tool to a *remote* executor (yog `docs/REMOTE.md` §5:
 "an invocation carries its subject's location"): without it a router
 must re-derive the mark, a second home for this crate's own fact,
-reading a ref namespace §3.3 keeps consumers out of. §3.4's pricing is
+reading a ref namespace §3.3 keeps consumers out of. The id is also
+`LITANY_TOOL_ID` (ARCH §3.3 *Environment*): a router that spawns owes it
+to what it spawns, as it already owes `cwd` — it is on the seam already,
+so this is an obligation on the host, not a field. §3.4's pricing is
 untouched — what stays off the seam is the caller's *environment*,
 which only an in-process spawning backend could want. `RoutedCapture` is the same three
 facts a subprocess produces. Nothing new is invented on either side,
@@ -386,11 +389,15 @@ an absent binary produced behind the front door too. It is no longer a
   the host's own bug in the host's own process. Declined, and stated.
 - **Parallel fan-out under an installed host is now wholly serial, and
   bl-a00a widened that** (previously only the routed subset was serial
-  and the spawned remainder still overlapped). Under a `parallel`
-  multi-tool envelope the router answers every call in list order on the
-  calling thread, so a `parallel` envelope of N calls costs N round trips
-  end to end. It stays this way because `route` runs on the executor's
-  own thread by construction: overlapping it would put a `Sync` bound on
+  and the spawned remainder still overlapped). The harness has had no
+  fan at all since the multi-tool retired (`docs/DESIGN_CODE_EXECUTION.md`
+  §5) — a program fans with a thread pool over its own stub module, and
+  each of its calls is one ordinary invocation — so what follows is the
+  standing rule for whatever fans next rather than a live path: the
+  router answers calls in list order on the calling thread, N calls
+  costing N round trips end to end. It stays this way because `route`
+  runs on the executor's own thread by construction: overlapping it
+  would put a `Sync` bound on
   the injection, and whether a host's transport is safe to drive
   concurrently is the host's fact, which litany holds none of. If it is
   ever paid for (filed downstream as yog bl-fab6), the shape is a
@@ -460,6 +467,14 @@ an absent binary produced behind the front door too. It is no longer a
   That is what keeps the identity harness-derived rather than
   model-supplied (ARCH §2.11), and it is the one thing a composing host
   has to rediscover if this paragraph is not read.
+- **A program's inner invocations re-enter through the host** (bl-acee,
+  `docs/DESIGN_CODE_EXECUTION.md` §2.2). The `python` built-in's stub module
+  execs `<driver_target> invoke` for every tool the program composes, so a
+  linked host's re-exec target must answer the `invoke` verb as it answers
+  `advance`, and its router then answers the inner invocation as it answers
+  any other. Two things the host owes on the spawns it makes: `cwd`, as
+  before, and `LITANY_TOOL_ID` — the `id` `RoutedCall` already carries — so a
+  routed tool can derive its own record directory exactly as a spawned one.
 - **No stability promise.** Like the linked binding and the mint seam
   (`src/mint.rs`), this is pin-exact 0.x consumption: no semver
   stability.

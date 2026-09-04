@@ -1,6 +1,12 @@
 roles:
   worker:
     pinned:
+      # The lineage's durable facts (ARCH §5.5): cut out of the followed
+      # config commit at the fork and capped at the write, so it is
+      # always small enough to ride the head of every model call. The
+      # compactor does not pin it — its subject is the branch's history,
+      # and a dispatch-written fact is not that.
+      - facts.md
       - goal.md
       - soul.md
       - descriptions/**
@@ -26,5 +32,22 @@ roles:
     # (§2.7, §5.1).
     order:
       - summary/**
+    budget_tokens: 50000
+    overflow: truncate
+  reviewer:
+    pinned:
+      - goal.md
+      - soul.md
+    # The reviewer's subject is the span about to be squashed — the
+    # transcript, which is always composed and is never an `order`
+    # category — plus the two things it may propose against: the summary
+    # chain (what earlier checkpoints already carried forward, so it does
+    # not re-propose it) and the workspace skills its dispatch commit
+    # checks out, so a fresh read precedes every write by construction
+    # (`docs/DESIGN_LEARNING_LOOP.md` §2). Control files are not in its
+    # tree at all (ARCH §2.2), so no glob here could reach one.
+    order:
+      - summary/**
+      - skills/**
     budget_tokens: 50000
     overflow: truncate

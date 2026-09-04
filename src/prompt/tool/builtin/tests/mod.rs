@@ -4,6 +4,7 @@
 
 use super::*;
 use std::io::Cursor;
+use std::path::Path;
 
 /// [`super::run`] with the injected driver target (`cmd::Fx::driver_target`,
 /// §2.11) supplied. No routing test here reaches the `dispatch` / `message`
@@ -15,7 +16,13 @@ pub(super) fn route<R: Read, W: Write, E: Write>(
     stdout: &mut W,
     stderr: &mut E,
 ) -> Result<i32, Error> {
-    run(name, Path::new("litany"), stdin, stdout, stderr)
+    let bindings = Bindings {
+        driver_target: Path::new("litany"),
+        adapter_target: None,
+        stop: &std::sync::atomic::AtomicBool::new(false),
+        injection: None,
+    };
+    run(name, &bindings, stdin, stdout, stderr)
 }
 
 /// The `bash`, `cd` and compactor-tool routing arms, and the advertised
@@ -25,6 +32,8 @@ mod routing_apply_patch;
 mod routing_bash;
 mod routing_cd;
 mod routing_compaction;
+mod routing_python;
+mod routing_search_history;
 
 #[test]
 fn read_file_routed_to_inner_module() {
@@ -203,14 +212,17 @@ fn message_error_is_carried_through_dispatcher() {
 
 #[test]
 fn load_skill_routed_to_inner_module() {
-    let repo = tempfile::TempDir::new().unwrap();
+    // A real workspace: election resolves the branch's followed config
+    // commit before it reaches the install pool (ARCH §3.3).
+    let (_h, repo) = crate::workspace::fixture::workspace();
+    crate::workspace::fixture::spawn_root(&repo, "a1");
     let home = tempfile::TempDir::new().unwrap();
     let skill = home.path().join("skills/git-ops");
     std::fs::create_dir_all(&skill).unwrap();
     std::fs::write(skill.join("SKILL.md"), b"body").unwrap();
 
     // The pool resolves from the `LITANY_HOME`-collapsed data root (§3.3).
-    let mut env = stub_env(repo.path(), "a1");
+    let mut env = stub_env(&repo, "a1");
     env.0
         .insert("LITANY_HOME", home.path().as_os_str().to_owned());
 
@@ -234,8 +246,8 @@ fn load_skill_routed_to_inner_module() {
 
 #[test]
 fn load_skill_error_is_carried_through_dispatcher() {
-    // Repo+branch but no data-root env — surfaces as load_skill::Error::Root
-    // via #[from] into Error::LoadSkill.
+    // Repo+branch but no workspace behind them — surfaces as
+    // load_skill::Error::Lineage via #[from] into Error::LoadSkill.
     let repo = tempfile::TempDir::new().unwrap();
     let env = stub_env(repo.path(), "a1");
     let input = serde_json::json!({"name":"git-ops"}).to_string();

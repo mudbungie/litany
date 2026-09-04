@@ -24,6 +24,13 @@ fn parses_zero_arg_actions() {
         Action::MarkAbandoned
     );
     assert_eq!(Action::parse("notify_ui").unwrap(), Action::NotifyUi);
+    // The reviewer's landing parses today and is declined by the
+    // interpreter until it ships (`docs/DESIGN_LEARNING_LOOP.md` §3).
+    assert_eq!(
+        Action::parse("stage_proposal").unwrap(),
+        Action::StageProposal
+    );
+    assert!(Action::parse("stage_proposal(skills)").is_err());
 }
 
 #[test]

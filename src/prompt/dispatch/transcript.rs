@@ -156,13 +156,32 @@ pub(super) fn commit_tool(
 pub(super) fn committed_result_ids(
     worktree: &Path,
 ) -> Result<std::collections::HashSet<String>, Error> {
+    let mut ids = std::collections::HashSet::new();
+    for bytes in tool_entries(worktree)? {
+        for block in entry::blocks(&bytes) {
+            if let Content::ToolResult { tool_use_id, .. } = block {
+                ids.insert(tool_use_id);
+            }
+        }
+    }
+    Ok(ids)
+}
+
+/// The committed bytes of every `messages/NNN-tool.json` entry — the
+/// tool half of the transcript, read out of the read-state tree (§2.3).
+/// Two folds run over it and neither owns the walk: the answered-ids
+/// read above, and the context-file *shown* query
+/// ([`super::tool_step`], §3.3), which asks whether any committed entry
+/// already frames a path. An absent `messages/` yields the empty
+/// sequence — the general path with empty inputs.
+pub(super) fn tool_entries(worktree: &Path) -> Result<Vec<Vec<u8>>, Error> {
     let dir = worktree.join(MESSAGES_DIR);
     let rd = match std::fs::read_dir(&dir) {
         Ok(rd) => rd,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Default::default()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(e) => return Err(Error::Io(e)),
     };
-    let mut ids = std::collections::HashSet::new();
+    let mut entries = Vec::new();
     for entry in rd {
         let path = entry.map_err(Error::Io)?.path();
         let name = path
@@ -172,14 +191,9 @@ pub(super) fn committed_result_ids(
         if !name.ends_with(&format!("-{TOOL_ORIGIN}.json")) {
             continue;
         }
-        let bytes = std::fs::read(&path)?;
-        for block in entry::blocks(&bytes) {
-            if let Content::ToolResult { tool_use_id, .. } = block {
-                ids.insert(tool_use_id);
-            }
-        }
+        entries.push(std::fs::read(&path)?);
     }
-    Ok(ids)
+    Ok(entries)
 }
 
 /// `messages/NNN-<origin>.json` for `seq`, zero-padded to [`SEQ_WIDTH`].

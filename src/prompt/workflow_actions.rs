@@ -125,7 +125,8 @@ pub(super) fn execute(
         deferred @ (Action::Dispatch { .. }
         | Action::GateReturnOn { .. }
         | Action::DeliverResult
-        | Action::LandCompaction) => Err(Error::ActionUnsupported {
+        | Action::LandCompaction
+        | Action::StageProposal) => Err(Error::ActionUnsupported {
             action: format!("{deferred:?}"),
             event: event.as_str(),
         }),

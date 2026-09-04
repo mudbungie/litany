@@ -45,6 +45,14 @@
 //!   marked (an overtaken pass is not a defect), and the next checkpoint
 //!   trigger simply fires again.
 //!
+//! **One product the compactor cannot write.** Beside the deletions and
+//! the summary, the landing derives the **extract** — `summary/NNN.refs.md`,
+//! a deterministic read of what the compaction takes out of context
+//! ([`extract`], §2.7, `docs/DESIGN_CONTEXT_ECONOMY.md` §5.3). It widens
+//! no toolset: the compactor's pair is unchanged and deletion-only stays
+//! structural. `compaction.intermediate.extract_bytes` is its cap, and
+//! omitting that key writes none.
+//!
 //! **Filtered by construction.** The retired merge filtered the
 //! compactor's private dialog *out* of a staged tree; the base is built
 //! the other way around — from the product *in*: only the deletions and
@@ -63,6 +71,7 @@
 //! fresh tail.
 
 mod base;
+mod extract;
 mod span;
 
 use super::Error;
@@ -99,11 +108,13 @@ pub enum LandOutcome {
 /// checkout's `HEAD` *is* the dispatching branch (§2.3); the compaction
 /// point, the span bound, and the product all derive from the two refs —
 /// no sidecar state anywhere (`docs/PRINCIPLES.md` Single source of
-/// truth).
+/// truth). `extract_bytes` is the workflow's one number for the extract
+/// ([`extract`]): `None` — the key omitted — writes none.
 pub fn land(
     parent_worktree: &Path,
     parent_id: &str,
     compactor_id: &str,
+    extract_bytes: Option<usize>,
     git: &dyn GitRunner,
 ) -> Result<LandOutcome, Error> {
     let compactor_ref = workspace::agent_ref(compactor_id);
@@ -117,7 +128,7 @@ pub fn land(
     else {
         return Ok(LandOutcome::Superseded);
     };
-    let product = base::product(parent_worktree, &span.dispatch, &compactor_ref, git)?;
+    let product = base::product(parent_worktree, &span, &compactor_ref, extract_bytes, git)?;
     if product.is_empty() {
         return Ok(LandOutcome::NoOp);
     }

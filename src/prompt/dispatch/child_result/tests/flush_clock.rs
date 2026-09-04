@@ -84,6 +84,10 @@ fn run_flush_forks_the_compactor_off_the_configured_compaction_point() {
     );
     run_flush(&ws, parent, &parent_wt, &wf, &fx.deps()).unwrap();
     let compactor = fx.launcher.launched.borrow()[0].clone();
+    // The basic agentic loop binds one dispatch, so one child forks —
+    // unchanged by the checkpoint running every dispatch it binds
+    // (`docs/DESIGN_LEARNING_LOOP.md` §2, bl-e6ed).
+    assert_eq!(fx.launcher.launched.borrow().len(), 1);
 
     // The compactor's dispatch commit sits directly on HEAD~2.
     let fork_parent = git

@@ -19,11 +19,17 @@
 
 mod descriptors;
 pub(crate) mod inherited;
+mod reviewer_read;
+mod skill_bodies;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_facts;
+mod trim;
 mod unsettled;
 
 pub(crate) use descriptors::{Grant, Undescribed, require_described};
+pub(crate) use trim::trim_to_context;
 
 use crate::prompt::Deps;
 use crate::prompt::Error;
@@ -155,7 +161,7 @@ pub(super) fn commit_dispatch(
     resolved: &super::Resolved<'_>,
     deps: &Deps<'_>,
 ) -> Result<(), Error> {
-    trim_to_context(worktree_path, &resolved.grant, name, deps.git)?;
+    trim_to_context(worktree_path, conv_id, &resolved.grant, name, deps.git)?;
     let mut add_args: Vec<&str> = vec!["add", GOAL_FILE, SOUL_FILE];
     add_args.extend(pins.iter().map(crate::prompt::PinnedDoc::dest));
     deps.git
@@ -168,60 +174,6 @@ pub(super) fn commit_dispatch(
             op: "commit",
             source,
         })
-}
-
-/// Stage the trim that makes the forked tree exactly this agent's
-/// context (§2.2, §5.1) — one act with four parts, each a no-op when
-/// the fork point carried nothing to change, so the primitive is total
-/// whatever ref it forked off:
-///
-/// 1. **Control leaves.** `manifest.yaml`, `workflow.yaml`,
-///    `providers.yaml`, `version`, `souls/` — control is read from the
-///    governing config commit, never from a worktree file (§2.2).
-/// 2. **Descriptors are derived to the grant.** `descriptions/**` is
-///    snapshotted whole into the governing config commit (one config
-///    commit serves every role), and the agent's tree is the view of it
-///    this role's `tools:` grants — checked out from that commit, not
-///    inherited from whatever the fork point carried, so a child's
-///    descriptors are never capped by its dispatcher's grant.
-///    [`descriptors::derive`] does it, and declines a grant the commit
-///    does not describe; see that module for the failures it closes.
-/// 3. **The unsettled tool step leaves.** A tool-call dispatch forks
-///    *during* the parent's tool step (§2.5), so a retained inherited
-///    transcript — a fork-back-in root's own resumed conversation, or
-///    the compactor's subject ([`inherited::prune_inherited_dialog`])
-///    — can end in a `tool_use` block no `tool_result` entry answers — a
-///    tail that settles on the parent's branch and never on the child's,
-///    and that every provider refuses (§2.5 pairing).
-///    [`unsettled::prune_unsettled`] removes exactly it; see that module
-///    for the reproduced 400 it closes.
-/// 4. **The name is settled.** `name` (ARCH §2.3, §2.11) is this agent's
-///    display fact, and a fork inherits its fork point's — so the commit
-///    overwrites it with the agent's own, or with nothing when the agent
-///    is unnamed. Always a rewrite, never a deletion, for the reasons
-///    [`crate::workspace::agent_name`] gives.
-///
-/// The parts are staged in this order because the later ones read the
-/// worktree: control files are neither descriptors nor transcript
-/// entries nor the name, so none sees another's writes.
-pub(crate) fn trim_to_context(
-    worktree_path: &Path,
-    grant: &Grant<'_>,
-    name: Option<&str>,
-    git: &dyn crate::template::GitRunner,
-) -> Result<(), Error> {
-    let mut args: Vec<&str> = vec!["rm", "-r", "-q", "--ignore-unmatch", "--"];
-    args.extend_from_slice(crate::workspace::CONTROL_PATHS);
-    git.run(worktree_path, &args).map_err(|source| Error::Git {
-        op: "rm control files",
-        source,
-    })?;
-    descriptors::derive(worktree_path, grant, git)?;
-    unsettled::prune_unsettled(worktree_path, git)?;
-    crate::workspace::agent_name::settle(worktree_path, name, git).map_err(|source| Error::Git {
-        op: "settle the agent name",
-        source,
-    })
 }
 
 /// Resolve the branch tip's sha at step-start. Recorded in

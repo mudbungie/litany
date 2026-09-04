@@ -17,17 +17,22 @@
 //! The sequential loop *is* the sibling-tool serialization §3.3
 //! requires, and the counter read (`next_seq`) rides inside it.
 //!
-//! One name the loop answers itself: the multi-tool ([`multi`], §3.3
-//! *The multi-tool*), whose input is a list of inner tool invocations
-//! the loop fans out through the same refusal gate and executor —
-//! aggregated into the envelope's single committed `tool_result`.
+//! The loop answers no tool name itself: the multi-tool, which used to
+//! be the one exception, retired into the `python` built-in, whose
+//! program writes the same list as it runs (ARCH §3.3 *The program*).
+//! Every invocation this window clears goes to the executor.
+//!
+//! One tail every result carries: the **context files** on the agent's
+//! working-directory path it has not been shown yet ([`context`], §3.3)
+//! — discovered here because only the window holds all three facts it
+//! takes, the cwd, the workflow and the transcript.
 //!
 //! Living in a sibling module keeps `super`'s `run_exchange` body under
 //! the repo's 300-line code-file cap.
 
-mod multi;
-mod permit;
-mod seam;
+mod context;
+pub(super) mod permit;
+pub(super) mod seam;
 pub(in crate::prompt::dispatch) mod settle;
 #[cfg(test)]
 mod tests;
@@ -144,7 +149,7 @@ pub(in crate::prompt) fn run_tool_calls(
         if committed.contains(id) {
             continue;
         }
-        let outcome = match refusal(
+        let mut outcome = match refusal(
             resolved.grant.role,
             resolved.grant.tools,
             &super::tools::injected(resolved.grant.role, deps.tool_executor, conv_repo, conv_id),
@@ -199,28 +204,6 @@ pub(in crate::prompt) fn run_tool_calls(
                         content: seam::refusal_text(name, &reason).into_bytes(),
                         is_error: true,
                     },
-                    // The multi-tool ([`multi`]): the one tool the loop
-                    // answers itself. Gated by the same refusal above —
-                    // `multi_tool` must be in the grant to fan out — and
-                    // adjudicated like any tool (the control saw the whole
-                    // envelope as this invocation's input); each inner
-                    // invocation then re-enters the same refusal *and*
-                    // control pair inside `fan_out`, so the envelope
-                    // bypasses nothing (§3.3 *The multi-tool*, No bypass).
-                    seam::Gate::Proceed if name == multi::NAME => {
-                        match multi::fan_out(
-                            id,
-                            input,
-                            &step_dir_abs,
-                            resolved,
-                            conv_repo,
-                            conv_id,
-                            deps,
-                        )? {
-                            multi::Fanout::Outcome(outcome) => outcome,
-                            multi::Fanout::Stopped => return stopped(),
-                        }
-                    }
                     seam::Gate::Proceed => match deps.tool_executor.execute(
                         ToolUse { id, name, input },
                         &step_dir_abs,
@@ -247,6 +230,18 @@ pub(in crate::prompt) fn run_tool_calls(
                 }
             }
         };
+        // The context files the agent's cwd path carries and its
+        // transcript has not shown it yet ([`context`], §3.3) ride out
+        // on this result — the tail of the entry about to commit, so
+        // the pinned head is untouched (§5.5).
+        context::append(
+            &mut outcome.content,
+            conv_repo,
+            worktree,
+            conv_id,
+            resolved.workflow,
+            deps.git,
+        )?;
         let tool_result = outcome_to_tool_result(id, &outcome);
         transcript::commit_tool(worktree, conv_id, &tool_result, deps.git)?;
     }

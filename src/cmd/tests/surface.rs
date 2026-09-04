@@ -282,6 +282,7 @@ fn preludes_are_named_per_verb_by_the_surface() {
         &["litany", "stop", "/w", "20260101-a1"][..],
         &["litany", "message", "/w", "20260101-a1", "c"][..],
         &["litany", "scan", "/w"][..],
+        &["litany", "skills", "/w"][..],
         &["litany", "bundle", "/w", "20260101-a1", "/out"][..],
         &["litany", "replay", "/b.bundle"][..],
         &["litany", "tool", "bash"][..],

@@ -45,6 +45,21 @@ fn write_summary_skips_non_md_and_unparseable_stems() {
 }
 
 #[test]
+fn an_earlier_passs_extract_never_fouls_the_summary_numbering() {
+    // `docs/DESIGN_CONTEXT_ECONOMY.md` §5.3: a landing leaves
+    // `summary/NNN.refs.md` beside `summary/NNN.md`, so the directory
+    // this seq is picked from carries names whose stem is `NNN.refs`.
+    // They fall under the unparseable-stem skip above rather than
+    // needing a rule of their own — 002 stays taken once, not twice.
+    let wt = tmpdir();
+    let dir = wt.path().join("summary");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("002.md"), "").unwrap();
+    std::fs::write(dir.join("002.refs.md"), "").unwrap();
+    assert_eq!(write_summary(wt.path(), "x").unwrap(), "summary/003.md");
+}
+
+#[test]
 fn write_summary_skips_a_non_utf8_file_name() {
     // A stem `to_str` cannot decode is skipped like any other
     // operator-dropped stray, never a numbering fault.
@@ -167,15 +182,24 @@ fn the_dispatch_entry_is_read_off_the_name_alone() {
 }
 
 #[test]
-fn the_system_slots_files_are_read_off_the_name_alone() {
-    // §5.2's three structural wire homes, plus a leading `./`. Each is
-    // written at the compactor's own dispatch commit, so nominating one
-    // after that lands as a deletion the dispatching branch inherits —
-    // the branch would keep stepping with no goal, no soul or no
-    // identity line (ARCH §2.7, §5.2).
+fn the_dispatch_written_head_is_read_off_the_name_alone() {
+    // §5.2's three structural wire homes and the lineage's facts file
+    // (§5.5), plus a leading `./`. Each is written at the compactor's
+    // own dispatch commit, so nominating one after that lands as a
+    // deletion the dispatching branch inherits — the branch would keep
+    // stepping with no goal, no soul, no identity line or no durable
+    // memory (ARCH §2.7, §5.2, §5.5).
     let dir = repo_with("keep.txt");
     let (wt, git) = (dir.path(), RealGit::new());
-    for yes in ["goal.md", "soul.md", "name", "./goal.md", "./name"] {
+    for yes in [
+        "goal.md",
+        "soul.md",
+        "name",
+        crate::facts::FILE,
+        "./goal.md",
+        "./name",
+        "./facts.md",
+    ] {
         let what = not_compaction_eligible(wt, AGENT, yes, &git)
             .unwrap()
             .unwrap_or_else(|| panic!("{yes}"));
@@ -184,11 +208,15 @@ fn the_system_slots_files_are_read_off_the_name_alone() {
 }
 
 #[test]
-fn mark_for_deletion_declines_the_system_slots_files() {
-    // The whole triple, at the tool rather than at the predicate: the
+fn mark_for_deletion_declines_the_dispatch_written_head() {
+    // The whole class, at the tool rather than at the predicate: the
     // decline is in-band (§3.3), the file survives on disk, and nothing
     // is staged — so no later commit can carry the deletion.
-    for name in crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES {
+    let head = crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES
+        .iter()
+        .copied()
+        .chain(std::iter::once(crate::facts::FILE));
+    for name in head {
         let dir = repo_with(name);
         let wt = dir.path();
         let err = mark_for_deletion(wt, AGENT, name, &RealGit::new()).unwrap_err();

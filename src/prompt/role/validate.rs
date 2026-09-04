@@ -187,7 +187,7 @@ mod tests {
             } => {
                 assert_eq!(role, "ghost");
                 assert_eq!(agent, "p1");
-                assert_eq!(defined, "compactor, worker");
+                assert_eq!(defined, "compactor, reviewer, worker");
             }
             other => panic!("expected RoleMissing, got {other:?}"),
         }
@@ -197,7 +197,7 @@ mod tests {
             err.to_string(),
             "role \"ghost\" is not defined in the providers.yaml that will govern a child \
              of agent \"p1\" \
-             — defined roles: compactor, worker"
+             — defined roles: compactor, reviewer, worker"
         );
     }
 

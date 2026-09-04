@@ -53,14 +53,19 @@ pub enum PinError {
 /// §2.3), the config
 /// control files the dispatch commit removes
 /// ([`crate::workspace::CONTROL_PATHS`], §2.2), the derived
-/// `descriptions/**` (§3.3), the transcript (`messages/**`, §2.3) and
-/// the compaction chain (`summary/**`, §2.7). A pin there would inject
-/// into a harness-owned tree, so it is refused by name.
+/// `descriptions/**` (§3.3), the lineage's facts file
+/// ([`crate::facts`], §5.5 — the dispatch commit cuts it out of the
+/// governing config commit, so a pin there would be silently
+/// overwritten by the very commit it rode in on), the transcript
+/// (`messages/**`, §2.3) and the compaction chain (`summary/**`,
+/// §2.7). A pin there would inject into a harness-owned tree, so it is
+/// refused by name.
 fn reserved(first_segment: &str) -> bool {
     let harness: &[&str] = &[
         crate::template::descriptions::DESCRIPTIONS_DIR,
         crate::prompt::dispatch::MESSAGES_DIR,
         crate::prompt::compactor::tools::SUMMARY_DIR,
+        crate::facts::FILE,
     ];
     crate::workspace::CONTROL_PATHS.contains(&first_segment)
         || crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES.contains(&first_segment)

@@ -12,10 +12,23 @@ roles:
   worker:
     provider: anthropic
     model: claude-sonnet-5
-    tools: [apply_patch, bash, cd, dispatch, load_skill, message, multi_tool, read_file]
+    tools: [apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, search_history]
   # The compactor declares none: its pair (`write_summary` /
   # `mark_for_deletion`) is injected by the compaction procedure and is
   # never declarable here (ARCH §2.7, §4.3).
   compactor:
     provider: anthropic
     model: claude-haiku-4-5
+  # The reviewer ships **declared and unbound** (ARCH §4.3): the basic
+  # agentic loop dispatches nobody here, so this row costs nothing until
+  # a config binds `worker_flush: dispatch(reviewer)` — the seeded
+  # `workflows/learning-loop.yaml`. Declaring it in the template is what
+  # makes adopting the learning loop a config edit rather than an
+  # authoring act (`docs/DESIGN_LEARNING_LOOP.md` §2). Its grant is its
+  # confinement: read the transcript and the skills, edit files, nothing
+  # else — no `bash`, no `dispatch`, no `message`. Its model is the
+  # compactor's, for the same reason.
+  reviewer:
+    provider: anthropic
+    model: claude-haiku-4-5
+    tools: [apply_patch, read_file]

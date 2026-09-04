@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "python",
+  "description": "Input schema for the litany built-in `python` tool (ARCH §3.3, docs/DESIGN_CODE_EXECUTION.md §2.2). The harness sends this verbatim as the `input_schema` field of the tool's entry in the model call's `tools: [...]` array.",
+  "type": "object",
+  "properties": {
+    "program": {
+      "type": "string",
+      "description": "The whole python3 program to run, as one string. It is fed to `python3 -` on this machine, so it is ordinary python source: imports, loops, functions, exceptions. It starts in your current working directory — your worktree unless you moved it with the `cd` tool — and runs to completion with no time limit. Your own tools are importable: `import litany_tools` gives one keyword-only function per tool you may call, generated for this program from your toolset, plus `litany_tools.invoke(name, arguments)` for any name. Each call runs that tool exactly as a top-level tool call would run it — same permission, same review, same record — and returns a Result with `.stdout`, `.stderr`, `.exit_code` and `.ok`; it raises only when the harness itself cannot be reached, so a tool that ran and failed is a Result you can read and branch on. `python` itself cannot be called from a program (depth 1). **Only what the program prints on stdout comes back to you** — never the tools' own output — so compose, filter and summarize in the program and print the part you need; that is the whole point of the tool. The result you get back states the exit code on its first line (`Exit code: N`), then the program's stdout, then — whenever it wrote any — its stderr under a `--- stderr ---` marker, where a traceback lands (ARCH §3.3 result envelope)."
+    }
+  },
+  "required": ["program"],
+  "additionalProperties": false
+}

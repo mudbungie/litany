@@ -36,7 +36,7 @@ use thiserror::Error;
 mod bound;
 pub mod builtin;
 pub mod control;
-mod envelope;
+pub(crate) mod envelope;
 pub mod inject;
 mod record;
 pub mod spawn;
@@ -45,6 +45,12 @@ mod subprocess;
 #[cfg(test)]
 mod tests;
 
+/// The context-file tail of a tool result (ARCH §3.3 *Context files
+/// ride the next tool result*): rendered here, where every other byte
+/// the model reads of a tool result is rendered, and discovered by the
+/// tool window ([`crate::prompt::dispatch`]), which alone knows the
+/// agent's cwd, its workflow and its transcript.
+pub(in crate::prompt) use envelope::{context_file, frame_open};
 use inject::InjectedTool;
 pub use record::{INPUT_FILE, OUTPUT_FILE, ToolInputRecord, ToolOutputRecord};
 pub(crate) use record::{atomic_write_json, tool_call_dir};
@@ -80,6 +86,17 @@ pub const ENV_CONV_REPO: &str = "LITANY_CONV_REPO";
 /// hyphenated descent / conv-id, ARCH §2.2) to the tool subprocess.
 /// Same provenance as [`ENV_CONV_REPO`].
 pub const ENV_CONV_BRANCH: &str = "LITANY_CONV_BRANCH";
+/// Env var conveying the `tool_use.id` of the invocation being executed
+/// (ARCH §3.3 env-var bullet). The third and last of the contract's
+/// vars: the first two say *who* is calling, this one says *which
+/// invocation* is running, so a tool can derive its own record
+/// directory (`steps/<agent-id>/<NNN>/tools/<tool-id>/`) without the
+/// model threading it through the input schema. Set from the same
+/// [`ToolCall`] the executor records, so the id in the environment and
+/// the id on disk cannot disagree — a derived inner id
+/// (`<outer-id>-<k>`, ARCH §3.3 *The multi-tool*) rides through
+/// unchanged.
+pub const ENV_TOOL_ID: &str = "LITANY_TOOL_ID";
 
 /// One tool invocation as the model emitted it — the `id`, `name`, and
 /// `input` fields of a `tool_use` content block (ARCH §3.3 stdin
@@ -215,36 +232,6 @@ pub trait ToolExecutor {
         stop: &AtomicBool,
         output_bound: Option<crate::config::ToolOutputBound>,
     ) -> Result<ToolOutcome, ExecError>;
-
-    /// Run `calls` **concurrently**, returning one result per tool call in
-    /// the order given — never completion order, so a caller's
-    /// rendering is deterministic whatever the scheduler did.
-    ///
-    /// This is what a `multi_tool` envelope declaring
-    /// `execution: "parallel"` reaches (ARCH §3.3 *The multi-tool*).
-    /// The concurrency lives here, in the one component that owns
-    /// subprocesses, rather than in the step loop: the loop would have
-    /// to share the whole executor across threads, which would put a
-    /// `Sync` bound on the clock, the git runner, and the PATH lookup —
-    /// three traits with nothing to do with threading (PRINCIPLES,
-    /// severability).
-    ///
-    /// The default implementation runs them **serially**, which is
-    /// always a correct answer to "run these": concurrency is an
-    /// optimization an implementation may decline. Only the spawning
-    /// executor overrides it; in-process stubs inherit this.
-    fn execute_all(
-        &self,
-        calls: &[ToolCall<'_>],
-        step_dir: &Path,
-        stop: &AtomicBool,
-        output_bound: Option<crate::config::ToolOutputBound>,
-    ) -> Vec<Result<ToolOutcome, ExecError>> {
-        calls
-            .iter()
-            .map(|call| self.execute(*call, step_dir, stop, output_bound))
-            .collect()
-    }
 
     /// The tool definitions this executor answers for **beyond the pool**
     /// — the binding's host injection ([`inject`], ARCH §3.3

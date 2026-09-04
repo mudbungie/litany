@@ -8,16 +8,17 @@
 //!
 //! The middle is whichever backend the binding installed (`super`'s
 //! module docs), and both produce the same [`RoutedCapture`]: a host
-//! router ([`SpawnTool::route`], [`SpawnTool::route_fan`]) or a
-//! subprocess ([`SpawnTool::spawn_one`], [`SpawnTool::spawn_fan`]). Only
-//! the spawning one can overlap, and the split is what lets it: under
-//! [`SpawnTool::execute_all`] (ARCH §3.3 *The multi-tool*, `execution:
-//! "parallel"`) nothing but the blocking wait crosses into the scope,
-//! carrying owned bytes, `&Path` and the `&AtomicBool` stop flag. The
-//! clock, the git runner and the PATH lookup stay on the calling thread
-//! and need no `Sync` bound (PRINCIPLES, severability) — which is also
-//! why a host router, whose `Sync`-ness litany holds nothing about, runs
-//! in list order on that same thread.
+//! router ([`SpawnTool::route`]) or a subprocess
+//! ([`SpawnTool::spawn_one`]).
+//!
+//! The three phases were split when the executor also answered a *fan*
+//! of calls at once — the `parallel` multi-tool envelope, retired with
+//! the multi-tool (`docs/DESIGN_CODE_EXECUTION.md` §5): a program fans
+//! with a thread pool over its own stub module now, so the harness owns
+//! no batch API. The split stays because it is what keeps the clock, the
+//! git runner and the PATH lookup out of anything that blocks — the
+//! reason a host router, whose `Sync`-ness litany holds nothing about,
+//! was always answered on the calling thread.
 
 use super::caller::Caller;
 use super::{
@@ -31,11 +32,6 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
-
-/// One call's answer, paired with the [`Prepared`] that produced it so
-/// the landing phase cannot step them out of alignment — or the
-/// preparation / spawn failure that stands in its place.
-pub(super) type Answered = Result<(Prepared, RoutedCapture), ExecError>;
 
 /// Everything one call needs to spawn, resolved and owned so the
 /// blocking phase borrows nothing from the executor.
@@ -99,7 +95,7 @@ impl<'a> SpawnTool<'a> {
         };
         atomic_write_json(&dir, INPUT_FILE, &input_record)?;
         let (binary, args) = self.resolve(call.name);
-        let extra_env = caller.env();
+        let extra_env = caller.env(call.id);
         Ok(Prepared {
             dir,
             caller,
@@ -124,49 +120,6 @@ impl<'a> SpawnTool<'a> {
         classify(prepared, captured)
     }
 
-    /// The spawning backend, a whole fan: the blocking waits overlap in
-    /// one [`std::thread::scope`], which the two scalars copied out below
-    /// are what makes possible — the closures capture those instead of
-    /// `self`, which holds the clock, the git runner and the PATH lookup,
-    /// none of them `Sync` and none of them needed to block.
-    pub(super) fn spawn_fan(
-        &self,
-        prepared: Vec<Result<Prepared, ExecError>>,
-        stop: &AtomicBool,
-    ) -> Vec<Answered> {
-        let (deadline, etxtbsy_budget) = (self.deadline, self.etxtbsy_budget);
-        let captured: Vec<Result<Captured, ExecError>> = std::thread::scope(|scope| {
-            let handles: Vec<_> = prepared
-                .iter()
-                .filter_map(|p| p.as_ref().ok())
-                .map(|p| {
-                    scope.spawn(move || {
-                        spawn_and_capture(&p.spawn_args(stop, deadline, etxtbsy_budget))
-                    })
-                })
-                .collect();
-            handles
-                .into_iter()
-                // A panicking capture is a harness fault, not a tool
-                // failure: re-raise it here so it reads exactly as it
-                // would have from `execute`.
-                .map(|h| h.join().unwrap_or_else(|p| std::panic::resume_unwind(p)))
-                .collect()
-        });
-        // Captures exist only for the calls that got as far as a spawn,
-        // so they are stepped by hand against the full prepared list.
-        let mut captured = captured.into_iter();
-        prepared
-            .into_iter()
-            .map(|prepared| {
-                let prepared = prepared?;
-                let captured = captured.next().expect("one capture per spawned call")?;
-                let captured = classify(&prepared, captured)?;
-                Ok((prepared, captured))
-            })
-            .collect()
-    }
-
     /// The routing backend, one call. The caller identity handed over is
     /// the same one a subprocess reads from its environment, derived once
     /// in [`Self::prepare`] so a routed call and a spawned one cannot
@@ -189,27 +142,6 @@ impl<'a> SpawnTool<'a> {
             cwd: &prepared.caller.cwd,
             stop,
         })
-    }
-
-    /// The routing backend, a whole fan: answered in list order on this
-    /// thread. A call whose preparation failed is never routed — the
-    /// failure is its result, exactly as under the spawning backend.
-    pub(super) fn route_fan(
-        &self,
-        prepared: Vec<Result<Prepared, ExecError>>,
-        calls: &[ToolCall<'_>],
-        injection: &dyn ToolInjection,
-        stop: &AtomicBool,
-    ) -> Vec<Answered> {
-        prepared
-            .into_iter()
-            .zip(calls)
-            .map(|(prepared, call)| {
-                let prepared = prepared?;
-                let captured = self.route(injection, &prepared, *call, stop);
-                Ok((prepared, captured))
-            })
-            .collect()
     }
 
     /// Phase 3, over the three facts a finished tool call has — exit

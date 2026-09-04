@@ -7,7 +7,7 @@ members = [".", "crates/agent-eval", "crates/litany-eval-agent"]
 # vocabulary off `response.json`, ARCH §9.3) inherit it via
 # `workspace = true`, so the pin cannot drift between them.
 [workspace.dependencies]
-brazen = "=0.0.8"
+brazen = "=0.0.9"
 
 [package]
 name = "litany"
@@ -28,8 +28,8 @@ rust-version = "1.88"
 
 # Repo-development files, kept out of the published tarball. What stays is
 # what a consumer builds and reads: `src/`, the embedded asset trees
-# (`template/`, `schemas/`, `skills/`, `install/models.yaml` — the
-# `include_dir!`/`include_str!` inputs, whose absence is a build failure),
+# (`template/`, `schemas/`, `skills/`, `workflows/`, `install/models.yaml` —
+# the `include_dir!`/`include_str!` inputs, whose absence is a build failure),
 # `README.md`, `LICENSE`, `Cargo.lock`. Everything below serves the git
 # checkout only: `rust-toolchain.toml` would force a source builder onto
 # this repo's exact pinned toolchain, and `tests/` are repo-side gates

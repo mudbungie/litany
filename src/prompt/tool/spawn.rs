@@ -38,8 +38,6 @@ mod batch;
 mod caller;
 pub(super) mod lookup;
 
-use batch::{Answered, Prepared};
-
 pub use lookup::{EnvPath, PathLookup};
 
 use super::inject::{InjectedTool, ToolInjection};
@@ -186,46 +184,6 @@ impl<'a> ToolExecutor for SpawnTool<'a> {
         self.injection
             .map(|i| i.tools(workspace, agent))
             .unwrap_or_default()
-    }
-
-    /// The implementation a `parallel` multi-tool envelope reaches
-    /// (ARCH §3.3). Every call is prepared on this thread and every
-    /// record is landed back on this thread, so the clock, the git runner
-    /// and the PATH lookup never cross a thread boundary ([`batch`] says
-    /// why). Between those, the installed backend answers the whole fan:
-    /// the spawning one overlaps its blocking waits in a
-    /// [`std::thread::scope`]; a host router runs in list order on this
-    /// thread, because it is the host's code and carries no `Sync`
-    /// (`docs/DESIGN_TOOL_INJECTION.md` §7).
-    ///
-    /// The window is one pair of clock reads for the whole fan, not
-    /// one per tool call: under `parallel` the calls genuinely do start
-    /// together, and `self.clock` is not shared into the scope to say
-    /// otherwise.
-    fn execute_all(
-        &self,
-        calls: &[ToolCall<'_>],
-        step_dir: &Path,
-        stop: &AtomicBool,
-        output_bound: Option<ToolOutputBound>,
-    ) -> Vec<Result<ToolOutcome, ExecError>> {
-        let prepared: Vec<Result<Prepared, ExecError>> = calls
-            .iter()
-            .map(|call| self.prepare(*call, step_dir))
-            .collect();
-        let started_at = self.clock.now_iso8601();
-        let answered: Vec<Answered> = match self.injection {
-            Some(injection) => self.route_fan(prepared, calls, injection, stop),
-            None => self.spawn_fan(prepared, stop),
-        };
-        let ended_at = self.clock.now_iso8601();
-        answered
-            .into_iter()
-            .map(|answered| {
-                let (prepared, captured) = answered?;
-                self.land(&prepared, &captured, output_bound, &started_at, &ended_at)
-            })
-            .collect()
     }
 }
 

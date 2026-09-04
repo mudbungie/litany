@@ -46,6 +46,7 @@ fn the_executor_lands_a_marked_retarget_at_its_next_step_boundary() {
         id_gen: &id_gen,
         tool_executor: &tools,
         config_root: Path::new("/nonexistent"),
+        data_root: Path::new("/nonexistent"),
         adapter_target: None,
         stop: never_stopped(),
         launcher: no_launch(),

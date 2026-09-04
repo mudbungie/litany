@@ -305,6 +305,10 @@ at a few hundred tokens each, and an unpinned tool costs exactly zero.
 "Lazy discovery" in the MCP sense (live catalog queries mid-run) is refused
 outright: it is the cache-instability failure §2 exists to prevent, and the
 allowlist is the lazy mechanism — you discover at pin time, cheaply, once.
+Re-examined against a capped, searchable manifest in
+`docs/DESIGN_CODE_EXECUTION.md` §4 (bl-acee): the refusal stands, and the
+on-demand rung a large catalog needs is the one that already exists — pin per
+role here, load per agent at the host — never an engine-side search.
 
 **Acceptance: the fleet Slack swap.** The named deployment already exists.
 `~/ops/fleet` ships `litany-tool-slack_read` / `litany-tool-slack_post` as

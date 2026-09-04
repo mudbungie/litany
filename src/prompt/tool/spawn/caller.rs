@@ -43,9 +43,10 @@ impl Caller {
     /// The worktree is the **default** cwd, not the only one: the agent's
     /// own `cd` calls store a working-directory mark
     /// ([`workspace::cwd`], §3.3), and a mark naming a live directory
-    /// wins. A mark whose directory has since disappeared falls back to
-    /// the worktree rather than declining the call — `cd` is itself a
-    /// tool call, so a hard decline would leave the agent no way back.
+    /// wins. That rule has one home, [`workspace::cwd::effective`],
+    /// because the tool window asks it too — the context files a result
+    /// carries sit on the path of the same directory (§3.3 *Context
+    /// files ride the next tool result*).
     pub(super) fn resolve(step_dir: &Path, git: &dyn GitRunner) -> Option<Self> {
         // step_dir = <workspace>/steps/<agent-id>/<NNN>; ascend one for
         // the agent-id segment, three to reach the workspace root.
@@ -55,12 +56,10 @@ impl Caller {
             .parent()
             .filter(|p| p.ends_with(STEPS_DIR))?
             .parent()?;
-        let worktree = workspace::agent_worktree(workspace, &agent_id);
-        if !worktree.is_dir() {
+        if !workspace::agent_worktree(workspace, &agent_id).is_dir() {
             return None;
         }
-        let moved = workspace::cwd::read(workspace, &agent_id, git);
-        let cwd = moved.filter(|p| p.is_dir()).unwrap_or(worktree);
+        let cwd = workspace::cwd::effective(workspace, &agent_id, git);
         Some(Self {
             workspace: workspace.to_path_buf(),
             agent_id,
@@ -84,7 +83,12 @@ impl Caller {
     /// ARCH §3.3 (the environment bullet). Names are pinned in
     /// [`super::super`] so the executor (the writer) and the built-ins that
     /// read them cannot drift; tools that do not need them ignore them.
-    pub(super) fn env(&self) -> Vec<(&'static str, OsString)> {
+    ///
+    /// `tool_id` is the third var, and the one fact here that is not
+    /// the caller's: it comes from the same [`super::ToolCall`] the
+    /// executor records under, so what a tool reads as its own id and
+    /// what its record directory is named cannot disagree.
+    pub(super) fn env(&self, tool_id: &str) -> Vec<(&'static str, OsString)> {
         vec![
             (
                 crate::prompt::tool::ENV_CONV_BRANCH,
@@ -94,6 +98,7 @@ impl Caller {
                 crate::prompt::tool::ENV_CONV_REPO,
                 self.workspace.as_os_str().to_owned(),
             ),
+            (crate::prompt::tool::ENV_TOOL_ID, OsString::from(tool_id)),
         ]
     }
 }

@@ -40,6 +40,7 @@ fn the_workflow_tool_output_policy_reaches_the_executor() {
         id_gen: &id_gen,
         tool_executor: &recorder,
         config_root: cfg.path(),
+        data_root: cfg.path(),
         adapter_target: None,
         stop: &stop,
         launcher: &NoLauncher,

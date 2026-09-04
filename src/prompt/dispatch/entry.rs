@@ -83,7 +83,7 @@ pub(super) fn close(usage: &UsageReport) -> Vec<u8> {
 /// the unsettled-tail scan). Harness-written (the staging seal /
 /// `commit_tool`, §2.3), so neither lawful shape can fail to parse and a
 /// failure is a programmer error, not a reachable state.
-pub(super) fn blocks(bytes: &[u8]) -> Vec<Content> {
+pub(crate) fn blocks(bytes: &[u8]) -> Vec<Content> {
     let payload: Payload = serde_json::from_slice(bytes)
         .expect("transcript entry is a canonical Content array or a `content` object");
     match payload {

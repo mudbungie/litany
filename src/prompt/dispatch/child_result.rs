@@ -24,13 +24,14 @@
 
 mod flush;
 mod landing;
+mod proposal;
 mod verifier;
 
 pub(super) use flush::run_flush;
 
 use super::{drain, transcript, transfer};
 use crate::config::{Action, Event, Workflow};
-use crate::prompt::{Deps, Error, compactor, inbox, role};
+use crate::prompt::{Deps, Error, compactor, inbox, reviewer, role};
 use crate::template::GitRunner;
 use std::path::{Path, PathBuf};
 
@@ -111,7 +112,9 @@ pub(super) fn interpret_pending(
             continue;
         }
         for action in child_actions(workflow, event) {
-            execute_child(&action, event, workspace, agent_id, worktree, cr, deps)?;
+            execute_child(
+                &action, event, workspace, agent_id, worktree, cr, workflow, deps,
+            )?;
         }
     }
     Ok(())
@@ -177,6 +180,7 @@ fn child_event(worktree: &Path, cr: &ChildResult, git: &dyn GitRunner) -> Result
     let derived = role::derive(worktree, &cr.terminal_ref, &cr.child_id, git)?;
     Ok(match derived.as_deref() {
         Some(compactor::COMPACTOR_ROLE) => Event::CompactorReturn,
+        Some(reviewer::REVIEWER_ROLE) => Event::ReviewerReturn,
         Some(verifier::VERIFIER_ROLE) => verifier::verdict(cr),
         _ => Event::WorkerReturn,
     })
@@ -191,6 +195,7 @@ fn child_actions(workflow: &Workflow, event: Event) -> Vec<Action> {
     }
     match event {
         Event::CompactorReturn => vec![Action::LandCompaction],
+        Event::ReviewerReturn => vec![Action::StageProposal],
         Event::VerifierReject => vec![Action::Dispatch {
             role: crate::prompt::WORKER_ROLE.to_string(),
             with: Some(verifier::FEEDBACK.to_string()),
@@ -215,6 +220,7 @@ fn child_actions(workflow: &Workflow, event: Event) -> Vec<Action> {
 /// child's (§2.7: "surfaced for user review like any other child
 /// failure"): the parent sees the epitaph in its transcript and the
 /// branch simply continues uncompacted.
+#[allow(clippy::too_many_arguments)] // one action, every fact it executes on
 fn execute_child(
     action: &Action,
     event: Event,
@@ -222,6 +228,7 @@ fn execute_child(
     agent_id: &str,
     worktree: &Path,
     cr: &ChildResult,
+    workflow: &Workflow,
     deps: &Deps<'_>,
 ) -> Result<(), Error> {
     match action {
@@ -231,9 +238,14 @@ fn execute_child(
         Action::GateReturnOn { .. } => Ok(()),
         Action::DeliverResult => deliver_result(worktree, agent_id, cr, deps.git),
         Action::LandCompaction if landing::qualifies(cr) => {
-            landing::land(worktree, agent_id, cr, deps.git)
+            landing::land(worktree, agent_id, cr, workflow, deps.git)
         }
-        Action::LandCompaction => deliver_result(worktree, agent_id, cr, deps.git),
+        Action::StageProposal if landing::qualifies(cr) => {
+            proposal::stage(workspace, worktree, cr, deps)
+        }
+        Action::LandCompaction | Action::StageProposal => {
+            deliver_result(worktree, agent_id, cr, deps.git)
+        }
         other => Err(Error::ActionUnsupported {
             action: format!("{other:?}"),
             event: event.as_str(),

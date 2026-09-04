@@ -4,9 +4,18 @@
 //! orphan root on `config/default`. This module is the general
 //! harness-assisted user act §2.2 describes for *every* later config
 //! commit: materialize a transient checkout of the target config
-//! lineage, refresh the `descriptions/**` snapshot from the data-root
-//! pools (§3.3 — the descriptions-always producer's ongoing home), hand
-//! the checkout to an edit step, commit, and tear the checkout down.
+//! lineage, hand the checkout to an edit step, refresh the
+//! `descriptions/**` snapshot (§3.3 — the descriptions-always
+//! producer's ongoing home), commit, and tear the checkout down.
+//!
+//! **The refresh follows the edit, and that ordering is load-bearing.**
+//! The snapshot's third source is the checkout's own `skills/` — the
+//! **workspace skills** of `docs/DESIGN_LEARNING_LOOP.md` §3 — so a
+//! skill authored *by this pass* must be snapshotted and validated by
+//! it, not by the next one. `descriptions/**` is derived, never
+//! authored: whatever an edit writes there is overwritten, which is
+//! the same single-source-of-truth rule the pre-edit order enforced by
+//! accident.
 //!
 //! Three [`Origin`]s cover the §2.2/§2.3 cases: **advancing** an existing
 //! config branch, **forking** a new one off an existing head, and
@@ -21,9 +30,14 @@
 //! fill with direct writes, so the machinery stays fully covered while
 //! the untestable interactive sliver lives at the bin (ARCH §3.4).
 
-use super::checkout::{self, Checkout};
+mod origin;
+
+pub use origin::Origin;
+use origin::{commit_message, materialize};
+
+use super::checkout;
 use super::{GitRunner, TEMPLATE, descriptions};
-use crate::workspace::{self, config_ref};
+use crate::workspace;
 use std::io;
 use std::path::Path;
 
@@ -44,19 +58,6 @@ pub enum Pass {
         /// The `config/<name>` that did not move.
         target: String,
     },
-}
-
-/// Which config lineage an authoring pass targets (ARCH §2.2, §2.3).
-pub enum Origin<'a> {
-    /// Advance the existing `config/<name>` branch: the checkout starts
-    /// at its head and the commit lands back on it.
-    Advance,
-    /// Fork a new `config/<name>` off the head of `config/<source>`
-    /// (§2.2 "further config branches fork from existing ones").
-    Fork { source: &'a str },
-    /// Start `config/<name>` as a fresh orphan lineage, seeded from the
-    /// embedded control-file template (§2.2 "or start fresh").
-    Orphan,
 }
 
 /// Why [`author`] could not complete.
@@ -82,6 +83,11 @@ pub enum Error {
     /// The edit step (the `$EDITOR` hand-off, or a test's writer) failed.
     #[error("edit step: {0}")]
     Edit(#[source] io::Error),
+    /// The edit left a facts file over its cap (ARCH §5.5). Refused at
+    /// the write because a pinned path is never shed at assembly
+    /// (§5.2), so nothing downstream can make an oversized one fit.
+    #[error(transparent)]
+    Facts(#[from] crate::facts::OverCap),
     /// `--from` and `--orphan` were both given — a new branch is either a
     /// fork of a source or a fresh lineage, never both.
     #[error("pass --from <source> or --orphan, not both")]
@@ -101,14 +107,14 @@ pub enum Error {
 /// [`Error::Conflict`]. `name` defaults to `default`. The bin supplies
 /// the resolved `data_root` and the `$EDITOR` `edit` hand-off; nothing
 /// here is interactive.
-pub fn from_cli<G: GitRunner>(
+pub fn from_cli(
     workspace: &Path,
     data_root: &Path,
     name: Option<&str>,
     from: Option<&str>,
     orphan: bool,
     edit: impl FnOnce(&Path) -> io::Result<()>,
-    git: &G,
+    git: &dyn GitRunner,
 ) -> Result<Pass, Error> {
     let origin = match (from, orphan) {
         (Some(source), false) => Origin::Fork { source },
@@ -122,9 +128,11 @@ pub fn from_cli<G: GitRunner>(
 
 /// Author one config commit onto `config/<name>` (ARCH §2.2). Guards the
 /// workspace layout, resolves a fork's source lineage
-/// ([`require_source`]), materializes the checkout per `origin`, refreshes
-/// the `descriptions/**` snapshot from the `data_root` pools (§3.3), runs
-/// `edit` against the checkout, commits, and tears the checkout down.
+/// ([`require_source`]), materializes the checkout per `origin`, runs
+/// `edit` against the checkout, refuses a facts file over its cap
+/// ([`crate::facts`], §5.5), refreshes the `descriptions/**` snapshot
+/// from the `data_root` pools and the checkout's own workspace skills
+/// (§3.3), commits, and tears the checkout down.
 ///
 /// `edit` receives the checkout path; whatever it writes becomes the new
 /// config commit's content on top of the origin's tree. An edit that
@@ -137,19 +145,19 @@ pub fn from_cli<G: GitRunner>(
 /// — no `.config-author` to wedge the next pass, and no `config/<name>`
 /// the pass created but never committed to. Whatever a *killed* pass left
 /// is cleared by [`checkout::heal`] before this one materializes (§2.11).
-pub fn author<G: GitRunner>(
+pub fn author(
     workspace: &Path,
     data_root: &Path,
     name: &str,
     origin: Origin,
     edit: impl FnOnce(&Path) -> io::Result<()>,
-    git: &G,
+    git: &dyn GitRunner,
 ) -> Result<Pass, Error> {
     workspace::require(workspace)?;
     require_source(workspace, &origin, git)?;
     let repo = workspace::repo_git(workspace);
     let author = checkout::path(workspace);
-    let target = config_ref(name);
+    let target = origin::target_ref(name, &origin);
 
     checkout::heal(git, &repo, &author).map_err(Error::Io)?;
     let checkout = materialize(git, &repo, &target, &author, &origin)?;
@@ -159,8 +167,9 @@ pub fn author<G: GitRunner>(
     if matches!(origin, Origin::Orphan) {
         TEMPLATE.extract(&author).map_err(Error::Io)?;
     }
-    descriptions::snapshot(data_root, &author).map_err(Error::Descriptions)?;
     edit(&author).map_err(Error::Edit)?;
+    crate::facts::require_within_cap(&author)?;
+    descriptions::snapshot(data_root, &author).map_err(Error::Descriptions)?;
     if !super::commit_checkout(git, &author, &commit_message(name, &origin)).map_err(Error::Git)? {
         // Dropping the guard removes the checkout and, for a fork or an
         // orphan, the ref the pass created — the decline leaves nothing.
@@ -177,64 +186,19 @@ pub fn author<G: GitRunner>(
 /// ([`workspace::require_lineage`], the one home this shares with
 /// `litany prompt --config`), not git's report of an invalid reference.
 /// Advance and orphan name no source, so they pass through.
-fn require_source<G: GitRunner>(workspace: &Path, origin: &Origin, git: &G) -> Result<(), Error> {
+fn require_source(workspace: &Path, origin: &Origin, git: &dyn GitRunner) -> Result<(), Error> {
     let Origin::Fork { source } = origin else {
         return Ok(());
     };
     workspace::require_lineage(workspace, source, git).map_err(Error::NoSuchLineage)
 }
 
-/// Create the authoring checkout at `author` for the given origin: check
-/// out the existing branch (advance), branch off a source head (fork), or
-/// open a fresh orphan branch (orphan). A fork's source was resolved by
-/// [`require_source`]; the remaining wrong-existence cases are git's to
-/// decline (invalid reference / branch already exists). Fork and
-/// orphan create `target`, so the guard owns that ref until the commit
-/// lands; advance moves a branch that already exists, which a failed pass
-/// must never delete.
-fn materialize<'a, G: GitRunner>(
-    git: &'a G,
-    repo: &'a Path,
-    target: &str,
-    author: &Path,
-    origin: &Origin,
-) -> Result<Checkout<'a, G>, Error> {
-    // `src` and `author_str` outlive the args they feed; `src` is empty
-    // unless this is a fork.
-    let src = match origin {
-        Origin::Fork { source } => config_ref(source),
-        _ => String::new(),
-    };
-    let author_str = author.to_string_lossy().to_string();
-    let (args, created): (Vec<&str>, _) = match origin {
-        Origin::Advance => (vec!["worktree", "add", &author_str, target], None),
-        Origin::Fork { .. } => (
-            vec!["worktree", "add", "-b", target, &author_str, &src],
-            Some(target.to_string()),
-        ),
-        Origin::Orphan => (
-            vec!["worktree", "add", "--orphan", "-b", target, &author_str],
-            Some(target.to_string()),
-        ),
-    };
-    Checkout::add(git, repo, author, &args, created).map_err(Error::Git)
-}
-
-/// The commit subject, naming the act and the branch it lands on — the
-/// same `config: …` convention `scaffold` uses for the first commit.
-fn commit_message(name: &str, origin: &Origin) -> String {
-    let target = config_ref(name);
-    match origin {
-        Origin::Advance => format!("config: advance [{target}]"),
-        Origin::Fork { source } => format!("config: fork {} [{target}]", config_ref(source)),
-        Origin::Orphan => format!("config: init [{target}]"),
-    }
-}
-
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_descriptions;
+#[cfg(test)]
+mod tests_facts;
 #[cfg(test)]
 mod tests_lineage;
 #[cfg(test)]

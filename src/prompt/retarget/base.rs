@@ -74,7 +74,7 @@ pub(super) fn commit(
         op: "retarget scratch worktree",
         source,
     })?;
-    let minted = mint(&tmp, worktree, dispatch_sha, grant, &soul, git);
+    let minted = mint(&tmp, worktree, agent_id, dispatch_sha, grant, &soul, git);
     // The scratch worktree is disposable either way; a removal failure
     // must not shadow the mint's own outcome.
     let _ = git.run(worktree, &["worktree", "remove", "--force", &tmp_str]);
@@ -116,6 +116,7 @@ pub(super) fn granted(
 fn mint(
     tmp: &Path,
     access: &Path,
+    agent_id: &str,
     dispatch_sha: &str,
     grant: &dispatch::Grant<'_>,
     soul: &str,
@@ -126,7 +127,7 @@ fn mint(
     // unchanged (§2.3): the trim re-settles what the old dispatch commit
     // already wrote, which is a rewrite of identical bytes.
     let name = agent_name::in_worktree(tmp);
-    dispatch::trim_to_context(tmp, grant, name.as_deref(), git)?;
+    dispatch::trim_to_context(tmp, agent_id, grant, name.as_deref(), git)?;
     std::fs::write(tmp.join(subagent::SOUL_FILE), soul)?;
     git.run(tmp, &["add", "-A"]).map_err(err("retarget add"))?;
     let tree = git

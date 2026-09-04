@@ -91,6 +91,7 @@ impl Fx {
             id_gen: &self.id,
             tool_executor: &self.tools,
             config_root: self.cfg.path(),
+            data_root: self.cfg.path(),
             adapter_target: None,
             stop: &self.stop,
             launcher: &self.launcher,

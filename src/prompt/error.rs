@@ -8,6 +8,8 @@
 //! than inside it because it is the module's shared vocabulary, not one
 //! function's.
 
+mod from_adapter;
+
 use super::{budget, dispatch, fork_point, inbox};
 use crate::prompt::ExecError;
 use std::path::PathBuf;
@@ -237,6 +239,23 @@ pub enum Error {
          instead"
     )]
     NotCompactionEligible { path: String, what: String },
+    /// The workflow names the `window_percent` checkpoint trigger, but
+    /// the branch's last usage carries no context window for the model
+    /// that authored it (`docs/DESIGN_CONTEXT_ECONOMY.md` §5.1). The
+    /// window is brazen's fact, delivered in band on the `Usage` event
+    /// and recorded beside the counters (§2.3, §4.2 — litany keeps no
+    /// per-model table); a row brazen cannot state one for leaves the
+    /// field absent. Declined at the boundary rather than answered "not
+    /// due", because the alternative is a configured trigger that never
+    /// fires and says nothing about why.
+    #[error(
+        "compaction trigger `window_percent` has no context window to measure against: the \
+         last usage on this branch, from model {model:?}, carries none (ARCH §2.3 — the \
+         window rides brazen's Usage event; litany keeps no per-model table, §4.2). Name a \
+         model whose provider reports a context window, or choose another \
+         compaction.intermediate.trigger"
+    )]
+    CompactionWindowUnknown { model: String },
     #[error("tool {name} schema unreadable at {path}: {source}")]
     ToolSchemaIo {
         name: String,
@@ -265,27 +284,4 @@ pub enum Error {
         #[source]
         source: serde_yaml_ng::Error,
     },
-}
-
-impl Error {
-    /// Fold a settled in-band `CanonicalError` into this taxonomy,
-    /// naming the **provider row** `bz` was invoked with (§4.3). The
-    /// choice between the two adapter variants belongs here, beside the
-    /// wordings it picks between, not at the retry loop that happens to
-    /// hold the row: brazen's `auth` kind (its normalization of a
-    /// 401/403) takes the remedy-bearing variant, everything else keeps
-    /// the classification.
-    pub(super) fn from_adapter(row: &str, err: brazen::CanonicalError) -> Self {
-        if err.kind == brazen::ErrorKind::Auth {
-            return Error::AdapterAuth {
-                row: row.to_string(),
-                message: err.message,
-            };
-        }
-        Error::AdapterError {
-            kind: format!("{:?}", err.kind),
-            row: row.to_string(),
-            message: err.message,
-        }
-    }
 }

@@ -88,6 +88,7 @@ impl Rig {
             id_gen: &self.id_gen,
             tool_executor: &self.recorder,
             config_root: self.cfg.path(),
+            data_root: self.cfg.path(),
             adapter_target: None,
             stop: &self.stop,
             launcher: &NoLauncher,

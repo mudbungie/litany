@@ -121,6 +121,7 @@ fn cli_run_with(
         id_gen: &NanoIdGen,
         tool_executor: &tool_executor,
         config_root: &roots.config,
+        data_root: &roots.data,
         adapter_target,
         stop,
         launcher: &launcher,

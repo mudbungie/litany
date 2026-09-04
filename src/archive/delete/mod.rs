@@ -196,14 +196,28 @@ pub fn delete(
     Ok(report)
 }
 
-/// The refs a delete of `targets` removes: each id's agent branch, plus
-/// every mark that names one of them. An id is a single path component
-/// (§2.3), so a mark belongs to a target exactly when it ends in that
-/// component.
+/// The refs a delete of `targets` removes: each id's agent branch and
+/// its **staged proposal** if it has one, plus every mark that names one
+/// of them. An id is a single path component (§2.3), so a mark belongs
+/// to a target exactly when it ends in that component.
+///
+/// A reviewer's `proposal/<id>` (`docs/DESIGN_LEARNING_LOOP.md` §3) is
+/// listed unconditionally, exactly as the agent branch is: `update-ref
+/// -d` on a ref that is not there is already the postcondition, and an
+/// existence query would be a second answer to a question the delete
+/// does not need asked. Reaping it with its reviewer is the same rule
+/// the marks follow — a proposal nobody can now read the reasoning of
+/// is debris — and rejecting it first is the operator's ordinary route
+/// (`litany proposal <id> --reject`).
 fn ref_specs(targets: &[String], marks: &[String]) -> Vec<String> {
     let mut specs: Vec<String> = targets
         .iter()
-        .map(|id| format!("refs/heads/{}", workspace::agent_ref(id)))
+        .flat_map(|id| {
+            [
+                format!("refs/heads/{}", workspace::agent_ref(id)),
+                format!("refs/heads/{}", workspace::proposal::proposal_ref(id)),
+            ]
+        })
         .collect();
     specs.extend(
         marks

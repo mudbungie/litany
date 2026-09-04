@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "search_history",
+  "description": "Input schema for the litany built-in `search_history` tool (ARCH §3.3, docs/DESIGN_CONTEXT_ECONOMY.md §4). The harness sends this verbatim as the `input_schema` field of the tool's entry in the model call's `tools: [...]` array. Give exactly one of the two properties.",
+  "type": "object",
+  "properties": {
+    "pattern": {
+      "type": "string",
+      "description": "Fixed string (not a regular expression) to search for across every stored transcript entry in this workspace — every agent's history, not just your own. Returns each hit's `<commit>:<path>` address, one per line, then the newest five matching entries verbatim, each cut to its first and last 4096 bytes."
+    },
+    "entry": {
+      "type": "string",
+      "description": "A `<commit>:<path>` address from a previous search's listing. Returns that one entry whole."
+    }
+  },
+  "additionalProperties": false
+}

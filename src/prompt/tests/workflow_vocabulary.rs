@@ -35,11 +35,25 @@ use std::path::{Path, PathBuf};
 /// delivery-hold, `deliver_result`, `land_compaction`). Growing this set
 /// is a deliberate edit with an executor landing behind it; a verb with
 /// no executor coming is not deferred, it is dead, and must not ship.
-const DEFERRED: &[&str] = &["DeliverResult", "Dispatch", "LandCompaction"];
+/// `StageProposal` sits here for the same reason `LandCompaction` does,
+/// and it is not a deferral of the *action*: both landings ship, in the
+/// delivered-child-result seam (`child_result::proposal`,
+/// `child_result::landing`). What this ledger sweeps is the
+/// terminal-lifecycle executor, where neither can run — a landing is
+/// minted from a child's return, and a branch's own terminal has none.
+const DEFERRED: &[&str] = &[
+    "DeliverResult",
+    "Dispatch",
+    "LandCompaction",
+    "StageProposal",
+];
 
 /// Every `workflow.yaml` this repo ships, as (origin, contents): the
 /// embedded default template (`src/template` — the exact bytes
-/// `new-workspace` writes) and the §9.3 experiment configs.
+/// `new-workspace` writes), the named alternative `litany prime` seeds
+/// beside it (`workflows/learning-loop.yaml`, `docs/
+/// DESIGN_LEARNING_LOOP.md` §2 — shipped, so this sweep is its gate too)
+/// and the §9.3 experiment configs.
 ///
 /// The walk over `experiments/` is what keeps the sweep total as
 /// variants land. It currently re-reads the template through
@@ -55,7 +69,13 @@ fn shipped_workflows() -> Vec<(PathBuf, String)> {
         PathBuf::from("template/workflow.yaml"),
         String::from_utf8(template.contents().to_vec()).expect("utf8"),
     )];
-    let experiments = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("experiments");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let learning = root.join("workflows/learning-loop.yaml");
+    out.push((
+        learning.clone(),
+        std::fs::read_to_string(&learning).expect("the repo ships learning-loop.yaml"),
+    ));
+    let experiments = root.join("experiments");
     for entry in std::fs::read_dir(experiments).expect("experiments/ exists") {
         let path = entry.expect("readable entry").path().join("workflow.yaml");
         if let Ok(raw) = std::fs::read_to_string(&path) {

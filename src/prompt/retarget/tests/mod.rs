@@ -53,7 +53,7 @@ fn root(ws: &Path, id: &str) -> PathBuf {
         tools: &tools,
         config_commit: &commit,
     };
-    dispatch::trim_to_context(&wt, &grant, Some("pale-otter"), &git).unwrap();
+    dispatch::trim_to_context(&wt, "20260101-t1", &grant, Some("pale-otter"), &git).unwrap();
     std::fs::write(wt.join("goal.md"), "ship the widget\n").unwrap();
     let soul = crate::workspace::show_control(ws, &commit, "souls/worker.md", &git).unwrap();
     std::fs::write(wt.join("soul.md"), soul).unwrap();

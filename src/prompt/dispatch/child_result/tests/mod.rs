@@ -65,7 +65,7 @@ impl Launcher for RecLauncher {
 
 /// Owns the deps components so [`Fx::deps`] can borrow them into one
 /// [`Deps`] with the unused traits stubbed.
-struct Fx {
+pub(super) struct Fx {
     git: RealGit,
     clock: SystemClock,
     id: NanoIdGen,
@@ -76,8 +76,19 @@ struct Fx {
     stop: AtomicBool,
     cfg: TempDir,
 }
+
 impl Fx {
-    fn new() -> Self {
+    /// The fixture's data root — the install pools the reviewer's
+    /// landing judges a proposed skill name against
+    /// (`docs/DESIGN_LEARNING_LOOP.md` §3). Empty unless a test seeds
+    /// one, which is the ordinary shape: a workspace whose install
+    /// provides no skill collides with nothing.
+    pub(super) fn data_root(&self) -> &Path {
+        self.cfg.path()
+    }
+}
+impl Fx {
+    pub(super) fn new() -> Self {
         Self {
             git: RealGit::new(),
             clock: SystemClock,
@@ -90,7 +101,7 @@ impl Fx {
             cfg: TempDir::new().unwrap(),
         }
     }
-    fn deps(&self) -> Deps<'_> {
+    pub(super) fn deps(&self) -> Deps<'_> {
         Deps {
             adapter: &self.adapter,
             sleeper: &self.sleeper,
@@ -99,6 +110,7 @@ impl Fx {
             id_gen: &self.id,
             tool_executor: &self.tools,
             config_root: self.cfg.path(),
+            data_root: self.cfg.path(),
             adapter_target: None,
             stop: &self.stop,
             launcher: &self.launcher,
@@ -112,7 +124,7 @@ impl Fx {
 /// inbox — where an ordinary child's reply goes (§2.6).
 /// Returns the child id. `work` is `(path, contents)` committed on the
 /// child so the transfer / merge has something to move.
-fn returned_child(
+pub(super) fn returned_child(
     ws: &Path,
     parent: &str,
     role: &str,
@@ -125,7 +137,7 @@ fn returned_child(
 
 /// [`returned_child`] with the deposited epitaph chosen by the test —
 /// the §2.6 epitaph-gate cases (a `died` compactor return, etc.).
-fn returned_child_ep(
+pub(super) fn returned_child_ep(
     ws: &Path,
     parent: &str,
     role: &str,
@@ -185,12 +197,13 @@ fn returned_child_ep(
     child
 }
 
-fn workflow(yaml: &str) -> Workflow {
+pub(super) fn workflow(yaml: &str) -> Workflow {
     Workflow::parse(yaml, Path::new("workflow.yaml")).unwrap()
 }
 
 mod cases;
 mod flush_clock;
 mod flush_inflight;
+mod flush_reviewer;
 mod gate;
 mod resolve_role;

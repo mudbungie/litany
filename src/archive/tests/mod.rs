@@ -13,6 +13,7 @@ use std::io;
 
 mod bundle;
 mod delete;
+mod delete_proposal;
 mod replay;
 
 /// A `GitRunner` that records `run` invocations and replays a canned

@@ -58,6 +58,23 @@ pub fn read(workspace: &Path, agent_id: &str, git: &dyn GitRunner) -> Option<Pat
     (!out.is_empty()).then(|| PathBuf::from(out))
 }
 
+/// The agent's **effective** working directory (ARCH §3.3 *Resolution
+/// at spawn*): the mark when it names a live directory, else the
+/// agent's worktree. One home for the rule, because two readers ask it
+/// — the executor, resolving where a tool subprocess runs
+/// ([`crate::prompt::tool::spawn`]), and the tool window, deciding
+/// which context files sit on that path
+/// ([`crate::prompt::dispatch`]). A mark whose directory has since
+/// disappeared answers the worktree rather than nothing: `cd` is itself
+/// a tool call, so a hard decline would strand the agent somewhere it
+/// could never leave.
+pub fn effective(workspace: &Path, agent_id: &str, git: &dyn GitRunner) -> PathBuf {
+    let worktree = super::agent_worktree(workspace, agent_id);
+    read(workspace, agent_id, git)
+        .filter(|p| p.is_dir())
+        .unwrap_or(worktree)
+}
+
 /// Set the agent's working-directory mark to `dir` (an absolute path the
 /// caller has already resolved and proven to be a directory). Writes the
 /// path as a blob and points the mark at it — last write wins, exactly

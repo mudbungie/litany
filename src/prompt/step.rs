@@ -151,18 +151,30 @@ pub fn next_step_seq(conv_repo: &std::path::Path, conv_id: &str) -> std::io::Res
 /// a non-retryable error, §2.10) — committed no transcript entry, so
 /// the branch cannot advance without a new touch.
 pub fn latest_step_outcome(workspace: &std::path::Path, agent: &str) -> Option<Outcome> {
-    let steps = workspace.join(STEPS_DIR).join(agent);
-    let rd = std::fs::read_dir(steps).ok()?;
-    let latest = rd
+    let bytes = std::fs::read(in_flight(workspace, agent)?.join(RESPONSE_FILE)).ok()?;
+    Some(classify(&bytes))
+}
+
+/// The agent's **in-flight step** directory — the highest-numbered
+/// `steps/<agent-id>/<NNN>/`, derived and never stored (the same
+/// discipline as [`next_step_seq`], which is this plus one; ARCH §6:
+/// position is a function of disk state). `None` when the agent has no
+/// step tree or no numeric step in it — the general path with empty
+/// inputs.
+///
+/// Two readers: the §8 silent-death sweep asks what the latest step's
+/// framing was, and `litany invoke` asks which step's `tools/` an inner
+/// invocation records under (`docs/DESIGN_CODE_EXECUTION.md` §2.3).
+pub fn in_flight(workspace: &std::path::Path, agent: &str) -> Option<std::path::PathBuf> {
+    std::fs::read_dir(workspace.join(STEPS_DIR).join(agent))
+        .ok()?
         .flatten()
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().into_owned();
             name.parse::<u32>().ok().map(|n| (n, e.path()))
         })
         .max_by_key(|(n, _)| *n)
-        .map(|(_, p)| p)?;
-    let bytes = std::fs::read(latest.join(RESPONSE_FILE)).ok()?;
-    Some(classify(&bytes))
+        .map(|(_, p)| p)
 }
 
 /// On-disk shape of `meta.json`. The `commit` field is the branch

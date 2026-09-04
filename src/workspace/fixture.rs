@@ -26,10 +26,18 @@ pub(crate) fn workspace() -> (TempDir, PathBuf) {
         config: holder.path().join("config"),
         data: data_root,
     };
-    crate::install::prime(&roots).unwrap();
-    let ws = holder.path().join("ws");
-    scaffold(&ws, &roots, &RealGit::new()).unwrap();
-    (holder, ws)
+    (holder, workspace_under(&roots))
+}
+
+/// [`workspace`] over roots the caller chose — for a test whose subject
+/// resolves the harness root from the ambient `LITANY_HOME` (§2.2),
+/// where both roots are the one directory that names. The workspace
+/// lands beside the config root, never inside it.
+pub(crate) fn workspace_under(roots: &Roots) -> PathBuf {
+    crate::install::prime(roots).unwrap();
+    let ws = roots.config.parent().unwrap_or(&roots.config).join("ws");
+    scaffold(&ws, roots, &RealGit::new()).unwrap();
+    ws
 }
 
 /// Fork `agents/<id>` off `start` (a config branch or another agent's

@@ -25,6 +25,14 @@ use syn::{Item, UseTree};
 
 /// The binding seam, enumerated: the parts of `cmd` that are not derived
 /// from the verb set. Every line is a deliberate public commitment.
+///
+/// **Two of `cmd`'s modules are not verbs**, and both are named here as
+/// `mod` entries so a third cannot appear unstated: `prelude` (the
+/// mechanisms a binding performs, ARCH §3.4) and `seam` (the three types
+/// it speaks to a verb in — split out of `cmd/mod.rs` when the verb list
+/// grew past the per-file cap, bl-9a65). The types are declared in
+/// `seam` and re-exported at `cmd::*`, so both paths are stated: the
+/// declaration where it lives, the `use` where every consumer names it.
 const SEAM: &[&str] = &[
     "struct Cli",
     "derive Cli: clap::Parser",
@@ -35,21 +43,6 @@ const SEAM: &[&str] = &[
     "derive Command: Debug",
     "method Command::preludes",
     "method Command::run",
-    "enum Outcome",
-    "derive Outcome: Debug",
-    "variant Outcome::Line",
-    "variant Outcome::Quiet",
-    "variant Outcome::Exec",
-    "variant Outcome::Code",
-    "struct Fx",
-    "field Fx.driver_target",
-    "field Fx.adapter_target",
-    "field Fx.editor",
-    "field Fx.tool_stdin",
-    "field Fx.tool_stdout",
-    "field Fx.tool_stderr",
-    "field Fx.stop",
-    "field Fx.tool_injection",
     // The host tool-injection seam (ARCH §3.3 *Host-injected tools*):
     // `Fx.tool_injection`'s trait and the two plain data types its two
     // methods speak in. Re-exported from `prompt::tool::inject` rather
@@ -65,12 +58,36 @@ const SEAM: &[&str] = &[
     // must be readable rather than restated downstream. Re-exported for
     // the same reason — `prompt::tool::builtin` is below the surface.
     "use BUILTIN_TOOLS",
+    "mod prelude",
+    "mod seam",
+    "use Outcome",
+    "use Fx",
+    "use Error",
+];
+
+/// The binding seam's own declarations, in the module that holds them
+/// (`cmd::seam`): the product, the injections and the failure.
+const SEAM_TYPES: &[&str] = &[
+    "enum Outcome",
+    "derive Outcome: Debug",
+    "variant Outcome::Line",
+    "variant Outcome::Quiet",
+    "variant Outcome::Exec",
+    "variant Outcome::Code",
+    "struct Fx",
+    "field Fx.driver_target",
+    "field Fx.adapter_target",
+    "field Fx.editor",
+    "field Fx.tool_stdin",
+    "field Fx.tool_stdout",
+    "field Fx.tool_stderr",
+    "field Fx.stop",
+    "field Fx.tool_injection",
     "struct Error",
     "derive Error: Debug",
     "method Error::new",
     "impl Error: std::fmt::Display",
     "impl Error: std::error::Error",
-    "mod prelude",
 ];
 
 /// The three mechanisms `cmd::prelude` re-exports (ARCH §3.4).
@@ -87,6 +104,7 @@ const MINT: &[&str] = &["use MintError", "use Rng", "use SplitMix64", "use mint"
 fn expected() -> BTreeSet<String> {
     let mut want = BTreeSet::from(["crate::mod cmd".to_string(), "crate::mod mint".to_string()]);
     want.extend(SEAM.iter().map(|e| format!("crate::cmd::{e}")));
+    want.extend(SEAM_TYPES.iter().map(|e| format!("crate::cmd::seam::{e}")));
     want.extend(MINT.iter().map(|e| format!("crate::mint::{e}")));
     want.extend(
         PRELUDES

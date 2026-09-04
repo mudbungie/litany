@@ -4,7 +4,6 @@
 
 use agent_eval::repro;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
 
@@ -79,13 +78,34 @@ fn fixture_digest_identifies_task_file_content() {
     assert_eq!(repro::fixture_digest(a.path()), None);
 }
 
+/// Write an executable fixture **from a child process**, never from this
+/// one. `fs::write` holds a write descriptor on the file; a fork on any
+/// other test thread copies it into a child that keeps it until its own
+/// exec, and an exec of the script inside that window is `ETXTBSY` — a
+/// failure that reads as "the driver reported nothing" and lands on
+/// whichever beat happened to run then. Handing the whole write to
+/// `sh -c` leaves no descriptor in this process for any fork to copy.
 fn script(dir: &Path, name: &str, body: &str) -> String {
     let path = dir.join(name);
-    fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
-    let mut perms = fs::metadata(&path).unwrap().permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(&path, perms).unwrap();
+    let status = Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "printf '%s\\n' '#!/bin/sh' {} > \"$1\" && chmod 755 \"$1\"",
+            shell_quote(body)
+        ))
+        .arg("sh")
+        .arg(&path)
+        .status()
+        .unwrap();
+    assert!(status.success(), "writing the fixture script");
     path.display().to_string()
+}
+
+/// Single-quote `s` for `sh`, closing and reopening around any quote it
+/// contains — the fixture bodies are literals here, but a quoting rule
+/// that only works for today's literals is not a rule.
+fn shell_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
 }
 
 #[test]

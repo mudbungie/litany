@@ -65,6 +65,7 @@ pub(super) fn real_deps<'a>(
         id_gen: id,
         tool_executor: tools,
         config_root,
+        data_root: config_root,
         adapter_target: None,
         stop: never_stopped(),
         launcher: no_launch(),

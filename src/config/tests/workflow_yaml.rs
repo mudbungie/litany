@@ -254,6 +254,7 @@ const EVENT_NAMES: &[&str] = &[
     "verifier_reject",
     "worker_flush",
     "compactor_return",
+    "reviewer_return",
     "branch_stopped",
     "pre_step",
     "post_step",

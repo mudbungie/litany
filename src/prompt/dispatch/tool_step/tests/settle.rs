@@ -3,7 +3,7 @@
 //! a tail an ordinary deposit can revive, never the §6 unpaired
 //! decline.
 
-use super::multi::{Fixture, Scripted};
+use super::scripted::{Fixture, Scripted};
 use super::{Resolution, branch_with_step};
 use crate::prompt::dispatch::tool_step::{ToolWindow, run_tool_calls};
 use brazen::{Content, Role};

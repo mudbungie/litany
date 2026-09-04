@@ -32,7 +32,7 @@
 
 /// The frontmatter `description` the shipped `<name>` skill ships —
 /// byte-for-byte the string that reaches the wire.
-fn wire_description(name: &str) -> String {
+pub(super) fn wire_description(name: &str) -> String {
     let raw = super::SKILLS
         .get_file(format!("{name}/SKILL.md"))
         .expect("the skill pool ships this skill")
@@ -45,7 +45,7 @@ fn wire_description(name: &str) -> String {
 }
 
 /// The shipped schema for `<name>`, parsed.
-fn wire_schema(name: &str) -> serde_json::Value {
+pub(super) fn wire_schema(name: &str) -> serde_json::Value {
     let raw = super::TOOLS
         .get_file(format!("{name}.json"))
         .expect("the tool pool ships this schema")
@@ -55,7 +55,7 @@ fn wire_schema(name: &str) -> serde_json::Value {
 
 /// A claim is pinned by the phrase that makes it, so rewording that
 /// drops the claim fails here rather than silently regressing.
-fn asserts(text: &str, phrases: &[&str], what: &str) {
+pub(super) fn asserts(text: &str, phrases: &[&str], what: &str) {
     for phrase in phrases {
         assert!(
             text.contains(phrase),
@@ -120,6 +120,21 @@ fn the_bash_description_promises_the_result_envelope() {
             "`--- stderr ---` marker",
             "on success as well as failure",
         ],
+        "bash tool description",
+    );
+}
+
+/// The one bound a shell command has is the one the shell already
+/// expresses (`docs/DESIGN_CODE_EXECUTION.md` §3, row *bash timeout*).
+/// The executor imposes no wall-clock limit and the schema takes no
+/// `timeout_ms` — a second home for a fact `timeout(1)` states — so the
+/// definition must teach the coreutils line instead, or a model with a
+/// command that might hang has been told nothing.
+#[test]
+fn the_bash_description_teaches_the_timeout_line_rather_than_a_parameter() {
+    asserts(
+        &wire_description("bash"),
+        &["No time limit is imposed", "prefix it with `timeout 30`"],
         "bash tool description",
     );
 }

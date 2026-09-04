@@ -34,7 +34,7 @@ Parity between the two is enforced mechanically, not by convention. `tests/comma
 
 ```
 cargo install litany --locked                    # or: make install, from a clone
-cargo install brazen --version =0.0.8 --locked   # the provider adapter, always needed
+cargo install brazen --version =0.0.9 --locked   # the provider adapter, always needed
 litany new ~/work/chat    # create a workspace (bare repo.git + config/default)
 ANTHROPIC_API_KEY=... litany prompt ~/work/chat 'hello'
 ```
@@ -59,7 +59,7 @@ Makefile and image routes lay down for you.
 
 ```
 cargo install litany --locked
-cargo install brazen --version =0.0.8 --locked   # the pinned provider adapter
+cargo install brazen --version =0.0.9 --locked   # the pinned provider adapter
 litany prime                                     # found the harness root
 ```
 
@@ -76,7 +76,7 @@ find out, because it says what it founded:
 $ litany prime
 litany prime: config root /home/u/.config/litany — models.yaml, workflows/
 litany prime: data root /home/u/.local/share/litany — tools/, skills/, workspaces/
-litany prime: harness root founded: 18 files seeded, 0 already present and left alone (seed-if-absent, ARCH §2.2)
+litany prime: harness root founded: 19 files seeded, 0 already present and left alone (seed-if-absent, ARCH §2.2)
 ```
 
 That report is on **stderr** — `prime` has no stdout product (ARCH §3.4)
@@ -120,7 +120,10 @@ make install LITANY_HOME=/opt/litany          # collapse both homes -> /opt/lita
    `skills/` pools and the `workspaces/` tree under the **data root**,
    and the `workflows/` templates dir holding the shipped default,
    `basic-agentic-loop.yaml` (ARCH §6 — the same declaration `litany
-   new` freezes into `config/default`). It is **seed-if-absent
+   new` freezes into `config/default`), beside the one named
+   alternative, `learning-loop.yaml` (the basic loop plus a reviewer —
+   `docs/DESIGN_LEARNING_LOOP.md` §2 — seeded, never defaulted to). It
+   is **seed-if-absent
    throughout**: a second run changes nothing, and a hand-edited
    `models.yaml` (or any operator-added pool entry) survives a re-install.
    The shipped assets are embedded in the binary, so `prime` needs no
@@ -143,12 +146,12 @@ every provider (ARCH §4.4), it is **pinned exactly**, and litany refuses
 a `bz` at any other version rather than downgrading silently:
 
 ```
-cargo install brazen --version =0.0.8 --locked
+cargo install brazen --version =0.0.9 --locked
 ```
 
 The pin is not folklore you have to read this file for — the installed
 binary carries it: `litany --version` prints the linked pin beside its
-own version, `litany <version> (brazen 0.0.8)`. Its one home is the
+own version, `litany <version> (brazen 0.0.9)`. Its one home is the
 `brazen = "=<pin>"` line in `Cargo.toml`;
 the Makefile's `BRAZEN_PIN`, the load-time guard, `litany --version`,
 and every pin printed in this file all derive from that line (a test
@@ -454,7 +457,8 @@ installs). Three distinct on-disk locations:
   [`models.yaml`](docs/ARCHITECTURE.md#42-model-abstraction) (the
   optional `adapter:` binary override — §4.2; no model policy) and the
   `workflows/` templates, seeded with the shipped default
-  `basic-agentic-loop.yaml`. Provider endpoints and auth live in brazen's
+  `basic-agentic-loop.yaml` and the named alternative
+  `learning-loop.yaml`. Provider endpoints and auth live in brazen's
   config, not here (§4.1); each role's model is named in a repo's
   `providers.yaml` (§4.3).
 - **Data root** — machine-populated pools, `$XDG_DATA_HOME/litany`
@@ -727,6 +731,92 @@ lineages (`litany config <ws> alt --from default`, edit
 Every refusal precedes the mark: an unknown workspace, agent or
 lineage, or a lineage head whose `version` or `workflow.yaml` does not
 parse, is refused before the ref is written.
+
+## The skill census: `litany skills`
+
+Skills live in two homes — the install pool `<data-root>/skills/<name>/`
+and, per workspace, the config lineage's own `skills/<name>/`
+(`docs/DESIGN_LEARNING_LOOP.md` §3). `litany skills` is the one place
+that reads both at once and says what is actually being used:
+
+```
+litany skills <workspace>                  # over config/default's tip
+litany skills <workspace> --config learning  # over another lineage's
+```
+
+```
+SKILL           OWNER      STATE     LAST USE      LAST PATCH
+note-taking     workspace  unused    -             3 days ago
+legacy-deploy   workspace  archived  -             2 days ago
+bash            pool       active    5 hours ago   -
+```
+
+- **owner** — `pool` or `workspace`; ownership is the path, and nothing
+  else records it.
+- **last use** — the newest commit on an `agents/*` branch that *added*
+  `skills/<name>/`. The `load_skill` copy is the use (ARCH §3.3), and
+  git already dates it. Branches walked are the ones that still exist,
+  so a deleted agent's elections leave with it; the config commit that
+  *authored* a workspace skill is excluded, so authoring a skill is not
+  mistaken for every descendant electing it.
+- **last patch** — the newest `config/*` commit touching the skill, in
+  either `skills/<name>/` or the archive container
+  `skills/archived/<name>/`. A pool skill is the install's, so no
+  lineage commit patches it and the column reads `-`.
+- **state** — `active` (some living branch has loaded it, *or* a tool
+  claims it, in which case it composes as that tool's description on
+  every model call and is never idle), `unused` (neither), or
+  `archived` (the body sits at `skills/archived/<name>/` in the
+  lineage's tip, where it composes nowhere and `load_skill` cannot name
+  it).
+
+Rows come **oldest-used first**, never-used first of all. There is no
+usage counter, no store, no curator process and no `stale` state: a
+wall-clock horizon is policy, policy is config, and this verb adds
+none. It prints ages; where to draw the line is yours.
+
+Archival is a move — `skills/<name>/` → `skills/archived/<name>/`, an
+ordinary `litany config` edit — and reversed by moving back.
+
+## Staged proposals: `litany proposal`
+
+A **reviewer** — the role the compaction checkpoint forks beside the
+compactor when a workspace runs the learning loop
+(`docs/DESIGN_LEARNING_LOOP.md`) — never writes a lineage. Its edits are
+staged as one config commit on `proposal/<reviewer-id>`, parented on the
+config commit it read, and nothing resolves that branch until you accept
+it. This verb is how you read and settle them:
+
+```
+litany proposal <workspace>                     # list every staged proposal
+litany proposal <workspace> <id>                # its message and its whole diff
+litany proposal <workspace> <id> --accept       # fast-forward its lineage onto it
+litany proposal <workspace> <id> --reject       # delete the branch
+```
+
+```
+ID                 LINEAGE  PARENT        STATE  DIFF                      SUBJECT
+20260101-a1-r7d2   default  9f2c1ab4de01  fresh  1 file changed, 4 (+)     notes: record what the span taught
+20260101-a1-r3f9   -        4b70e2c9aa15  stale  1 file changed, 2 (+)     facts: the box has no network
+```
+
+- **fresh / stale** are derived when you ask, from two commits: the
+  proposal's parent, and the head of the lineage that stands on it. A
+  proposal is fresh while its parent is still that head. Nothing is
+  stored, so a listing cannot go out of date between the read and the
+  act.
+- **`--accept`** is a compare-and-swap fast-forward: `git update-ref`
+  with the parent as its expected old value, then the proposal branch is
+  deleted. Follow-the-tip carries the accepted commit to every agent on
+  the lineage at its next step — there is no act per agent, and nothing
+  to re-fork. A stale proposal is **refused** naming the tip it now
+  stands behind: its reviewer read a config that no longer governs, so
+  the answer is `--reject` and the next checkpoint, never a merge.
+- **`--reject`** deletes the proposal branch and nothing else. The
+  reviewer's own branch survives as the record of its reasoning, and is
+  reaped with it by `litany delete`, which takes the proposal ref too.
+- Two proposals against one tip both list fresh; the first accept makes
+  the second stale. That is the whole conflict rule.
 
 ## Sending a prompt
 
@@ -1113,10 +1203,10 @@ too, the same way `load_skill` declines an unknown skill (ARCH §3.3):
 ```
 $ litany tool --help
 Arguments:
-  <NAME>  Built-in tool to run; one of: apply_patch, bash, cd, dispatch, load_skill, message, read_file
+  <NAME>  Built-in tool to run; one of: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, search_history
 
 $ echo '{}' | litany tool nosuchtool
-litany tool nosuchtool: unknown built-in tool: "nosuchtool"; available: apply_patch, bash, cd, dispatch, load_skill, message, read_file
+litany tool nosuchtool: unknown built-in tool: "nosuchtool"; available: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, search_history
 ```
 
 **A direct run gives you the triple, not the envelope.** `litany tool
@@ -1260,23 +1350,25 @@ Built-ins:
   result — a tool commit now stages the whole worktree (`git add -A`,
   `commit_tool`), landing any tool's worktree side effects with its
   result entry (ARCH §2.3).
-- **`multi_tool`** — fans one model round trip into N tool executions
-  (ARCH §3.3 *The multi-tool*). Input is `{invocations: [{name,
-  input}, ...], on_failure}`: the same `{name, input}` shapes the
-  individual tools declare, run **serially in list order** — a later
-  entry sees every earlier entry's side effects — with `on_failure:
-  "abort"` (default: a failed or declined entry skips the rest) or
-  `"run_all"`. All results return together in the envelope's single
-  `tool_result`, attributed per entry (`[k/N] <name>:
-  ok|failed|declined|skipped`); incremental delivery has no wire home
-  (one result per `tool_use` id on every protocol), and nesting is
-  declined at depth 1. Each inner invocation passes the same grant gate
-  and executor as a top-level one and lands its own diagnostic record
-  under a derived id (`<outer-id>-<k>`). The one built-in with no
-  `litany tool` subcommand: its binary *is* the step loop
-  (`src/prompt/dispatch/tool_step/multi.rs`), so it does not appear in
-  the `litany tool --help` pool above, while its schema/skill pair
-  installs and grants like any other tool's.
+- **`python`** — runs one model-authored **program** that composes this
+  agent's own tools (ARCH §3.3 *The program*,
+  `docs/DESIGN_CODE_EXECUTION.md`). Input is `{program}`, python3 source
+  fed to `python3 -` in the agent's current working directory with no
+  time limit. Before it runs, the built-in generates `litany_tools` — one
+  keyword-only function per tool the role may call, parameters from that
+  tool's committed schema, docstring from its description — into the
+  invocation's own record directory and puts it on `PYTHONPATH`; each
+  function is one `litany invoke` (above), so an inner call passes the
+  same grant gate, control and executor a top-level one does and lands
+  its own record under `<tool-id>-<k>`. A call returns
+  `Result(stdout, stderr, exit_code, ok)` and raises only when the door
+  cannot be reached, so a failed tool is a value a program branches on.
+  **Only the program's stdout comes back to the model** — no inner
+  result, not a line and not a tally — which is the whole saving: dozens
+  of invocations, one result to read. `python` may not be called from a
+  program (depth 1), and `python3` is assumed rather than probed (a
+  deployment without it does not grant the tool; a missing interpreter is
+  the in-band exit 127).
 
 ## Naming an agent
 
@@ -1421,6 +1513,42 @@ approval file, a verifier's verdict) is the control's own contract. A
 control that cannot answer **fails closed**: the invocation does not
 run and the step aborts loudly. No control ships — omit the block and
 no control is consulted; the seam is the shipped surface.
+
+## One inner invocation through the front door: `litany invoke`
+
+`litany invoke` runs **one inner invocation** — a tool call the model
+minted no wire id for — through the same gates a top-level `tool_use`
+meets, and answers with that invocation's raw result envelope (ARCH
+§3.4, `docs/DESIGN_CODE_EXECUTION.md` §2.1). It is the door a tool that
+*composes* other tools reaches its granted toolset through.
+
+It takes no arguments. Stdin is one `tool_use` block — the same object
+the tool control reads — and the calling agent arrives in the §3.3
+contract environment every tool already has:
+
+```
+$ echo '{"id":"tu_1","name":"bash","input":{"command":"echo hi"}}' \
+    | litany invoke
+Exit code: 0
+hi
+```
+
+- **The gates are the tool window's, in its order**: the depth refusal
+  (a tool that composes invocations of its own may not be one), the
+  role's grant, then the tool control. A decline prints its reason and
+  exits non-zero with **no envelope** — no child ran, so no exit code is
+  invented. A `hold` cannot park an invocation another tool is
+  composing (entries before it have already run), so it degrades to a
+  decline telling the model to re-issue that invocation top-level.
+- **The envelope is raw.** `tool_output:` bounds what enters the
+  *transcript*; an inner result enters a composing tool, which is the
+  consumer that can filter it. The full bytes are on disk either way.
+- **The exit code is the tool's**, read off the envelope's own first
+  line, so what the verb prints and what it exits with cannot disagree.
+- **It commits nothing and enters no transcript.** The invocation's
+  record lands under the calling agent's in-flight step
+  (`steps/<agent-id>/<NNN>/tools/<id>/`) like any other; its worktree
+  side effects ride the enclosing tool call's one commit.
 
 ## The exit protocol and the operator scan
 
@@ -1647,7 +1775,7 @@ stdin (canonical request, JSON) → bz → stdout (v=1 event stream, NDJSON, one
 The harness execs `bz --json --provider <row>` once per attempt, pipes a
 typed `brazen::CanonicalRequest` on stdin, and appends bz's stdout
 verbatim to the step's `response.json`. litany links the `brazen` crate
-(`brazen = "=0.0.8"`) for the canonical *types* only — the data plane
+(`brazen = "=0.0.9"`) for the canonical *types* only — the data plane
 always crosses the subprocess boundary (§3.4). Two facts follow:
 
 - **Retry is the harness's.** brazen never retries — one `bz` process,
@@ -1668,7 +1796,7 @@ always crosses the subprocess boundary (§3.4). Two facts follow:
   litany references a row by name and never sees credential material
   (ARCH §4.1). A load-time guard (`bz --version` == the linked crate
   version) rejects a mismatched binary; `make install` installs the pin
-  with `cargo install brazen --version =0.0.8`.
+  with `cargo install brazen --version =0.0.9`.
 - **A failed model call names the row.** Which row litany routed a model call
   under is litany's fact, not brazen's (it is the role's `provider:` in
   the config commit's `providers.yaml`), so the harness states it:
@@ -1982,7 +2110,7 @@ every agent on the box. Anyone running `make install` rewrites that binary at
 dies in five-plus e2e tests with
 
 ```
-bz version "0.0.6" does not match the linked brazen crate "0.0.8"
+bz version "0.0.6" does not match the linked brazen crate "0.0.9"
 ```
 
 which looks nothing like "someone else installed a binary" and everything

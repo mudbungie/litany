@@ -59,11 +59,14 @@ verb_table! {
     Workflow => workflow,
     Stop => stop,
     Message => message,
+    Proposal => proposal,
     Scan => scan,
+    Skills => skills,
     Bundle => bundle,
     Delete => delete,
     Replay => replay,
     Advance => advance,
+    Invoke => invoke,
     Tool => tool,
     Prime => prime,
 }
@@ -77,14 +80,22 @@ pub fn cli_subcommands() -> BTreeSet<String> {
         .collect()
 }
 
+/// `cmd`'s public modules that are **not** verbs, and are stated as such
+/// in the seam ledger ([`crate::surface`]): the mechanisms a binding
+/// performs before a driver verb, and the three types it speaks to a
+/// verb in. Every other public module under `cmd` is a verb, and the
+/// exhaustiveness assertion below is what makes that true in both
+/// directions.
+const NON_VERB_MODULES: &[&str] = &["prelude", "seam"];
+
 /// The public modules of `cmd` that are verb modules — its whole public
-/// module set minus the `prelude` binding seam.
+/// module set minus [`NON_VERB_MODULES`].
 pub fn verb_modules() -> BTreeSet<String> {
     graph::crate_graph()
         .iter()
         .filter(|m| m.public && !m.test_only)
         .filter_map(|m| m.path.strip_prefix("crate::cmd::").map(String::from))
-        .filter(|name| name != "prelude")
+        .filter(|name| !NON_VERB_MODULES.contains(&name.as_str()))
         .collect()
 }
 

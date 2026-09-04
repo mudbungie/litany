@@ -18,7 +18,7 @@ fn a_content_conflict_is_declined_and_marked_never_landed() {
     let before = head(wt);
 
     assert_eq!(
-        land(wt, "p1", "p1-cmp", &g()).unwrap(),
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
         LandOutcome::Conflicted(vec!["summary/001.md".to_string()])
     );
     assert_eq!(head(wt), before, "nothing landed");
@@ -55,7 +55,10 @@ fn the_compactors_dialog_and_fork_prunes_never_cross() {
         &["descriptions/tools/bash.json"],
     );
 
-    assert_eq!(land(wt, "p1", "p1-cmp", &g()).unwrap(), LandOutcome::Landed);
+    assert_eq!(
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
+        LandOutcome::Landed
+    );
     let read = |rel: &str| std::fs::read_to_string(wt.join(rel)).unwrap();
     assert_eq!(read("goal.md"), "parent goal\n", "parent keeps its goal");
     assert!(
@@ -75,7 +78,10 @@ fn an_empty_product_is_a_noop() {
     let wt = dir.path();
     compactor(wt, &[], &[], &[("messages/002-goal.md", "dialog\n")], &[]);
     let before = head(wt);
-    assert_eq!(land(wt, "p1", "p1-cmp", &g()).unwrap(), LandOutcome::NoOp);
+    assert_eq!(
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
+        LandOutcome::NoOp
+    );
     assert_eq!(head(wt), before);
 }
 
@@ -94,11 +100,14 @@ fn a_pass_overtaken_by_a_landing_is_superseded() {
         &[],
         &[],
     );
-    assert_eq!(land(wt, "p1", "p1-cmp", &g()).unwrap(), LandOutcome::Landed);
+    assert_eq!(
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
+        LandOutcome::Landed
+    );
     let before = head(wt);
     // The same return interpreted again — its point is gone.
     assert_eq!(
-        land(wt, "p1", "p1-cmp", &g()).unwrap(),
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
         LandOutcome::Superseded
     );
     assert_eq!(head(wt), before);
@@ -125,7 +134,7 @@ fn a_landing_inside_the_replay_span_supersedes_the_pass() {
     );
     let before = head(wt);
     assert_eq!(
-        land(wt, "p1", "p1-cmp", &g()).unwrap(),
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
         LandOutcome::Superseded
     );
     assert_eq!(head(wt), before);
@@ -153,7 +162,10 @@ fn a_branch_without_a_founding_commit_bounds_the_span_at_the_root() {
         &[],
         &[],
     );
-    assert_eq!(land(wt, "p1", "p1-cmp", &g()).unwrap(), LandOutcome::Landed);
+    assert_eq!(
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
+        LandOutcome::Landed
+    );
     let log = subjects(wt);
     assert_eq!(
         log.lines().collect::<Vec<_>>(),
@@ -167,13 +179,13 @@ fn a_compactor_branch_without_a_dispatch_commit_is_declined_loudly() {
     let dir = repo(&[("goal.md", "g\n")]);
     let wt = dir.path();
     g().run(wt, &["branch", "agents/p1-cmp"]).unwrap();
-    let err = land(wt, "p1", "p1-cmp", &g()).unwrap_err();
+    let err = land(wt, "p1", "p1-cmp", None, &g()).unwrap_err();
     assert_op(err, "compaction land dispatch commit");
 }
 
 #[test]
 fn a_bad_compactor_ref_is_declined_loudly() {
     let dir = repo(&[("goal.md", "g\n")]);
-    let err = land(dir.path(), "p1", "does-not-exist", &g()).unwrap_err();
+    let err = land(dir.path(), "p1", "does-not-exist", None, &g()).unwrap_err();
     assert_op(err, "founding sha log");
 }

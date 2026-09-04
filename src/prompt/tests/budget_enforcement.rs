@@ -152,17 +152,18 @@ fn budget_ref_write_failure_surfaces_as_a_git_error() {
     // bl-403b), and
     // five `show` reads (`version` first, the §10 schema-version guard;
     // manifest.yaml last before the soul, §5.2).
-    // The marker `update-ref` is git op #32 in the exhaustion path (0
+    // The marker `update-ref` is git op #34 in the exhaustion path (0
     // worktree add, 1 control rm, 2-6 the descriptor derivation (§3.3 —
     // four `cat-file -e` existence reads against the governing config
-    // commit and one `checkout`), 7 dispatch add, 8 dispatch commit, 9
-    // step-1 drain stray-probe, 10/11 user-message delivery add+commit,
-    // 12 step-1 rev-parse, 13/14 step-1 model-output transcript
-    // add+commit, 15 the tool window's hold-mark probe (§3.3 *Tool
-    // control*), 16/17 the tool transcript add+commit, 18-29 the step-2
+    // commit and one `checkout`), 7/8 the facts cut's own existence
+    // read and `checkout` (§5.5), 9 dispatch add, 10 dispatch commit, 11
+    // step-1 drain stray-probe, 12/13 user-message delivery add+commit,
+    // 14 step-1 rev-parse, 15/16 step-1 model-output transcript
+    // add+commit, 17 the tool window's hold-mark probe (§3.3 *Tool
+    // control*), 18/19 the tool transcript add+commit, 20-31 the step-2
     // boundary's own config resolution (bl-e580 — the ceiling checked
     // below is the freshly followed one, so it is read before the
-    // check), 30 step-2 drain stray-probe, 31 step-2 rev-parse, 32
+    // check), 32 step-2 drain stray-probe, 33 step-2 rev-parse, 34
     // mark_exhausted update-ref).
     // Failing it surfaces the §6 exhaustion write's error arm.
     let repo = scaffold_repo_with_workflow(
@@ -176,7 +177,7 @@ fn budget_ref_write_failure_surfaces_as_a_git_error() {
         StubAdapter::reply_ok(&tool_use_stream()),
         StubAdapter::reply_ok(&version_line()),
     ]);
-    let git = StubGit::failing_at(44);
+    let git = StubGit::failing_at(46);
     let (clock, id) = (FixedClock::default(), FixedIdGen);
     let (sleeper, tool_executor) = (StubSleeper::default(), StubToolExecutor::ok());
 

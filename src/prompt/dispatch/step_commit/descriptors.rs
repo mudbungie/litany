@@ -208,7 +208,9 @@ fn ungranted(worktree: &Path, granted: &[String]) -> Result<Vec<String>, Error> 
 }
 
 /// Does the config commit's tree carry `path`? (`git cat-file -e`.)
-fn committed(dir: &Path, commit: &str, path: &str, git: &dyn GitRunner) -> bool {
+/// Shared with [`super::reviewer_read`], which asks the same question of
+/// the same commit about its own two paths.
+pub(super) fn committed(dir: &Path, commit: &str, path: &str, git: &dyn GitRunner) -> bool {
     git.run(dir, &["cat-file", "-e", &format!("{commit}:{path}")])
         .is_ok()
 }

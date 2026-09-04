@@ -83,6 +83,7 @@ fn an_injected_tool_is_callable_by_a_role_that_grants_nothing() {
         id_gen: &id_gen,
         tool_executor: &hosted,
         config_root: cfg.path(),
+        data_root: cfg.path(),
         adapter_target: None,
         stop: &stop,
         launcher: &NoLauncher,

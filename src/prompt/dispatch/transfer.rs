@@ -133,8 +133,12 @@ pub(super) fn apply(
 }
 
 /// A unique patch path outside every worktree (so it is never swept into
-/// a commit), keyed by `child_id` and a nanosecond stamp.
-fn patch_path(child_id: &str) -> PathBuf {
+/// a commit), keyed by `child_id` and a nanosecond stamp. `pub(super)`
+/// for the reviewer's landing, which spends a scratch patch the same way
+/// (`docs/DESIGN_LEARNING_LOOP.md` §3,
+/// [`super::child_result`]'s proposal mint) — one home for what a
+/// harness-written patch file is called and where it lives.
+pub(super) fn patch_path(child_id: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())

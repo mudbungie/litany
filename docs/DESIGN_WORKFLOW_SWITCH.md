@@ -114,8 +114,14 @@ The shipped `template/workflow.yaml` — the declaration every workspace's
 `config/default` freezes at `litany new` — **is** the default, and it is
 hereby *named*: the **basic agentic loop**. Its content is exactly today's
 stock behavior (dispatch → step loop → deliver results, compact every 20
-commits, retry 3, 16 KiB tool-output bounds, nothing bounded by budgets, no
-tool control), and this design changes not one byte of it. Equivalence with
+commits with the landing's 32 KiB extract, retry 3, 16 KiB tool-output
+bounds, `AGENTS.md`/`CLAUDE.md` as context files, nothing bounded by
+budgets, no tool control), and this design changes not one byte of it.
+(The extract cap and the context-file list joined that content later, by
+`docs/DESIGN_CONTEXT_ECONOMY.md` §5.3 / bl-e655 and §6 / bl-b66b: the
+sentence is this design's promise about its own edit, never a freeze on
+the template. What holds across such an amendment is the equivalence the
+paragraph exists for — both seeding paths read this one file.) Equivalence with
 "what the engine does today" is therefore pinned by the entire existing
 suite: an unmarked agent takes the identical code path and reads the
 identical bytes.
@@ -172,6 +178,15 @@ resolution — the fork, resolved moments before the branch existed, which is
 step 1's boundary — so nothing resolves twice. The §6 prompt→advance collapse
 is still open, but it is now a simplification of the *process model* alone:
 the resolution question it was carrying has been answered without it.
+
+Shipped since, by bl-30fe: the pool has a **second** entry, so §3's "adding
+a second workflow is config" now starts from a worked example rather than a
+blank file. `litany prime` seeds `<config-root>/workflows/learning-loop.yaml`
+beside the default — the basic agentic loop plus `worker_flush:
+dispatch(reviewer)` and `reviewer_return: stage_proposal`
+(`docs/DESIGN_LEARNING_LOOP.md` §2) — and the reviewer role it names ships
+declared and unbound in `template/`. §3 holds: the basic agentic loop's bytes
+are untouched, and an install that never switches pays nothing.
 
 Deferred, filed: surfacing the
 derivation in `litany scan` (bl-5c02). The eval A/B driver (bl-f838 —

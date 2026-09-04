@@ -49,12 +49,16 @@ fn refuses_git_segments_case_insensitively() {
 
 #[test]
 fn refuses_every_harness_owned_first_segment() {
-    // The system slot, the control files the trim removes (§2.2), and
-    // the harness-derived trees: pins may not inject into any of them.
+    // The system slot, the lineage's facts file (§5.5 — the dispatch
+    // commit cuts it out of the governing config commit, so a pin there
+    // would be overwritten by the very commit it rode in on), the
+    // control files the trim removes (§2.2), and the harness-derived
+    // trees: pins may not inject into any of them.
     for reserved in [
         "goal.md",
         "soul.md",
         "name",
+        "facts.md",
         "manifest.yaml",
         "workflow.yaml",
         "providers.yaml",

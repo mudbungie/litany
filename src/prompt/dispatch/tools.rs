@@ -202,11 +202,14 @@ fn entry(worktree: &Path, name: &str, input_schema: Value) -> Result<Tool, Error
 }
 
 /// The committed `descriptions/tools/<name>.json` schema, sent verbatim
+/// (and read by the `python` built-in for the same tool's stub function,
+/// `docs/DESIGN_CODE_EXECUTION.md` §2.7 — one home for where a tool's
+/// committed definition lives)
 /// as `input_schema` (§3.3). `None` when the file is absent — the caller
 /// decides what absence means (dropped for an elected tool, stood in for
 /// one the history already names). Present-but-unreadable or
 /// present-but-malformed is a config fault, surfaced.
-fn read_schema(worktree: &Path, name: &str) -> Result<Option<Value>, Error> {
+pub(in crate::prompt) fn read_schema(worktree: &Path, name: &str) -> Result<Option<Value>, Error> {
     let path = worktree.join(TOOLS_DESC_DIR).join(format!("{name}.json"));
     let raw = match std::fs::read(&path) {
         Ok(bytes) => bytes,
@@ -232,7 +235,10 @@ fn read_schema(worktree: &Path, name: &str) -> Result<Option<Value>, Error> {
 /// `<worktree>/descriptions/skills/<name>.md` (§3.3 point 3). Absent
 /// frontmatter → `None` (the schema-before-description ordering §3.3
 /// sanctions); a present-but-malformed frontmatter is surfaced.
-fn read_description(worktree: &Path, name: &str) -> Result<Option<String>, Error> {
+pub(in crate::prompt) fn read_description(
+    worktree: &Path,
+    name: &str,
+) -> Result<Option<String>, Error> {
     let path = worktree.join(SKILLS_DESC_DIR).join(format!("{name}.md"));
     let body = match std::fs::read_to_string(&path) {
         Ok(s) => s,
@@ -260,3 +266,5 @@ mod tests;
 mod tests_derived;
 #[cfg(test)]
 mod tests_injected;
+#[cfg(test)]
+mod tests_retired;

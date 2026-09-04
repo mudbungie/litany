@@ -8,6 +8,7 @@ use super::*;
 use std::io::Cursor;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -122,7 +123,7 @@ fn missing_shell_surfaces_spawn() {
         Duration::from_millis(100),
     )
     .unwrap_err();
-    assert!(matches!(err, Error::Spawn(_)), "{err}");
+    assert!(matches!(err, Error::Child(child::Error::Spawn(_))), "{err}");
 }
 
 /// `Write` that errors on every call. Used by the stdout / stderr
@@ -221,36 +222,6 @@ fn cascade_escalates_to_sigkill_when_sigterm_is_trapped() {
     flipper.join().unwrap();
     assert!(elapsed < Duration::from_secs(5), "elapsed: {elapsed:?}");
     assert_eq!(code.unwrap(), 128 + libc::SIGKILL);
-}
-
-#[test]
-fn install_sigterm_handler_is_idempotent_and_flag_accessible() {
-    install_sigterm_handler();
-    install_sigterm_handler();
-    let flag = sigterm_flag();
-    // Default state — we have not raise()d anything, so the flag is
-    // false at this point.
-    assert!(!flag.load(Ordering::SeqCst));
-}
-
-#[test]
-fn signal_handler_sets_flag() {
-    SIGTERM_FLAG.store(false, Ordering::SeqCst);
-    on_sigterm(libc::SIGTERM);
-    assert!(SIGTERM_FLAG.load(Ordering::SeqCst));
-    SIGTERM_FLAG.store(false, Ordering::SeqCst);
-}
-
-#[test]
-fn enter_own_process_group_is_an_idempotent_success() {
-    // The pre-exec hook, called in-process: `setpgid(0, 0)` makes the
-    // caller its own group leader, and repeating it on a leader is a
-    // no-op success. The cascade tests above prove the group semantics
-    // end-to-end; this call is what puts the hook's own lines in the
-    // coverage numerator (counters incremented in the forked child are
-    // lost at exec).
-    enter_own_process_group().unwrap();
-    enter_own_process_group().unwrap();
 }
 
 #[test]

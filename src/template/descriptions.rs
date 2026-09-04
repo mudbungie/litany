@@ -14,6 +14,26 @@
 //! verbatim) and every available skill's `SKILL.md` frontmatter
 //! (`<data-root>/skills/<name>/SKILL.md` → `descriptions/skills/<name>.md`).
 //!
+//! **Skills have two homes, and the snapshot reads both**
+//! (`docs/DESIGN_LEARNING_LOOP.md` §3, ARCH §3.3). A body under
+//! `<data-root>/skills/` is the install's; a body under the config
+//! commit's own `skills/` is the workspace's — a **workspace skill**,
+//! versioned in the lineage and forkable with it. **Ownership is the
+//! path**: no marker file and no authorship derivation. The second pass
+//! is the first one over the authoring checkout's `skills/` rather than
+//! a second producer, so a workspace skill's frontmatter reaches
+//! `descriptions/skills/<name>.md` by exactly the mechanism a pooled
+//! one does, and is parsed by the same parser.
+//!
+//! Two names never collide across the homes: a workspace skill whose
+//! name a pool skill holds is [`Error::PoolNameCollision`], refused
+//! here — before any commit lands — so `load_skill` may resolve the
+//! followed config commit first and the pool second with no shadowing
+//! arm to drift (§3). `archived` is reserved in **both** homes: it is
+//! the archive container `skills/archived/<name>/` (§5), whose bodies
+//! compose nowhere, and a pool skill by that name would be copied into
+//! a branch worktree at the container's own path.
+//!
 //! The data-root pools are the single source of truth for *what this
 //! install provides*; the committed `descriptions/**` snapshot is the
 //! single source of truth for *what agents forked from this config are
@@ -40,6 +60,7 @@
 //! `docs/PRINCIPLES.md`).
 
 use crate::skill;
+use std::collections::BTreeSet;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -55,6 +76,9 @@ pub const SKILLS_SUBDIR: &str = "skills";
 pub const SKILL_MANIFEST: &str = "SKILL.md";
 /// Extension of a tool schema in the pool (copied verbatim).
 const JSON_EXT: &str = "json";
+/// The archive container inside a skills home (`skills/archived/<name>/`,
+/// `docs/DESIGN_LEARNING_LOOP.md` §5). Not a skill name in either home.
+pub const ARCHIVED_SUBDIR: &str = "archived";
 
 /// Why [`snapshot`] could not complete.
 #[derive(Debug, thiserror::Error)]
@@ -81,6 +105,15 @@ pub enum Error {
         #[source]
         source: serde_json::Error,
     },
+    /// A workspace skill (`skills/<name>/` in the config commit) carries
+    /// a name the install pool already holds. Names are unique across
+    /// the two homes so resolution needs no shadowing rule
+    /// (`docs/DESIGN_LEARNING_LOOP.md` §3).
+    #[error(
+        "workspace skill {name}: the install pool already provides a skill by that name — \
+         skill names are unique across the two homes (ARCH §3.3)"
+    )]
+    PoolNameCollision { name: String },
 }
 
 fn io_err(path: &Path, source: io::Error) -> Error {
@@ -90,13 +123,23 @@ fn io_err(path: &Path, source: io::Error) -> Error {
     }
 }
 
-/// Snapshot the data-root tool schemas and skill frontmatter into
+/// Snapshot the data-root tool schemas and skill frontmatter — and the
+/// checkout's own workspace skills — into
 /// `<worktree>/descriptions/{tools,skills}/`. Idempotent overwrite; a
-/// missing pool directory is not an error (empty pool → empty
+/// missing home directory is not an error (empty pool → empty
 /// descriptions tree, §3.3).
+///
+/// The pool is read first so its names are what a workspace skill's
+/// [`Error::PoolNameCollision`] is judged against: the install provides
+/// the shared set, and the workspace's own bodies are what must yield.
+/// Called by the authoring routine *after* its edit step, so a
+/// workspace skill authored in the pass is snapshotted and validated
+/// by the same pass that commits it.
 pub fn snapshot(data_root: &Path, worktree: &Path) -> Result<(), Error> {
     copy_tool_schemas(&data_root.join(TOOLS_SUBDIR), worktree)?;
-    copy_skill_frontmatter(&data_root.join(SKILLS_SUBDIR), worktree)?;
+    let pooled =
+        copy_skill_frontmatter(&data_root.join(SKILLS_SUBDIR), worktree, &BTreeSet::new())?;
+    copy_skill_frontmatter(&worktree.join(SKILLS_SUBDIR), worktree, &pooled)?;
     Ok(())
 }
 
@@ -129,18 +172,38 @@ fn copy_tool_schemas(pool: &Path, worktree: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-/// Extract each `<pool>/<name>/SKILL.md`'s frontmatter and write it to
-/// `<worktree>/descriptions/skills/<name>.md` (§3.3 *Description-always*).
+/// Extract each `<home>/<name>/SKILL.md`'s frontmatter and write it to
+/// `<worktree>/descriptions/skills/<name>.md` (ARCH §3.3
+/// *Description-always*). Run once per skill home — the install pool,
+/// then the config commit's own `skills/` — and returns the names it
+/// snapshotted, which is what the *next* home's `taken` is.
+///
 /// The extracted body is parsed with the same [`skill::parse`] the
 /// composer's `read_description` runs at prompt time (bl-e3f5) — the
 /// fence-detection [`skill::frontmatter_yaml`] alone does not catch a
 /// malformed YAML body (e.g. an unquoted `description: foo: bar`, the
 /// plain-scalar trap), only a missing or unclosed fence.
-fn copy_skill_frontmatter(pool: &Path, worktree: &Path) -> Result<(), Error> {
+///
+/// A name in `taken` is [`Error::PoolNameCollision`]: the homes share
+/// one namespace (`docs/DESIGN_LEARNING_LOOP.md` §3). `taken` is empty
+/// for the first home, which is why the pool needs no separate arm —
+/// the general path with empty inputs.
+fn copy_skill_frontmatter(
+    home: &Path,
+    worktree: &Path,
+    taken: &BTreeSet<String>,
+) -> Result<BTreeSet<String>, Error> {
     let dest = worktree.join(DESCRIPTIONS_DIR).join(SKILLS_SUBDIR);
-    for entry in read_pool(pool)? {
+    let mut snapshotted = BTreeSet::new();
+    for entry in read_pool(home)? {
         let dir = entry.path();
         if !dir.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().into_owned();
+        // The archive container, not a skill: an archived body composes
+        // nowhere (`docs/DESIGN_LEARNING_LOOP.md` §5).
+        if name == ARCHIVED_SUBDIR {
             continue;
         }
         let manifest = dir.join(SKILL_MANIFEST);
@@ -150,7 +213,9 @@ fn copy_skill_frontmatter(pool: &Path, worktree: &Path) -> Result<(), Error> {
             Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
             Err(e) => return Err(io_err(&manifest, e)),
         };
-        let name = entry.file_name().to_string_lossy().into_owned();
+        if taken.contains(&name) {
+            return Err(Error::PoolNameCollision { name });
+        }
         let body =
             skill::frontmatter_yaml(&raw).ok_or(Error::NoFrontmatter { name: name.clone() })?;
         skill::parse(body).map_err(|source| Error::SkillFrontmatter {
@@ -161,12 +226,13 @@ fn copy_skill_frontmatter(pool: &Path, worktree: &Path) -> Result<(), Error> {
         ensure_dir(&dest)?;
         let target = dest.join(format!("{name}.md"));
         fs::write(&target, body).map_err(|e| io_err(&target, e))?;
+        snapshotted.insert(name);
     }
-    Ok(())
+    Ok(snapshotted)
 }
 
-/// Read a pool directory into a name-sorted vec of entries; a missing
-/// pool is an empty pool (§3.3), never an error. Sorting makes the
+/// Read a skill or tool home into a name-sorted vec of entries; a
+/// missing home is an empty one (§3.3), never an error. Sorting makes the
 /// snapshot order deterministic. Individual entries that fail to
 /// enumerate (a transient per-entry `read_dir` error) are skipped via
 /// `flatten` — the snapshot is a set of independent files, so a dropped
@@ -180,6 +246,27 @@ fn read_pool(pool: &Path) -> Result<Vec<fs::DirEntry>, Error> {
     let mut entries: Vec<fs::DirEntry> = iter.flatten().collect();
     entries.sort_by_key(|e| e.file_name());
     Ok(entries)
+}
+
+/// The install pool's skill names — the directory names under
+/// `<data-root>/skills/`, the archive container excluded exactly as the
+/// snapshot excludes it. The one home for *what the install provides*
+/// read as a name set, so a second reader of that fact — the proposal
+/// filter, which admits a `skills/<name>/` path only for a name the pool
+/// does not hold (`docs/DESIGN_LEARNING_LOOP.md` §3) — asks this module
+/// rather than walking the pool itself.
+///
+/// An absent or unreadable pool is the empty set: an install that
+/// provides no skill collides with nothing, which is the general path
+/// with empty inputs, not an error.
+pub fn pool_names(data_root: &Path) -> BTreeSet<String> {
+    read_pool(&data_root.join(SKILLS_SUBDIR))
+        .unwrap_or_default()
+        .iter()
+        .filter(|entry| entry.path().is_dir())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name != ARCHIVED_SUBDIR)
+        .collect()
 }
 
 fn ensure_dir(dir: &Path) -> Result<(), Error> {

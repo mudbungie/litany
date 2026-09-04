@@ -40,6 +40,7 @@ fn an_ungranted_tool_is_declined_in_band_and_the_granted_one_still_runs() {
         id_gen: &id_gen,
         tool_executor: &recorder,
         config_root: cfg.path(),
+        data_root: cfg.path(),
         adapter_target: None,
         stop: &stop,
         launcher: &NoLauncher,

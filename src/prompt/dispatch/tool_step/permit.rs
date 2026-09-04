@@ -32,7 +32,7 @@ use crate::prompt::tool::inject::InjectedTool;
 /// guarantee (§2.7). So the decline is in-band: an `is_error`
 /// `tool_result` naming the role's own toolset, which the model reads
 /// and steps on from, and the executor is never entered.
-pub(super) fn refusal(
+pub(in crate::prompt::dispatch) fn refusal(
     role: &str,
     grant: &[String],
     injected: &[InjectedTool],

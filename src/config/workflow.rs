@@ -48,6 +48,15 @@ pub struct Workflow {
     /// ([`ToolOutputBound`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_output: Option<ToolOutputBound>,
+    /// The `context_files:` list (ARCH §3.3 *Context files ride the
+    /// next tool result*, `docs/DESIGN_CONTEXT_ECONOMY.md` §6): file
+    /// **names** looked for in every directory on the path from the
+    /// enclosing repository's top level down to the agent's working
+    /// directory, each carried once on a tool result. Empty — the block
+    /// omitted — discovers nothing, which is the general path with the
+    /// policy absent; the shipped list is `template/workflow.yaml`'s.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_files: Vec<String>,
     /// The tool-control seam (ARCH §3.3 *Tool control*, §6): the
     /// adjudicator consulted before every granted tool invocation
     /// executes — pass, refuse, or hold. Omitted → no control is
@@ -159,6 +168,13 @@ pub enum Event {
     VerifierReject,
     WorkerFlush,
     CompactorReturn,
+    /// A reviewer child's return (`docs/DESIGN_LEARNING_LOOP.md` §3),
+    /// derived from the child's dispatch-commit role exactly as
+    /// [`Event::CompactorReturn`] is. Bound to `stage_proposal` in the
+    /// seeded `learning-loop.yaml`; no shipped config in the basic
+    /// agentic loop binds it, and an unbound event is the empty-inputs
+    /// no-op.
+    ReviewerReturn,
     BranchStopped,
     PreStep,
     PostStep,
@@ -256,6 +272,7 @@ fn event_name(event: Event) -> &'static str {
         Event::VerifierReject => "verifier_reject",
         Event::WorkerFlush => "worker_flush",
         Event::CompactorReturn => "compactor_return",
+        Event::ReviewerReturn => "reviewer_return",
         Event::BranchStopped => "branch_stopped",
         Event::PreStep => "pre_step",
         Event::PostStep => "post_step",

@@ -18,14 +18,45 @@ events:
 # rebase-forward (the `compactor_return: land_compaction` binding above):
 # the span before the point squashes into a compaction base and the live
 # tail replays on top, zero downtime. `trigger` is one of
-# `every_n_commits`, `every_t_seconds` (both take `n`), or `on_flush` (the
+# `every_n_commits`, `every_t_seconds` (both take `n`), `window_percent`
+# (`n` = the percent of the model's context window the branch's last usage
+# fills, 1..=100 — the provider's own numbers, both of them: the prompt
+# side of the newest model entry's `usage` report against the
+# `context_window` the same report carries), or `on_flush` (the
 # agent-elected `flush`, no `n`). `keep_recent` (optional, default 0) keeps
 # the most recent commits out of the span; it must stay below `n` under
-# `every_n_commits`. Omit the whole block and the branch never compacts.
+# `every_n_commits`. `keep_recent_tokens` states the same retained tail in
+# the provider's own unit instead — keep the longest stretch of the
+# transcript that cost at most that many prompt tokens to append, read off
+# successive model entries' `usage` reports, no tokenizer and no stored
+# counter. One tail or the other, never both: declaring both is refused at
+# load. `extract_bytes` (optional) caps the extract the landing itself
+# derives — `summary/<NNN>.refs.md`, the verbatim user messages, error
+# strings, pull-request numbers, commit shas and paths the compaction
+# takes out of context, written by code beside the compactor's prose
+# (docs/DESIGN_CONTEXT_ECONOMY.md §5.3); omit it and no extract is
+# written. Omit the whole block and the branch never compacts.
+#
+# The window is on the wire (brazen 0.0.9 stamps `context_window` onto
+# every usage event), but the shipped trigger stays `every_n_commits`: a
+# model whose provider row states no window is *declined* under
+# `window_percent` rather than left silently never-due, so defaulting to
+# it would refuse those workspaces at their first boundary. The variant is
+# available, not defaulted; flipping the default to `window_percent` /
+# `n: 50` is its own change, against a surveyed set of rows.
+#
+# `keep_recent_tokens` is unset here for the same reason and one more: a
+# token tail under a COMMIT clock leaves a stretch where the clock is over
+# threshold and the span keeps coming back empty — the branch re-walks its
+# transcript at every step boundary and compacts nothing until the tail
+# outgrows the budget. That is the shape `keep_recent >= n` is refused for,
+# in units no load-time check can compare. The token tail belongs with the
+# window trigger; they flip together or not at all.
 compaction:
   intermediate:
     trigger: every_n_commits
     n: 20
+    extract_bytes: 32768
 
 # Harness-owned retry policy for a step's model call (ARCH §2.10, §4.4):
 # brazen never retries — the harness re-invokes `bz` on a retryable
@@ -45,6 +76,16 @@ retry:
 tool_output:
   head_bytes: 16384
   tail_bytes: 16384
+
+# Context files (ARCH §3.3 *Context files ride the next tool result*,
+# `docs/DESIGN_CONTEXT_ECONOMY.md` §6). File NAMES, looked for in every
+# directory on the path from the enclosing repository's top level down to
+# the agent's working directory. Each one the agent has not been shown
+# yet is appended to its next tool result, framed <file path="..."> and
+# bounded by tool_output above as its own stream; "already shown" is read
+# off the transcript, so a compaction that drops the entry shows the file
+# again. Omit the block and nothing is discovered.
+context_files: [AGENTS.md, CLAUDE.md]
 
 # Tool control (ARCH §3.3 *Tool control*, §6): an adjudicator binary
 # consulted before every granted tool invocation executes — it answers

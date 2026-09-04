@@ -199,6 +199,7 @@ fn exit_race_late_deposit_is_delivered_via_the_exit_launched_driver() {
         id_gen: &id,
         tool_executor: &tool_executor,
         config_root: harness.path(),
+        data_root: harness.path(),
         adapter_target: None,
         stop: never_stopped(),
         launcher: &launcher,

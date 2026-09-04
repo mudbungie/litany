@@ -144,7 +144,13 @@ pub(crate) fn spawn_subagent_branch(
     // explicit `create_dir_all` is here for stub-git tests (and is a
     // harmless no-op in production since the directory already exists).
     std::fs::create_dir_all(req.sub_worktree)?;
-    crate::prompt::dispatch::trim_to_context(req.sub_worktree, req.grant, req.name, git)?;
+    crate::prompt::dispatch::trim_to_context(
+        req.sub_worktree,
+        req.sub_branch,
+        req.grant,
+        req.name,
+        git,
+    )?;
     crate::prompt::dispatch::prune_inherited_dialog(req.sub_worktree, req.grant.role, git)?;
     std::fs::write(req.sub_worktree.join(GOAL_FILE), req.goal_text)?;
     if let Some(soul) = req.soul_text {
@@ -171,3 +177,5 @@ pub(crate) fn spawn_subagent_branch(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_failures;

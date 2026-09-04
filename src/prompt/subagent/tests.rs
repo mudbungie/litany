@@ -9,15 +9,15 @@ use std::io;
 use std::path::PathBuf;
 
 #[derive(Default)]
-struct StubGit {
+pub(super) struct StubGit {
     runs: RefCell<Vec<(PathBuf, Vec<String>)>>,
     fail_at: Option<usize>,
 }
 impl StubGit {
-    fn ok() -> Self {
+    pub(super) fn ok() -> Self {
         Self::default()
     }
-    fn failing_at(idx: usize) -> Self {
+    pub(super) fn failing_at(idx: usize) -> Self {
         Self {
             fail_at: Some(idx),
             ..Self::default()
@@ -40,26 +40,33 @@ impl GitRunner for StubGit {
     }
     fn run_capture(&self, _dest: &Path, _args: &[&str]) -> io::Result<String> {
         // The subagent spawn helper never calls run_capture — every git
-        // op it issues is fire-and-forget. The trait still requires an
-        // impl; panicking documents the assumption and tarpaulin's
-        // `ignore-panics` excludes the branch from the coverage floor.
+        // op it issues is fire-and-forget, the trim's skill-body drop
+        // (`step_commit::skill_bodies`, whose enumeration is a worktree
+        // read) included. The trait still requires an impl; panicking
+        // documents the assumption and tarpaulin's `ignore-panics`
+        // excludes the branch from the coverage floor.
         unreachable!("spawn_subagent_branch never issues capturing git ops")
     }
 }
 
 /// A grant of nothing against the stub's fixed config commit — the
 /// compactor's shape (§2.7), and all these stub trees can honour.
-const EMPTY_GRANT: crate::prompt::dispatch::Grant<'static> = crate::prompt::dispatch::Grant {
-    role: "worker",
-    tools: &[],
-    config_commit: "c0ffee",
-};
+pub(super) const EMPTY_GRANT: crate::prompt::dispatch::Grant<'static> =
+    crate::prompt::dispatch::Grant {
+        role: "worker",
+        tools: &[],
+        config_commit: "c0ffee",
+    };
 
-fn tmpdir() -> tempfile::TempDir {
+pub(super) fn tmpdir() -> tempfile::TempDir {
     tempfile::TempDir::new().unwrap()
 }
 
-fn req<'a>(parent_wt: &'a Path, sub_wt: &'a Path, soul: Option<&'a str>) -> SpawnRequest<'a> {
+pub(super) fn req<'a>(
+    parent_wt: &'a Path,
+    sub_wt: &'a Path,
+    soul: Option<&'a str>,
+) -> SpawnRequest<'a> {
     SpawnRequest {
         parent_worktree: parent_wt,
         sub_branch: "p1-ct-2-deadbeef",
@@ -101,14 +108,20 @@ fn writes_goal_and_soul_when_soul_present() {
     // 1: control-file removal (total, --ignore-unmatch; §2.3 step 2)
     assert_eq!(runs[1].0, sub_wt);
     assert_eq!(runs[1].1[..5], ["rm", "-r", "-q", "--ignore-unmatch", "--"]);
-    // 2: stage the settled name — the trim's fourth part (§2.3)
-    assert_eq!(runs[2].0, sub_wt);
-    assert_eq!(runs[2].1, vec!["add", "name"]);
-    // 3: the inherited-dialog prune — a child's opening context is
+    // 2-3: the facts cut — the lineage's durable memory is derived
+    // from the governing config commit at every fork (§5.5). The stub
+    // answers every command, so the existence probe reads as carried
+    // and the checkout follows.
+    assert_eq!(runs[2].1, vec!["cat-file", "-e", "c0ffee:facts.md"]);
+    assert_eq!(runs[3].1, vec!["checkout", "c0ffee", "--", "facts.md"]);
+    // 4: stage the settled name — the trim's sixth part (§2.3)
+    assert_eq!(runs[4].0, sub_wt);
+    assert_eq!(runs[4].1, vec!["add", "name"]);
+    // 5: the inherited-dialog prune — a child's opening context is
     // never its dispatcher's conversation (§2.2, bl-5a36)
-    assert_eq!(runs[3].0, sub_wt);
+    assert_eq!(runs[5].0, sub_wt);
     assert_eq!(
-        runs[3].1,
+        runs[5].1,
         vec![
             "rm",
             "-r",
@@ -120,13 +133,13 @@ fn writes_goal_and_soul_when_soul_present() {
             "skills"
         ]
     );
-    // 4: add goal.md soul.md (in sub worktree)
-    assert_eq!(runs[4].0, sub_wt);
-    assert_eq!(runs[4].1, vec!["add", "goal.md", "soul.md"]);
-    // 5: commit (in sub worktree)
-    assert_eq!(runs[5].0, sub_wt);
-    assert_eq!(runs[5].1[0], "commit");
-    assert_eq!(runs[5].1[2], "dispatch: worker [p1-ct-2-deadbeef]");
+    // 6: add goal.md soul.md (in sub worktree)
+    assert_eq!(runs[6].0, sub_wt);
+    assert_eq!(runs[6].1, vec!["add", "goal.md", "soul.md"]);
+    // 7: commit (in sub worktree)
+    assert_eq!(runs[7].0, sub_wt);
+    assert_eq!(runs[7].1[0], "commit");
+    assert_eq!(runs[7].1[2], "dispatch: worker [p1-ct-2-deadbeef]");
 
     assert_eq!(
         std::fs::read_to_string(sub_wt.join("goal.md")).unwrap(),
@@ -151,147 +164,9 @@ fn writes_only_goal_when_soul_is_none() {
 
     let runs = git.runs.borrow();
     // The stage step adds only goal.md.
-    assert_eq!(runs[4].1, vec!["add", "goal.md"]);
+    assert_eq!(runs[6].1, vec!["add", "goal.md"]);
     assert!(
         !sub_dir.path().join("soul.md").exists(),
         "soul.md should not be written"
-    );
-}
-
-#[test]
-fn surfaces_worktree_add_failure() {
-    let parent_dir = tmpdir();
-    let sub_dir = tmpdir();
-    let git = StubGit::failing_at(0);
-    let err =
-        spawn_subagent_branch(&req(parent_dir.path(), sub_dir.path(), None), &git).unwrap_err();
-    assert!(
-        matches!(
-            err,
-            Error::Git {
-                op: "worktree add",
-                ..
-            }
-        ),
-        "got {err:?}"
-    );
-}
-
-#[test]
-fn surfaces_control_rm_failure() {
-    let parent_dir = tmpdir();
-    let sub_dir = tmpdir();
-    let git = StubGit::failing_at(1);
-    let err = spawn_subagent_branch(
-        &req(parent_dir.path(), sub_dir.path(), Some("soul\n")),
-        &git,
-    )
-    .unwrap_err();
-    assert!(
-        matches!(
-            err,
-            Error::Git {
-                op: "rm control files",
-                ..
-            }
-        ),
-        "got {err:?}"
-    );
-}
-
-#[test]
-fn surfaces_dialog_prune_failure() {
-    let parent_dir = tmpdir();
-    let sub_dir = tmpdir();
-    let git = StubGit::failing_at(3);
-    let err = spawn_subagent_branch(
-        &req(parent_dir.path(), sub_dir.path(), Some("soul\n")),
-        &git,
-    )
-    .unwrap_err();
-    assert!(
-        matches!(
-            err,
-            Error::Git {
-                op: "rm inherited dialog",
-                ..
-            }
-        ),
-        "got {err:?}"
-    );
-}
-
-#[test]
-fn surfaces_add_failure() {
-    let parent_dir = tmpdir();
-    let sub_dir = tmpdir();
-    let git = StubGit::failing_at(4);
-    let err = spawn_subagent_branch(
-        &req(parent_dir.path(), sub_dir.path(), Some("soul\n")),
-        &git,
-    )
-    .unwrap_err();
-    assert!(matches!(err, Error::Git { op: "add", .. }), "got {err:?}");
-}
-
-#[test]
-fn surfaces_commit_failure() {
-    let parent_dir = tmpdir();
-    let sub_dir = tmpdir();
-    let git = StubGit::failing_at(5);
-    let err =
-        spawn_subagent_branch(&req(parent_dir.path(), sub_dir.path(), None), &git).unwrap_err();
-    assert!(
-        matches!(err, Error::Git { op: "commit", .. }),
-        "got {err:?}"
-    );
-}
-
-#[test]
-fn surfaces_io_failure_when_sub_worktree_is_a_file() {
-    // Production `git worktree add` creates the directory; in the
-    // stub-git test path we lean on `create_dir_all` for the same.
-    // If the target path already exists as a regular file (e.g.
-    // because of a stale remnant), that fails — the helper surfaces
-    // the io::Error unchanged via the Error::Io conversion.
-    let parent_dir = tmpdir();
-    let sub_wt = parent_dir.path().join("collision");
-    std::fs::write(&sub_wt, b"existing file").unwrap();
-    let git = StubGit::ok();
-    let r = SpawnRequest {
-        parent_worktree: parent_dir.path(),
-        sub_branch: "p1-x",
-        sub_worktree: &sub_wt,
-        fork_point: "agents/p1",
-        goal_text: "g",
-        soul_text: None,
-        name: None,
-        pins: crate::prompt::PinnedDocs::none(),
-        grant: &EMPTY_GRANT,
-        commit_subject: "x",
-    };
-    let err = spawn_subagent_branch(&r, &git).unwrap_err();
-    assert!(matches!(err, Error::Io(_)), "got {err:?}");
-}
-
-#[test]
-fn surfaces_name_settle_failure() {
-    // The trim's fourth part (§2.3): staging the settled `name` fails,
-    // and the dispatch commit reports it in its own voice rather than
-    // as an anonymous git error.
-    let parent_dir = tmpdir();
-    let sub_dir = tmpdir();
-    let git = StubGit::failing_at(2);
-    let err =
-        spawn_subagent_branch(&req(parent_dir.path(), sub_dir.path(), None), &git).unwrap_err();
-    assert!(
-        matches!(
-            err,
-            Error::Git {
-                op: "settle the agent name",
-                ..
-            }
-        ),
-        "got {err:?}"
     );
 }

@@ -3,9 +3,11 @@
 //! regression points at the offending path.
 
 use super::*;
+use crate::workspace::fixture;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::io::Cursor;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 /// HashMap-backed stub [`EnvLookup`] — `None` for anything not seeded.
@@ -25,6 +27,17 @@ fn env(repo: &Path, branch: &str, home: &Path) -> StubEnv {
     StubEnv(m)
 }
 
+/// A real workspace with one root agent `a1`, which is what the
+/// executor's env vars name on every tool call. Election resolves the
+/// branch's followed config commit before it reaches the install pool
+/// (`docs/DESIGN_LEARNING_LOOP.md` §3), so every test past that point
+/// needs a workspace with real config ancestry, not a bare directory.
+fn agent() -> (TempDir, PathBuf) {
+    let (holder, ws) = fixture::workspace();
+    fixture::spawn_root(&ws, "a1");
+    (holder, ws)
+}
+
 /// Seed a skill `name` in `home`'s pool with a top-level file and a
 /// nested dir+file, so a copy exercises both `copy_dir` arms.
 fn seed_skill(home: &Path, name: &str) {
@@ -40,14 +53,14 @@ fn input(name: &str) -> Cursor<Vec<u8>> {
 
 #[test]
 fn happy_path_copies_body_into_worktree_and_reports_loaded() {
-    let repo = TempDir::new().unwrap();
+    let (_h, repo) = agent();
     let home = TempDir::new().unwrap();
     seed_skill(home.path(), "git-ops");
     let mut out = Vec::new();
     run(
         &mut input("git-ops"),
         &mut out,
-        &env(repo.path(), "a1", home.path()),
+        &env(&repo, "a1", home.path()),
     )
     .unwrap();
 
@@ -55,7 +68,7 @@ fn happy_path_copies_body_into_worktree_and_reports_loaded() {
     assert_eq!(payload["status"], "loaded");
     assert_eq!(payload["path"], "skills/git-ops");
     // Copy, not symlink — the whole tree is materialized in the worktree.
-    let dest = repo.path().join("agents/a1/skills/git-ops");
+    let dest = repo.join("agents/a1/skills/git-ops");
     assert_eq!(
         std::fs::read_to_string(dest.join("SKILL.md")).unwrap(),
         "---\nname: x\n---\nbody"
@@ -95,7 +108,7 @@ fn already_loaded_is_idempotent_and_leaves_the_copy_untouched() {
 
 #[test]
 fn unknown_skill_declines_and_names_the_available_pool() {
-    let repo = TempDir::new().unwrap();
+    let (_h, repo) = agent();
     let home = TempDir::new().unwrap();
     seed_skill(home.path(), "bash");
     // A stray non-dir file in the pool is not an available skill.
@@ -104,7 +117,7 @@ fn unknown_skill_declines_and_names_the_available_pool() {
     let err = run(
         &mut input("nope"),
         &mut Vec::new(),
-        &env(repo.path(), "a1", home.path()),
+        &env(&repo, "a1", home.path()),
     )
     .unwrap_err();
     let msg = err.to_string();
@@ -114,17 +127,21 @@ fn unknown_skill_declines_and_names_the_available_pool() {
 }
 
 #[test]
-fn unknown_skill_with_no_pool_reports_none_available() {
-    let repo = TempDir::new().unwrap();
+fn unknown_skill_with_neither_home_populated_reports_none_on_both() {
+    let (_h, repo) = agent();
     let home = TempDir::new().unwrap(); // no skills/ dir at all
     let err = run(
         &mut input("nope"),
         &mut Vec::new(),
-        &env(repo.path(), "a1", home.path()),
+        &env(&repo, "a1", home.path()),
     )
     .unwrap_err();
+    // Both sets are named, and both are empty: the config commit carries
+    // no `skills/` tree at all (`ls-tree` fails, which reads as the empty
+    // home) and the install pool has no directory.
     assert!(
-        matches!(&err, Error::Unknown { available, .. } if available == "(none)"),
+        matches!(&err, Error::Unknown { workspace, pool, .. }
+            if workspace == "(none)" && pool == "(none)"),
         "{err}"
     );
 }
@@ -199,11 +216,12 @@ fn non_utf8_conv_branch_surfaces_missing_env() {
 
 #[test]
 fn unresolvable_data_root_surfaces_root_error() {
-    // Workspace + branch present, but no LITANY_HOME / XDG / HOME, so the
-    // data-root resolution has nothing to stand on.
-    let repo = TempDir::new().unwrap();
+    // Workspace + branch present and the followed tip holds no skill by
+    // that name, but no LITANY_HOME / XDG / HOME, so the data-root
+    // resolution behind the second home has nothing to stand on.
+    let (_h, repo) = agent();
     let mut m = HashMap::new();
-    m.insert(ENV_CONV_REPO, repo.path().as_os_str().to_owned());
+    m.insert(ENV_CONV_REPO, repo.as_os_str().to_owned());
     m.insert(ENV_CONV_BRANCH, OsString::from("a1"));
     let err = run(&mut input("git-ops"), &mut Vec::new(), &StubEnv(m)).unwrap_err();
     assert!(matches!(err, Error::Root(_)), "{err}");
@@ -211,19 +229,18 @@ fn unresolvable_data_root_surfaces_root_error() {
 
 #[test]
 fn copy_failure_surfaces_copy_error() {
-    let repo = TempDir::new().unwrap();
+    let (_h, repo) = agent();
     let home = TempDir::new().unwrap();
     seed_skill(home.path(), "git-ops");
     // `skills` is a *file* where the copy needs a directory, so
     // `create_dir_all(dest)` fails.
-    let skills = repo.path().join("agents/a1/skills");
-    std::fs::create_dir_all(skills.parent().unwrap()).unwrap();
+    let skills = repo.join("agents/a1/skills");
     std::fs::write(&skills, b"not a dir").unwrap();
 
     let err = run(
         &mut input("git-ops"),
         &mut Vec::new(),
-        &env(repo.path(), "a1", home.path()),
+        &env(&repo, "a1", home.path()),
     )
     .unwrap_err();
     assert!(matches!(err, Error::Copy { .. }), "{err}");

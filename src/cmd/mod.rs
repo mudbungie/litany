@@ -2,51 +2,51 @@
 //!
 //! This module is the one authoritative definition of what `litany` can
 //! do: the [`Cli`]/[`Command`] clap surface, one entry per verb
-//! ([`Command::run`] → `<verb>::run`), and the binding seam — [`Fx`] (the
-//! injections a binding supplies), [`Outcome`] (a verb's product), and
-//! [`Error`] (its uniform failure) — plus the [`prelude`] mechanisms a
-//! binding performs before invoking a driver verb.
+//! ([`Command::run`] → `<verb>::run`), the binding seam — [`Fx`],
+//! [`Outcome`] and [`Error`], each documented at its own declaration —
+//! and the [`prelude`] mechanisms a binding performs before a driver verb.
 //!
 //! **Two bindings, one surface (§3.4).** The library performs no
-//! process-global or terminal effect: the running-binary path, the
-//! `$EDITOR` spawn, the locked stdio, and the SIGTERM flag all arrive
-//! through [`Fx`]; process-group leadership and stop-flag installation
-//! are the [`prelude`] the binding runs. `src/bin/litany` is the exec
+//! process-global or terminal effect: each one arrives through [`Fx`]
+//! or is a [`prelude`] the binding runs. `src/bin/litany` is the exec
 //! binding; an embedding consumer is the other. Both parse the *same*
 //! [`Cli`] and drive the *same* [`Command::run`].
 //!
 //! **An agent id is validated where it enters.** Every verb that takes
 //! an agent id from outside — `message`, `advance`, `stop`, `dispatch`,
-//! `bundle`, `delete` — calls [`crate::name::require_agent_id`] before touching
-//! disk, so an id that is not a single path component never reaches a
-//! `join` (§2.3; see [`crate::name`] for why `Path::join` makes that
-//! load-bearing). This surface is the only way in — both bindings enter
-//! here, and a model's `message` / `dispatch` tool re-enters through it
-//! (§3.4) — so one guard per verb covers every supplier.
+//! `bundle`, `delete` — calls [`crate::name::require_agent_id`] before
+//! an id that is not a single path component can reach a `join` (§2.3;
+//! [`crate::name`] holds the reasoning). This surface is the only way
+//! in — both bindings enter here, and a model's `message` / `dispatch`
+//! tool re-enters through it — so one guard per verb covers every
+//! supplier.
 
-/// The closed set of names this engine performs behind its own front door
-/// (`litany tool <name>`, ARCH §3.3 third hop), sorted — the same const the
-/// unknown-tool decline and `litany tool --help` render. On the surface
-/// because a host installing a [`ToolInjection`] routes every invocation
-/// itself, so it must ask which names the engine answers, not restate them.
+/// The closed set of names this engine performs behind its own front
+/// door (`litany tool <name>`, ARCH §3.3 third hop), sorted — the same
+/// const the unknown-tool decline and `litany tool --help` render. On
+/// the surface because a host installing a [`ToolInjection`] routes
+/// every invocation and must ask, never restate, what the engine answers.
 pub use crate::prompt::tool::builtin::NAMES as BUILTIN_TOOLS;
 pub use crate::prompt::tool::inject::{InjectedTool, RoutedCall, RoutedCapture, ToolInjection};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
+pub use seam::{Error, Fx, Outcome};
 
 pub mod advance;
 pub mod bundle;
 pub mod config;
 pub mod delete;
 pub mod dispatch;
+pub mod invoke;
 pub mod message;
 pub mod new;
 pub mod prelude;
 pub mod prime;
 pub mod prompt;
+pub mod proposal;
 pub mod replay;
 pub mod retarget;
 pub mod scan;
+pub mod seam;
+pub mod skills;
 pub mod stop;
 pub mod tool;
 pub mod workflow;
@@ -122,6 +122,17 @@ pub enum Command {
     /// Operator verb: one workspace-wide silent-death sweep + inbox flush
     /// (ARCH §2.11, §8). Hand/cron only; never on a driver hot path.
     Scan(scan::Args),
+    /// Read and settle a reviewer's staged proposals
+    /// (`docs/DESIGN_LEARNING_LOOP.md` §3): bare lists every
+    /// `proposal/*` with its lineage and whether it is still fresh, an
+    /// id shows one whole, `--accept` fast-forwards its lineage onto it
+    /// and `--reject` deletes it.
+    Proposal(proposal::Args),
+    /// The skill census (`docs/DESIGN_LEARNING_LOOP.md` §5): a row per
+    /// skill both homes offer — owner, state, last use, last patch —
+    /// oldest-used first, derived from git and stored nowhere.
+    /// `--config <name>` names the lineage (default `default`).
+    Skills(skills::Args),
     /// Archive an agent subtree (ARCH §9.2): git bundle of `<agent>` and
     /// its hyphen-descendants plus the `steps/`/`inbox/` slices, under
     /// `<out-dir>`.
@@ -142,6 +153,12 @@ pub enum Command {
     /// step, and exec the successor hop. The target every launch seam
     /// spawns; also an operator verb.
     Advance(advance::Args),
+    /// Run one **inner invocation** through the tool window's gates
+    /// (ARCH §3.4): a `tool_use` block on stdin, the raw result
+    /// envelope on stdout, the tool's exit code out. The front door a
+    /// composing tool reaches its granted tools through; commits
+    /// nothing and enters no transcript.
+    Invoke(invoke::Args),
     /// In-process built-in tool entry (ARCH §3.3): `tool_use.input` JSON
     /// on stdin, bytes on stdout, exit 0/non-zero. Third resolver hop
     /// (`<data-root>/tools/litany-tool-<name>` → PATH → `<litany> tool …`).
@@ -151,102 +168,6 @@ pub enum Command {
     /// `workflows/`/`workspaces/` dirs — seed-if-absent. `make install` runs it.
     Prime(prime::Args),
 }
-
-/// A verb's one product (ARCH §3.4 one-product convention). The binding
-/// performs it: [`Line`](Outcome::Line) is the verb's single stdout
-/// product (new → dest path, prompt → branch, scan → report, replay →
-/// scratch path); [`Quiet`](Outcome::Quiet) is a product-less success;
-/// [`Exec`](Outcome::Exec) is the §6 advance successor handoff, which the
-/// exec binding `execve`s; [`Code`](Outcome::Code) is the `tool` verb's
-/// process exit status (§3.3 is_error contract).
-#[derive(Debug)]
-pub enum Outcome {
-    /// The verb's single stdout line.
-    Line(String),
-    /// Product-less success — nothing printed.
-    Quiet,
-    /// The advance successor command to `exec` (§6 exec baton). An
-    /// `AdvanceHandoff::Done` hop maps to [`Quiet`](Outcome::Quiet).
-    Exec(std::process::Command),
-    /// The `tool` verb's desired process exit code (§3.3).
-    Code(u8),
-}
-
-/// The binding's injections (ARCH §3.4 "Process effects stay at the
-/// binding"). Every process-global or terminal effect a verb needs is a
-/// field here, supplied by the binding — the library reaches for none of
-/// its own.
-pub struct Fx<'a> {
-    /// The re-entry path for **every** seam that goes back through the
-    /// front door: the detached `litany advance` launch and the §6
-    /// successor `execve` (§2.11), the §3.3 tool resolver's third hop
-    /// (`<driver_target> tool <name>`), and the `dispatch` / `message`
-    /// built-ins' own re-entry. ARCH §2.11: "the driver target is
-    /// injected at the binding, not resolved by name" — the exec binding
-    /// resolves it once via `std::env::current_exe`, a linked host names
-    /// its own re-exec target or a PATH-resolved `litany`. The library
-    /// resolves none of its own.
-    pub driver_target: PathBuf,
-    /// The provider-adapter target (ARCH §4.4), injected the same way as
-    /// [`Self::driver_target`]: the library resolves no binary of its own,
-    /// the binding names it. `None` — the exec binding's default — leaves
-    /// today's resolution intact (the `models.yaml` `adapter:` override,
-    /// else `bz` on PATH, §4.2). An embedding host that re-execs *itself*
-    /// as the adapter names its own target here; like an explicit override,
-    /// a named target skips the load-time version guard and the in-band
-    /// `MessageStart.v` handshake governs (§4.4).
-    pub adapter_target: Option<PathBuf>,
-    /// The `litany config` `$EDITOR` hand-off (§2.2) — the interactive
-    /// spawn the exec binding supplies as `cli::edit_in_editor`.
-    pub editor: &'a dyn Fn(&Path) -> std::io::Result<()>,
-    /// The `litany tool` stdin (§3.3 `tool_use.input` JSON).
-    pub tool_stdin: &'a mut dyn std::io::Read,
-    /// The `litany tool` stdout (§3.3 raw result bytes).
-    pub tool_stdout: &'a mut dyn std::io::Write,
-    /// The `litany tool` stderr (§3.3 stderr-concat contract).
-    pub tool_stderr: &'a mut dyn std::io::Write,
-    /// The executor's SIGTERM flag (§2.9 step 3), the driver verbs'
-    /// `Deps::stop`. The exec binding wires [`prelude::stop_flag`] after
-    /// [`prelude::install_stop_handler`].
-    pub stop: &'a AtomicBool,
-    /// The binding's **tool injection** (ARCH §3.3 *Host-injected
-    /// tools*), injected like [`Self::driver_target`], and its one choice
-    /// of execution pipeline: `None` (the exec binding) spawns every tool
-    /// through the §3.3 three hops; a host supplying one has its
-    /// [`ToolInjection::tools`] declared *and* permitted on every request
-    /// and its [`ToolInjection::route`] answering *every* invocation, with
-    /// no resolution behind it. [`ToolInjection`], DESIGN_TOOL_INJECTION §3.4.
-    pub tool_injection: Option<&'a dyn ToolInjection>,
-}
-
-/// A verb's uniform failure. `Display` renders exactly today's stderr
-/// shape `litany <verb-prefix>: <error>` (dispatch's prefix is `dispatch
-/// <role>`; tool's is `tool <name>`), which the binding prints before a
-/// non-zero exit.
-#[derive(Debug)]
-pub struct Error {
-    prefix: String,
-    message: String,
-}
-
-impl Error {
-    /// Build a failure carrying `prefix` (the verb prefix, without the
-    /// leading `litany `) and the `Display` of the underlying error.
-    pub fn new(prefix: impl Into<String>, source: impl std::fmt::Display) -> Self {
-        Self {
-            prefix: prefix.into(),
-            message: source.to_string(),
-        }
-    }
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "litany {}: {}", self.prefix, self.message)
-    }
-}
-
-impl std::error::Error for Error {}
 
 impl Command {
     /// The §2.9 preludes this verb needs, in the order a binding must
@@ -284,11 +205,14 @@ impl Command {
             Command::Workflow(a) => workflow::run(a, fx),
             Command::Stop(a) => stop::run(a, fx),
             Command::Message(a) => message::run(a, fx),
+            Command::Proposal(a) => proposal::run(a, fx),
             Command::Scan(a) => scan::run(a, fx),
+            Command::Skills(a) => skills::run(a, fx),
             Command::Bundle(a) => bundle::run(a, fx),
             Command::Delete(a) => delete::run(a, fx),
             Command::Replay(a) => replay::run(a, fx),
             Command::Advance(a) => advance::run(a, fx),
+            Command::Invoke(a) => invoke::run(a, fx),
             Command::Tool(a) => tool::run(a, fx),
             Command::Prime(a) => prime::run(a, fx),
         }

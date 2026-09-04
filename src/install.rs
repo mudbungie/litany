@@ -6,8 +6,9 @@
 //! `LITANY_HOME`) and lays down what a ready installation carries — the
 //! default `models.yaml` (ARCH §4.2), the `tools/` schema pool and the
 //! `skills/` pool (ARCH §3.3), the `workflows/` template pool holding the
-//! shipped default (`basic-agentic-loop.yaml`, ARCH §6) and the empty
-//! `workspaces/` directory — **creating what is absent and never clobbering what
+//! shipped default (`basic-agentic-loop.yaml`, ARCH §6) beside the named
+//! alternative (`learning-loop.yaml`, `docs/DESIGN_LEARNING_LOOP.md` §2)
+//! and the empty `workspaces/` directory — **creating what is absent and never clobbering what
 //! exists**. `models.yaml` is hand-edited by contract (§4.2), so it is
 //! seeded only if absent; every pool entry is likewise seed-if-absent, so
 //! a second run changes nothing and a hand-edited entry survives.
@@ -36,15 +37,34 @@ const WORKFLOWS_DIR: &str = "workflows";
 /// `config/default` — so the pool's default entry and the freeze are one
 /// asset read twice, never two declarations that can disagree.
 const BASIC_AGENTIC_LOOP: &str = "basic-agentic-loop.yaml";
+/// The named alternative in that pool: the **learning loop**
+/// (`docs/DESIGN_LEARNING_LOOP.md` §2) — the basic agentic loop plus
+/// `worker_flush: dispatch(reviewer)` and `reviewer_return:
+/// stage_proposal`. Seeded beside the default and never as it: a
+/// reviewer is model spend the operator opts into, so adopting it is a
+/// config edit (`litany config <ws> learning --from default`, then
+/// `litany workflow`), and the basic loop's bytes are untouched
+/// (`docs/DESIGN_WORKFLOW_SWITCH.md` §3).
+const LEARNING_LOOP: &str = "learning-loop.yaml";
 /// Data-root subdir holding the workspaces tree (ARCH §2.2).
 const WORKSPACES_DIR: &str = "workspaces";
 
 /// The default global `models.yaml` (ARCH §4.2), embedded verbatim.
 const MODELS_YAML: &str = include_str!("../install/models.yaml");
 /// The tool JSON-schema pool (ARCH §3.3 point 2), embedded as flat files.
-static TOOLS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/schemas/tools");
+pub(crate) static TOOLS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/schemas/tools");
 /// The skill pool (ARCH §3.3), embedded as `<name>/SKILL.md` directories.
-static SKILLS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/skills");
+pub(crate) static SKILLS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/skills");
+/// The learning loop's declaration, embedded verbatim. It is its own
+/// asset rather than a derivation of the template's `workflow.yaml`:
+/// composing it at seed time would either drop that file's comments (a
+/// pool entry an operator copies is read by people) or patch YAML text
+/// by hand. The relationship is held instead by
+/// `src/install/tests/learning_loop.rs`, which parses both and asserts
+/// the difference is exactly the two bindings — so a change to the basic
+/// loop that this file should have inherited fails a test rather than
+/// drifting silently.
+const LEARNING_LOOP_YAML: &str = include_str!("../workflows/learning-loop.yaml");
 
 /// Why [`prime`] could not complete. The only failure is filesystem I/O;
 /// the resolver's own failure is the caller's to surface (§3.4).
@@ -104,6 +124,10 @@ pub fn prime(roots: &Roots) -> Result<Founding, Error> {
     founding.count(seed_file(
         &workflows.join(BASIC_AGENTIC_LOOP),
         basic_agentic_loop(),
+    )?);
+    founding.count(seed_file(
+        &workflows.join(LEARNING_LOOP),
+        LEARNING_LOOP_YAML.as_bytes(),
     )?);
     founding.count(seed_file(
         &models_path(&roots.config),

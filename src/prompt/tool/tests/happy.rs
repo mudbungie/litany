@@ -7,8 +7,8 @@
 //! emitted.
 
 use super::super::{
-    ENV_CONV_BRANCH, ENV_CONV_REPO, INPUT_FILE, OUTPUT_FILE, STEP_TOOLS_SUBDIR, SpawnTool,
-    ToolCall, ToolExecutor, ToolInputRecord, ToolOutputRecord,
+    ENV_CONV_BRANCH, ENV_CONV_REPO, ENV_TOOL_ID, INPUT_FILE, OUTPUT_FILE, STEP_TOOLS_SUBDIR,
+    SpawnTool, ToolCall, ToolExecutor, ToolInputRecord, ToolOutputRecord,
 };
 use super::fixtures::{FixedClock, HarnessRoot, StepDir, after_header, driver_target};
 use serde_json::json;
@@ -187,16 +187,17 @@ fn tool_that_ignores_stdin_still_succeeds() {
 }
 
 #[test]
-fn executor_sets_conv_repo_and_conv_branch_env_vars_on_tool_subprocess() {
+fn executor_sets_the_three_stdio_contract_env_vars_on_tool_subprocess() {
     // Per ARCH §3.3 (env-var bullet), the executor derives the conv-repo
     // root and the calling branch from `step_dir = <conv-repo>/steps/
-    // <conv-id>/<NNN>` and exports them. The dispatch built-in is the
-    // v0.4 reader; this test pins the writer side so the contract can't
-    // drift.
+    // <conv-id>/<NNN>` and exports them, and exports the executing
+    // `tool_use.id` from the same `ToolCall` it records under. The
+    // dispatch built-in is the v0.4 reader of the first two; this test
+    // pins the writer side of all three so the contract can't drift.
     let root = HarnessRoot::new();
     root.install(
         "echoenv",
-        r#"printf "%s\n%s" "${LITANY_CONV_REPO:-}" "${LITANY_CONV_BRANCH:-}""#,
+        r#"printf "%s\n%s\n%s" "${LITANY_CONV_REPO:-}" "${LITANY_CONV_BRANCH:-}" "${LITANY_TOOL_ID:-}""#,
     );
     let clock = FixedClock::default();
     let step = StepDir::new();
@@ -225,7 +226,7 @@ fn executor_sets_conv_repo_and_conv_branch_env_vars_on_tool_subprocess() {
         .unwrap()
         .parent()
         .unwrap();
-    let expected = format!("{}\nconvid", conv_repo.display());
+    let expected = format!("{}\nconvid\ntu_env", conv_repo.display());
     assert_eq!(
         String::from_utf8(after_header(&outcome.content).to_vec()).unwrap(),
         expected
@@ -234,4 +235,5 @@ fn executor_sets_conv_repo_and_conv_branch_env_vars_on_tool_subprocess() {
     // Sanity: pin the constant names so a rename trips this test.
     assert_eq!(ENV_CONV_REPO, "LITANY_CONV_REPO");
     assert_eq!(ENV_CONV_BRANCH, "LITANY_CONV_BRANCH");
+    assert_eq!(ENV_TOOL_ID, "LITANY_TOOL_ID");
 }

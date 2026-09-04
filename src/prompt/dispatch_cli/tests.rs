@@ -184,7 +184,7 @@ fn undefined_role_names_the_roles_that_are_defined() {
         err.to_string(),
         "role \"no-such-role\" is not defined in the providers.yaml that will govern a \
          child of agent \"p1\" \
-         — defined roles: compactor, worker"
+         — defined roles: compactor, reviewer, worker"
     );
 }
 

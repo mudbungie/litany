@@ -1,9 +1,12 @@
 //! `litany tool <name>` — in-process built-in tool entry (ARCH §3.3):
 //! `tool_use.input` JSON on stdin, bytes on stdout, exit 0/non-zero. The
 //! stdio arrives through [`Fx`](super::Fx) (locked by the binding), as
-//! does the driver target the `dispatch` / `message` built-ins re-enter
-//! the front door with (§2.11 — the same injected target the §3.3 tool
-//! resolver's third hop addresses).
+//! do the injections a built-in may need
+//! ([`builtin::Bindings`]): the driver target the `dispatch` /
+//! `message` built-ins and a program's stub module re-enter the front
+//! door with (§2.11 — the same injected target the §3.3 tool resolver's
+//! third hop addresses), and the adapter target, stop flag and tool
+//! injection a program's toolset resolution runs under.
 
 use super::{Error, Fx, Outcome};
 use crate::prompt::tool::builtin;
@@ -31,9 +34,15 @@ fn name_help() -> String {
 /// exit code rides back as [`Outcome::Code`](super::Outcome::Code)
 /// (§3.3). The failure prefix is `tool <name>`, as today.
 pub fn run(args: Args, fx: &mut Fx) -> Result<Outcome, Error> {
+    let bindings = builtin::Bindings {
+        driver_target: &fx.driver_target,
+        adapter_target: fx.adapter_target.as_deref(),
+        stop: fx.stop,
+        injection: fx.tool_injection,
+    };
     let code = builtin::run(
         &args.name,
-        &fx.driver_target,
+        &bindings,
         &mut fx.tool_stdin,
         &mut fx.tool_stdout,
         &mut fx.tool_stderr,

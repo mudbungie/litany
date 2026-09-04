@@ -14,17 +14,16 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use tempfile::TempDir;
 
+/// Context files on the tool result (ARCH §3.3 *Context files ride the
+/// next tool result*).
+mod context;
 /// The binding's host injection at the grant gate (ARCH §3.3).
 mod injection;
-/// The multi-tool envelope (ARCH §3.3 *The multi-tool*).
-mod multi;
-mod multi_faults;
-mod multi_parallel;
-/// The tool-control seam inside a multi-tool envelope.
-mod multi_seam;
 /// What a role may *call* (ARCH §3.3 declaring is not permitting).
 mod permit;
 mod policy;
+/// The scripted executor and step machinery the window tests share.
+mod scripted;
 /// The tool-control seam (ARCH §3.3 *Tool control*).
 mod seam;
 /// The seam's hold-mark lifecycle.
@@ -171,6 +170,7 @@ fn run_tool_calls_executes_only_the_tool_use_blocks() {
         id_gen: &id_gen,
         tool_executor: &recorder,
         config_root: cfg.path(),
+        data_root: cfg.path(),
         adapter_target: None,
         stop: &stop,
         launcher: &NoLauncher,

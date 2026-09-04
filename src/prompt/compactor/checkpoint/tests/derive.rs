@@ -117,7 +117,7 @@ fn state_measures_from_the_branchs_own_dispatch_commit_not_inherited_history() {
     );
     let c = cfg(CompactionTrigger::EveryNCommits, Some(20));
     assert!(
-        !due(Some(&c), &s),
+        !due(Some(&c), &s).unwrap(),
         "a seconds-old branch is below threshold"
     );
 }
@@ -143,10 +143,7 @@ fn state_measures_from_the_dispatch_commit_not_a_later_transcript_commit() {
         s.commits_since_checkpoint, 2,
         "the two transcript commits since dispatch, not 0"
     );
-    assert!(due(
-        Some(&cfg(CompactionTrigger::EveryNCommits, Some(2))),
-        &s
-    ));
+    assert!(due(Some(&cfg(CompactionTrigger::EveryNCommits, Some(2))), &s).unwrap());
 
     // Same for a child branch, whose founding is `dispatch: <role> [<id>]`,
     // and for the stray-recovery subject.
@@ -259,4 +256,30 @@ fn state_tags_an_in_flight_enumeration_failure_with_its_op() {
     let dir = TempDir::new().unwrap();
     let err = state(dir.path(), "p1", 0, false, &FailOn("for-each-ref")).unwrap_err();
     assert_eq!(op_of(err), "checkpoint in-flight for-each-ref");
+}
+
+#[test]
+fn state_carries_the_branchs_last_usage() {
+    // The window trigger's numerator and denominator both ride the
+    // read-state tree (§5.1), so the derivation reads them from the same
+    // worktree the clock is measured in — no second input.
+    let dir = TempDir::new().unwrap();
+    let wt = dir.path();
+    init(wt);
+    commit(wt, "step 001: dispatch [p1]", "goal.md", "g");
+    commit(
+        wt,
+        "transcript 001: m [p1]",
+        "messages/001-m.json",
+        r#"{"content":[],"usage":{"input_tokens":40,"context_window":100}}"#,
+    );
+    let s = state(wt, "p1", now_of(wt), false, &RealGit::new()).unwrap();
+    assert_eq!(
+        s.last_usage,
+        Some(LastUsage {
+            prompt_tokens: 40,
+            context_window: Some(100),
+            model: "m".into(),
+        })
+    );
 }

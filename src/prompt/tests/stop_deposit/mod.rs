@@ -131,6 +131,7 @@ fn stop_during_model_call_deposits_stopped_and_preserves_missing_end() {
         id_gen: &id,
         tool_executor: &tool_executor,
         config_root: harness.path(),
+        data_root: harness.path(),
         adapter_target: None,
         stop: &stop,
         launcher: no_launch(),

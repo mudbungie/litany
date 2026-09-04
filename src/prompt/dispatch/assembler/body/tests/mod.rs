@@ -180,6 +180,22 @@ fn drop_oldest_summaries_sheds_lexically_first_until_the_body_fits() {
 }
 
 #[test]
+fn drop_oldest_summaries_sheds_a_summary_and_its_extract_together() {
+    // `docs/DESIGN_CONTEXT_ECONOMY.md` §5.3: the landing's extract is
+    // named so it sorts immediately after the summary it belongs to
+    // (`001.md` < `001.refs.md` < `002.md`), so the age order this policy
+    // sheds by carries the pair as one — never a `.refs.md` orphaned
+    // from the prose it annotates.
+    let wt = TempDir::new().unwrap();
+    write(wt.path(), "summary/001.md", b"12345678"); // 2 tokens
+    write(wt.path(), "summary/001.refs.md", b"1234"); // 1 token
+    write(wt.path(), "summary/002.md", b"12345678"); // 2 tokens
+    let r = rules(&[], &["summary/**"], 2, OverflowPolicy::DropOldestSummaries);
+    let out = compose(wt.path(), Some(&r)).unwrap();
+    assert_eq!(paths(&out), vec!["summary/002.md"]);
+}
+
+#[test]
 fn drop_oldest_summaries_with_none_left_lets_the_residue_ride() {
     let wt = TempDir::new().unwrap();
     write(wt.path(), "skills/a.md", b"12345678"); // 2 tokens > budget 1
@@ -244,3 +260,31 @@ fn non_utf8_content_composes_lossily() {
 }
 
 mod markers;
+
+#[test]
+fn the_shipped_worker_rules_compose_the_facts_file_as_a_head_block() {
+    // The pin's end-to-end claim (ARCH §5.5): the shipped `worker`
+    // manifest entry selects `facts.md`, and selection here means one
+    // path-framed head block ahead of every ordered category — the
+    // durable memory at the head of the call, never shed by the body's
+    // budget (§5.2).
+    let raw = crate::template::TEMPLATE
+        .get_file("manifest.yaml")
+        .expect("the template ships manifest.yaml")
+        .contents_utf8()
+        .expect("manifest.yaml is UTF-8");
+    let shipped =
+        crate::config::manifest::Manifest::parse(raw, Path::new("template/manifest.yaml"))
+            .expect("the shipped template parses");
+    let wt = TempDir::new().unwrap();
+    write(wt.path(), crate::facts::FILE, b"the build runs on nightly");
+    write(wt.path(), "summary/001.md", b"an ordered body entry");
+
+    let blocks = compose(wt.path(), Some(&shipped.roles["worker"])).unwrap();
+
+    assert_eq!(
+        blocks.first().map(String::as_str),
+        Some("<file path=\"facts.md\">\nthe build runs on nightly\n</file>")
+    );
+    assert_eq!(paths(&blocks), vec!["facts.md", "summary/001.md"]);
+}

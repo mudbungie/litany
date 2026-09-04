@@ -50,6 +50,11 @@ pub enum ScaffoldError {
     Git(#[source] io::Error),
     #[error("descriptions-always: {0}")]
     Descriptions(#[source] descriptions::Error),
+    /// The seed set carried a facts file over its cap (ARCH §5.5) — an
+    /// override's, since the embedded template ships none. Refused at
+    /// the write like every later config commit's.
+    #[error(transparent)]
+    Facts(#[from] crate::facts::OverCap),
 }
 
 /// Abstraction over running `git` subcommands inside a target directory.
@@ -64,6 +69,19 @@ pub trait GitRunner {
     /// trimmed string. Used by commands that need the output (e.g.
     /// `git rev-parse HEAD` after a commit).
     fn run_capture(&self, dest: &Path, args: &[&str]) -> io::Result<String>;
+
+    /// [`GitRunner::run_capture`] without the lossy round trip: raw
+    /// stdout bytes, untrimmed. The one caller that needs it is
+    /// `search_history` (ARCH §3.3), which hands stored transcript
+    /// entries back to the model *verbatim* — a trimmed, lossily
+    /// re-encoded blob is not the entry that was committed, and the
+    /// address it advertises would then recover something else.
+    /// Defaulted to the trimmed capture so the many test doubles owe no
+    /// second answer; [`RealGit`] overrides it with the real bytes and
+    /// derives `run_capture` from it, so the scrub below has one home.
+    fn run_capture_bytes(&self, dest: &Path, args: &[&str]) -> io::Result<Vec<u8>> {
+        self.run_capture(dest, args).map(String::into_bytes)
+    }
 }
 
 /// `GitRunner` that invokes a `git` binary on disk.
@@ -91,10 +109,15 @@ impl Default for RealGit {
 
 impl GitRunner for RealGit {
     fn run(&self, dest: &Path, args: &[&str]) -> io::Result<()> {
-        self.run_capture(dest, args).map(|_| ())
+        self.run_capture_bytes(dest, args).map(|_| ())
     }
 
     fn run_capture(&self, dest: &Path, args: &[&str]) -> io::Result<String> {
+        self.run_capture_bytes(dest, args)
+            .map(|out| String::from_utf8_lossy(&out).trim().to_string())
+    }
+
+    fn run_capture_bytes(&self, dest: &Path, args: &[&str]) -> io::Result<Vec<u8>> {
         // When invoked from a git-hook context, GIT_DIR / GIT_INDEX_FILE
         // / GIT_WORK_TREE / GIT_OBJECT_DIRECTORY are in the environment
         // and would cause the child `git` to operate on the outer repo
@@ -111,7 +134,7 @@ impl GitRunner for RealGit {
                 String::from_utf8_lossy(&out.stderr).trim()
             )));
         }
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+        Ok(out.stdout)
     }
 }
 
@@ -135,7 +158,9 @@ const INHERITED_GIT_ENV: &[&str] = &[
 ///    embedded [`TEMPLATE`] control files, overlay the
 ///    `<config-root>/template/` override ([`TEMPLATE_OVERRIDE_DIR`] —
 ///    same-named files win, extra files are included, an absent dir
-///    changes nothing), snapshot the descriptions-always tree from the
+///    changes nothing — the seed home of a lineage's `facts.md`,
+///    refused here when over its cap, [`crate::facts`]), snapshot the
+///    descriptions-always tree from the
 ///    data-root pools into `descriptions/{tools,skills}/` (ARCH §3.3 —
 ///    an empty or absent pool yields an empty descriptions tree),
 ///    `git add -A`, commit.
@@ -143,7 +168,7 @@ const INHERITED_GIT_ENV: &[&str] = &[
 ///    one ref, `config/default`, whose head is the config commit every
 ///    fresh root agent forks off (§2.3) — the lineage resolution
 ///    follows from then on (§2.2, bl-403b).
-pub fn scaffold<G: GitRunner>(dest: &Path, roots: &Roots, git: &G) -> Result<(), ScaffoldError> {
+pub fn scaffold(dest: &Path, roots: &Roots, git: &dyn GitRunner) -> Result<(), ScaffoldError> {
     check_dest(dest)?;
     let repo = crate::workspace::repo_git(dest);
     let config_ref = crate::workspace::config_ref(crate::workspace::DEFAULT_CONFIG_NAME);
@@ -167,6 +192,7 @@ pub fn scaffold<G: GitRunner>(dest: &Path, roots: &Roots, git: &G) -> Result<(),
     fs::create_dir_all(&author).map_err(ScaffoldError::Io)?;
     TEMPLATE.extract(&author).map_err(ScaffoldError::Io)?;
     overlay(&roots.config.join(TEMPLATE_OVERRIDE_DIR), &author).map_err(ScaffoldError::Io)?;
+    crate::facts::require_within_cap(&author)?;
     descriptions::snapshot(&roots.data, &author).map_err(ScaffoldError::Descriptions)?;
     let msg = format!("config: init [{config_ref}]");
     // Always `true` here: the embedded template always writes files, so
@@ -213,7 +239,7 @@ fn overlay(src: &Path, dst: &Path) -> io::Result<()> {
 /// code makes, not a message it parses. Teardown is not here — it belongs
 /// to the caller's [`checkout::Checkout`] guard, which runs on every exit
 /// path including this one.
-pub(crate) fn commit_checkout<G: GitRunner>(git: &G, author: &Path, msg: &str) -> io::Result<bool> {
+pub(crate) fn commit_checkout(git: &dyn GitRunner, author: &Path, msg: &str) -> io::Result<bool> {
     git.run(author, &["add", "-A"])?;
     if git
         .run_capture(author, &["status", "--porcelain"])?

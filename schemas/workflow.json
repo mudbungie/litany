@@ -26,6 +26,13 @@
         }
       ]
     },
+    "context_files": {
+      "description": "The `context_files:` list (ARCH §3.3 *Context files ride the next tool result*, `docs/DESIGN_CONTEXT_ECONOMY.md` §6): file **names** looked for in every directory on the path from the enclosing repository's top level down to the agent's working directory, each carried once on a tool result. Empty — the block omitted — discovers nothing, which is the general path with the policy absent; the shipped list is `template/workflow.yaml`'s.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "events": {
       "type": "object",
       "additionalProperties": {
@@ -129,7 +136,8 @@
       "enum": [
         "every_n_commits",
         "every_t_seconds",
-        "on_flush"
+        "on_flush",
+        "window_percent"
       ]
     },
     "IntermediateCompaction": {
@@ -139,6 +147,15 @@
         "trigger"
       ],
       "properties": {
+        "extract_bytes": {
+          "description": "Byte cap on the landing's **extract** — `summary/NNN.refs.md`, the deterministic compaction product code derives from what the compaction removes from context (ARCH §2.7, `docs/DESIGN_CONTEXT_ECONOMY.md` §5.3). Omitted → no extract is written, severable like `tool_output:`. Bytes, never tokens: the extract is a file in the tree, so the bound is stated in the unit the tree has.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0.0
+        },
         "keep_recent": {
           "description": "Most recent commits kept out of the compaction span (ARCH §2.6): the compactor forks off `HEAD~keep_recent` — the compaction point — so the retained tail survives verbatim and replays on top of the landing. Omitted → `0`, the point is the tip. Must stay below `n` under `every_n_commits` (validated), else every landing re-arms.",
           "type": [
@@ -148,8 +165,17 @@
           "format": "uint32",
           "minimum": 0.0
         },
+        "keep_recent_tokens": {
+          "description": "The retained tail as **provider-reported prompt tokens** rather than commits (`docs/DESIGN_CONTEXT_ECONOMY.md` §5.2): the compaction point is the oldest model-entry commit whose usage leaves the stretch above it costing at most `n` prompt tokens to append, in the provider's own count — no tokenizer, no stored counter. One tail or the other, never both (validated).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        },
         "n": {
-          "description": "Required when `trigger == every_n_commits` (commit count) or `every_t_seconds` (seconds). Ignored for `on_flush`.",
+          "description": "Required when `trigger == every_n_commits` (commit count), `every_t_seconds` (seconds) or `window_percent` (percent of the model's context window, `1..=100`). Ignored for `on_flush`.",
           "type": [
             "integer",
             "null"
