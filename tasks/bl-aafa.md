@@ -1,7 +1,8 @@
 +++
 title = "search_history built-in: git log -S over the workspace's agents/* refs returning stored transcript entries, bounded, with an address that recovers one whole"
 created = 1788493094
-updated = 1788493094
+updated = 1788493215
+claimant = "Archivist"
 parent = "bl-8175"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
