@@ -1,7 +1,8 @@
 +++
 title = "facts file: cut facts.md from the followed config commit into the pinned head at every fork, cap it at the write, decline its nomination"
 created = 1788493093
-updated = 1788493093
+updated = 1788493858
+claimant = "Factor"
 parent = "bl-8175"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
