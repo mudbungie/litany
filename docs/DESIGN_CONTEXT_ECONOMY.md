@@ -416,10 +416,38 @@ transcript in the read-state tree — a tool entry framing that path — so no
 mark is written and nothing can drift. After a compaction removes those
 entries the file is shown again, which is right: the model lost it.
 
-**Where it cannot reach.** The engine stats the cwd; when a deployment
-routes tools to a foot on another machine, the cwd is that machine's and
-the engine appends nothing. That foot may carry its own discovery; it is not
-litany's to do and is noted, not solved.
+**The engine reads the directory it discovers on — the invariant.** The
+effective cwd has one home, `workspace::cwd::effective`, and it takes the
+`cd` mark **only when that path is a directory in the engine's own process**
+(`read(...).filter(|p| p.is_dir())`); otherwise it answers the agent's
+worktree, which the engine created and owns. So an agent's effective cwd is
+by construction a directory this engine can stat and read, and the discovery
+above — `std::fs::read` of each declared name, in the engine, at every tool
+result — is total rather than best-effort. Routing tools to a foot changes
+nothing about it: the cwd is a fact about the *agent*, held in the agent's
+own mark, not about where a tool subprocess happened to run.
+
+**So a foot carries no discovery of its own.** An earlier reading of this
+section left that door open; it names a hole that does not exist, and
+closing it is the substance of this paragraph (thrall bl-4b32, refused on
+these grounds). Under yog's routing the worktree lane carries exactly the
+engine-side path to a `subject_cwd`-consenting entry, which yog
+`docs/REMOTE.md` §5.4 places on the co-located foot **because that is the box
+holding the worktrees**; in every other lane the foot runs at the operator's
+own entry cwd — a different tree, whose `AGENTS.md` governs somebody else's
+work. And "shown" is derived per path and never unmarked (above), so a
+foot-side discovery would tell the agent once, permanently, about a directory
+it cannot `cd` into: an unretractable instruction about the wrong tree. A
+routed capture therefore stays what it is — three facts (the tool's output,
+its exit status, its stderr) — and the context files ride the same engine
+append they always did.
+
+**The one condition that reopens it.** An agent worktree that is not on the
+engine's box. Then `effective`'s fallback names a directory this process
+cannot read, `discovered` answers absent for every declared name, and the
+discovery has to move to whatever holds the tree. Nothing litany ships does
+that — a worktree is the engine's own `$workspace/…` (ARCH §2.2) — so this is
+a condition to watch for, not a gap to fill.
 
 ## 7. E — Oversized tool results: met, with two gaps named
 
