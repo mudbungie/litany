@@ -17,13 +17,16 @@ name: Release-plz
 #     bumps the version in Cargo.toml/Cargo.lock, and nothing else: CHANGELOG.md
 #     is hand-maintained and release-plz never writes it (`changelog_update =
 #     false` in release-plz.toml — rationale there, bl-7558). It never
-#     publishes; it just keeps the next release queued. Merging that PR is the
-#     human control point — and BEFORE merging it, land `make promote-changelog
-#     VERSION=<the version the PR proposes>` on main (via the normal task-
-#     worktree flow), which stamps the accumulated [Unreleased] section as that
-#     version. The GitHub Release body is empty by consequence (release-plz
+#     publishes; it just keeps the next release queued, and `merge-release-pr`
+#     below merges it — once the changelog names the version it proposes. So
+#     the one act a release still asks of a person is landing `make
+#     promote-changelog VERSION=<the version the PR proposes>` on main (via the
+#     normal task-worktree flow), which stamps the accumulated [Unreleased]
+#     section as that version; nothing after it is touched by a hand. The
+#     GitHub Release body is empty by consequence (release-plz
 #     takes it from the changelog only when it manages the changelog);
-#     CHANGELOG.md in the tagged tree is the record. It does not wait on the ci job — it touches
+#     CHANGELOG.md in the tagged tree is the record, which is the whole reason
+#     the merge waits on it. It does not wait on the ci job — it touches
 #     no artifact that CI protects.
 #   * release (`needs: ci`, so only after CI in THIS run is green) — releases
 #     any version on main that is not out yet: tags it `litany-v<version>`
@@ -39,6 +42,12 @@ name: Release-plz
 #     fire without a PAT. `workflow_dispatch` with `binaries_tag` backfills an
 #     existing tag (still behind the CI gate, like everything downstream of
 #     `needs: ci`).
+#   * merge-release-pr (`needs: ci, release-plz-pr, release-plz-release`) —
+#     merges the release PR this run just refreshed, once CHANGELOG.md names
+#     the version it proposes, then dispatches this workflow again so the
+#     merged bump is the one that publishes. Its whole derivation is the
+#     section headed AUTO-MERGE below; neither sibling repository's mechanism
+#     transplants here, and neither sibling has a changelog to wait on.
 #   * prune-release-branches (right after the release-plz PR job) — deletes
 #     every `release-plz-*` branch that has no open PR. release-plz pushes a NEW
 #     timestamped branch each time it refreshes the release PR, and pushes it
@@ -50,8 +59,9 @@ name: Release-plz
 #
 # So the flow is: merge work to main -> this run's ci job runs CI and the
 # release PR is kept fresh; when releasing, land the promote-changelog commit
-# (above), then merge the release PR -> the next run's ci job goes green -> the
-# new version is released AND its binaries build and upload.
+# (above) -> that push's run merges the release PR and dispatches this workflow
+# -> the dispatched run's ci job goes green -> the new version is released AND
+# its binaries build and upload. No hand touches the pull request.
 # `workflow_dispatch` is the manual escape hatch: same chain (ci -> release ->
 # binaries), triggered by hand.
 #
@@ -87,6 +97,139 @@ name: Release-plz
 #     write), so the release PR's own commits re-trigger CI. The default
 #     GITHUB_TOKEN cannot trigger workflows from its own pushes; the job falls
 #     back to it when RELEASE_PLZ_TOKEN is unset.
+
+# ---------------------------------------------------------------------------
+# AUTO-MERGE, AND WHY IT IS A JOB IN THIS FILE (bl-6364)
+#
+# Merging the release PR used to be the human control point. It is not one any
+# more (operator ruling 2026-09-03): the decision it asked for was already made
+# by the work that landed on main, and the publish is gated AFTER the merge by
+# release-plz-release's own `needs: ci`, so a red tree bumps a version on main
+# and ships nothing. Holding the PR open bought nothing and cost every release
+# a hand.
+#
+# WHAT GATES THE PUBLISH HERE, established before any of this was designed:
+# this run's own `ci` job, reached through `needs:`. Nothing observes a CI run
+# from a distance, because a `workflow_run` arm would break trusted publishing
+# (the trigger comment below). The release PR's own checks are NOT that gate
+# and could not be: every `pull_request` CI run on a `release-plz-*` head in
+# this repository has started ZERO JOBS — 30 such runs across every release PR
+# the repository has ever had, each of them `action_required` (created awaiting
+# approval and never approved) or, once the head moved past it, `failure` with
+# `total_count: 0` jobs. Those failures are the ones that look like a red build
+# and are not one; the releases published anyway, which is the proof that the
+# PR's checks gate nothing here. A merge gated on them, or on the pull
+# request's check rollup, would merge nothing, forever — the open 0.0.9 PR
+# reports mergeStateStatus UNSTABLE for exactly that reason, and this job
+# prints that field without ever gating on it.
+#
+# NEITHER SIBLING MECHANISM TRANSPLANTS.
+#   * yog merges from a SEPARATE workflow woken by `workflow_run` on its CI,
+#     using a fine-grained PAT whose own push re-triggers everything, so it
+#     needs no dispatch. `gh api repos/mudbungie/litany/actions/secrets`
+#     answers `total_count: 0` — this repository has no secrets at all, so
+#     there is no PAT to merge with and no token here whose push triggers
+#     anything; and the `workflow_run` arm it hangs on is refused on the
+#     crates.io-OIDC grounds above.
+#   * lernie wakes on ITS release workflow completing, because its release job
+#     is gated by observing CI from a distance. Here the gate is `needs: ci`
+#     INSIDE this run, so the thing lernie has to observe is a job this file
+#     can simply depend on. A second workflow would be a trigger bought for
+#     nothing.
+#   * thrall's merge-release-pr job is the near twin — same absent PAT, same
+#     in-run gate — and this job is derived from it rather than from the other
+#     two. It still does not transplant unchanged: thrall keeps no
+#     hand-maintained changelog, so it has no guard 6 below, and it merges with
+#     `--delete-branch`, which this repository must not copy for the reason
+#     under the ordering paragraph.
+#
+# WHICH TOKEN MERGES, AND WHY THE DISPATCH IS NOT OPTIONAL. GITHUB_TOKEN,
+# because there is no other token here. That makes the merge's push to main
+# fire NOTHING — GitHub, verbatim: "with the exception of `workflow_dispatch`
+# and `repository_dispatch`, other GITHUB_TOKEN triggered events do not create
+# workflow runs" — so a merge on its own would leave the bump on main,
+# unpublished, until some unrelated push happened by. The same sentence names
+# the way out and this job takes it: after a merge it dispatches THIS workflow
+# on main. That is not a second door into the release path. `workflow_dispatch`
+# is already one of this file's two triggers, and the release job's `needs: ci`
+# does not vary by trigger, so the dispatched run re-runs the whole gate on the
+# merged tree before publishing anything.
+#
+# The dispatched run cannot re-enter this job: release-plz-pr is push-only, so
+# on a dispatch it is SKIPPED and every `needs:` of it skips with it. There is
+# no loop to bound because there is no second merge to make.
+#
+# ORDERING, AND THE TWO JOBS THIS ONE DELIBERATELY DOES NOT NAME. The
+# dependency on release-plz-release is not decoration: that job checks out the
+# main BRANCH rather than this run's sha, so a merge landing while it runs
+# would hand it a tree nothing gated. Merging strictly after it removes the
+# race — this run publishes whatever main already owed, then the merge lands
+# the bump, then the dispatched run publishes that. release-binaries is not
+# named because it checks out a TAG the release job already pushed, so what
+# main does underneath it is none of its business. prune-release-branches is
+# not named either: it needs only the PR job, so it finishes minutes before
+# this one can start (this one waits on the whole of CI), and even reordered it
+# keeps the branch backing an open pull request. That is also why this job
+# merges WITHOUT `--delete-branch` where thrall's uses it: this repository has
+# `delete_branch_on_merge` enabled, so GitHub deletes the merged head itself,
+# and a second deleter would only race the pruner into a failed `git push
+# --delete` of a branch already gone.
+#
+# THE GUARDS. Six, and none of them is the check rollup:
+#
+#   1. The head branch is release-plz's own timestamped shape, anchored end to
+#      end — `release-plz-YYYY-MM-DDTHH-MM-SSZ`. A branch merely STARTING with
+#      the prefix does not pass.
+#   2. The author is the Actions bot (`app/github-actions`, which is what opens
+#      every release PR here, there being no PAT) or the repository owner (a
+#      PAT's identity, so the guard survives one being added later).
+#   3. Every changed file is `Cargo.toml` or `Cargo.lock`, and there is at
+#      least one. That is what a release PR IS here — `changelog_update =
+#      false`, so a CHANGELOG.md inside one would mean that decision had moved
+#      and this guard should be re-derived rather than widened. It is a
+#      structural test no human pull request passes by accident.
+#   4. Not a draft, and GitHub says MERGEABLE.
+#   5. The head commit's first parent is this run's commit — the tree `ci` just
+#      passed. release-plz rebases the release branch onto main on every push
+#      here, so the bump sits directly on `github.sha`; the job gates on that
+#      identity rather than assuming it, so what it merges can only ever be the
+#      gated tree plus the version bump. Checked on the two most recent release
+#      PRs: #18's head sat on the sha of the push run that gated it, and #19's
+#      on the main tip of its own moment.
+#   6. CHANGELOG.md, at the commit this run gated, already carries a
+#      `## [<the version the PR proposes>](<this repo>/compare/...)` heading —
+#      the line `make promote-changelog VERSION=x.y.z` writes, tested with that
+#      target's own predicate. The version is read from `[package] version` in
+#      the PR head's own Cargo.toml, which is the bump itself; the compare URL
+#      is derived from `github.repository` so no second copy of it exists.
+#
+#      THIS GUARD IS LITANY'S ALONE, and it is the one place this job declines
+#      to be thrall's. The changelog here is hand-maintained and is the ONLY
+#      changelog authority (release-plz.toml, bl-7558); the GitHub Release body
+#      is empty by consequence, so CHANGELOG.md in the tagged tree is the
+#      entire record of what a version contains. Merging on green alone would
+#      publish a version per push to main whose own tagged tree does not name
+#      it — 0.0.8 already shipped exactly that way, by hand, its notes still
+#      under [Unreleased] — and would quietly retire promote-changelog, this
+#      file's stated ordering and CHANGELOG.md's own header sentence, none of
+#      which this ball was asked to reverse.
+#
+#      So the hand the ruling removes is the click on the pull request, which
+#      carries no information. What remains is the act that writes the
+#      release's notes, which no machine can author: the promotion commit IS
+#      the release decision, and everything after it — the merge, the tag, the
+#      publish, the binaries — happens with no hand. The hold prints the exact
+#      command that clears it. It is severable in one direction: delete guard 6
+#      and this repository releases on every push like its siblings; that is a
+#      policy change and should be made as one, together with the three
+#      documents above.
+#
+# A verdict line is printed for EVERY open pull request on EVERY run, passing
+# or not: a mechanism that merges silently is one nobody can audit, and the run
+# log is the only record it keeps. It writes nothing into any pull request body
+# or comment — there is nothing worth saying there that the log does not say,
+# and a body cannot be un-published (AGENTS.md, "Published text nobody
+# committed").
 
 # No `workflow_run` arm — crates.io refuses trusted publishing under it (see
 # the ci job above); the CI gate is the in-run `needs: ci` instead.
@@ -267,6 +410,144 @@ jobs:
           include: README.md,LICENSE
           ref: refs/tags/${{ steps.tag.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  merge-release-pr:
+    name: merge the release PR
+    runs-on: ubuntu-latest
+    # The gate, the ordering and the recursion stop, all in one list. The bare
+    # `needs` carries an implicit success(), so a red `ci`, a failed PR job or
+    # a failed release all skip this job; and `release-plz-pr` is push-only, so
+    # the run this job dispatches skips it and skips this with it. `ci` is
+    # named although `release-plz-release` already needs it — the gate should
+    # be readable here, not inferred through another job.
+    needs: [ci, release-plz-pr, release-plz-release]
+    # Owner guard: never runs in a fork, like every other job here.
+    if: github.repository_owner == 'mudbungie'
+    timeout-minutes: 10
+    permissions:
+      # To merge the pull request.
+      contents: write
+      # To read the open set and merge.
+      pull-requests: write
+      # To dispatch this workflow again after the merge. Without it the bump
+      # lands on main and nothing publishes it.
+      actions: write
+    # Two runs finishing at once would otherwise race on one merge. Serialize;
+    # the loser re-lists and finds the pull request already gone.
+    concurrency:
+      group: merge-release-pr
+      cancel-in-progress: false
+    steps:
+      - name: Judge every open pull request, and merge a green release PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          # The commit `ci` passed in this run. Guards 5 and 6 read it.
+          GATED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          prs="$(gh pr list --state open --limit 50 \
+            --json number,headRefName,headRefOid,isDraft,mergeable,mergeStateStatus,author,files)"
+
+          count="$(jq 'length' <<<"$prs")"
+          echo "open pull requests: $count"
+          if [ "$count" -eq 0 ]; then
+            echo "nothing to judge"
+            exit 0
+          fi
+
+          # One line per pull request: number, head sha, verdict, merge state.
+          # Guards 1-4 are decided here so the shell below merges or reports
+          # and never re-decides; guards 5 and 6 need API reads and are below.
+          verdicts="$(jq -r --arg owner "$OWNER" '
+            def bump_files: ["Cargo.toml", "Cargo.lock"];
+            .[] | [
+              .number,
+              .headRefOid,
+              (if (.headRefName
+                   | test("^release-plz-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}Z$")
+                   | not)
+                 then "skip: head \(.headRefName) is not a release-plz branch"
+               elif (.author.login != "app/github-actions" and .author.login != $owner)
+                 then "skip: author \(.author.login) is neither the Actions bot nor the repository owner"
+               elif .isDraft
+                 then "skip: draft"
+               elif ((.files | length) == 0)
+                 then "skip: changes no files"
+               elif (.files | map(select(.path as $p | bump_files | index($p) | not)) | length) > 0
+                 then "skip: touches \(.files | map(.path) | join(" ")), which is not a version bump"
+               elif (.mergeable != "MERGEABLE")
+                 then "hold: GitHub says mergeable=\(.mergeable)"
+               else "candidate" end),
+              .mergeStateStatus
+            ] | @tsv' <<<"$prs")"
+
+          merged=0
+          while IFS=$'\t' read -r number sha verdict state; do
+            [ -n "$number" ] || continue
+            if [ "$verdict" != "candidate" ]; then
+              printf 'PR %s  %s  [merge state %s]\n' "$number" "$verdict" "$state"
+              continue
+            fi
+
+            # Guard 5: the bump must sit on the commit this run gated. The
+            # release PR's own checks never run in this repository, so this
+            # identity — not a check — is what ties the merge to a green tree.
+            parent="$(gh api "repos/$GH_REPO/commits/$sha" -q '.parents[0].sha')"
+            if [ "$parent" != "$GATED_SHA" ]; then
+              printf 'PR %s  hold: head sits on %s, not the gated %s  [merge state %s]\n' \
+                "$number" "${parent:0:8}" "${GATED_SHA:0:8}" "$state"
+              continue
+            fi
+
+            # Guard 6: the changelog must already name the version this bump
+            # proposes. Read the version out of the bump itself, and the
+            # changelog out of the gated tree — the two refs differ, which is
+            # why both are API reads and neither is a checkout. Whole files
+            # into variables, never `gh api | grep -q`: a `-q` that exits on
+            # the first match SIGPIPEs the reader, and under `pipefail` the
+            # match would read as a failure.
+            manifest="$(gh api "repos/$GH_REPO/contents/Cargo.toml?ref=$sha" \
+              -H 'Accept: application/vnd.github.raw')"
+            version="$(awk '/^\[package\]/ { p = 1 }
+                            p && /^version = / { gsub(/^version = "|"$/, ""); print; exit }' \
+                       <<<"$manifest")"
+            if [ -z "$version" ]; then
+              printf 'PR %s  hold: no [package] version in Cargo.toml at %s\n' \
+                "$number" "${sha:0:8}"
+              continue
+            fi
+            changelog="$(gh api "repos/$GH_REPO/contents/CHANGELOG.md?ref=$GATED_SHA" \
+              -H 'Accept: application/vnd.github.raw')"
+            # `make promote-changelog`'s own predicate, with the compare URL
+            # derived from the repository rather than restated.
+            if ! grep -qF "## [$version](https://github.com/$GH_REPO/compare/" <<<"$changelog"; then
+              printf 'PR %s  hold: CHANGELOG.md at %s does not name [%s] yet — land `make promote-changelog VERSION=%s` on main  [merge state %s]\n' \
+                "$number" "${GATED_SHA:0:8}" "$version" "$version" "$state"
+              continue
+            fi
+
+            printf 'PR %s  merging: %s bump on the gated %s, changelog stamped  [merge state %s]\n' \
+              "$number" "$version" "${GATED_SHA:0:8}" "$state"
+            # No --delete-branch: `delete_branch_on_merge` is enabled on this
+            # repository, so GitHub deletes the merged head itself.
+            gh pr merge "$number" --merge
+            printf 'PR %s  merged\n' "$number"
+            merged=$((merged + 1))
+          done <<<"$verdicts"
+
+          if [ "$merged" -eq 0 ]; then
+            echo "merged nothing; no dispatch"
+            exit 0
+          fi
+
+          # The merge was GITHUB_TOKEN's, so it created no workflow run at all.
+          # This dispatch is the only thing that will publish the bump, and it
+          # re-runs the whole gate on the merged tree before doing so.
+          echo "dispatching release-plz.yml on main to publish the merged bump"
+          gh workflow run release-plz.yml --ref main
 
   prune-release-branches:
     name: prune superseded release branches

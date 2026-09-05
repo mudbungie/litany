@@ -309,10 +309,13 @@ ci: check
 # the released version, with compare link and date, and open a fresh empty
 # [Unreleased] above it. VERSION is the version the open release PR proposes —
 # the PR is the authority, this target just names what it says. Run it in a
-# task worktree and merge to main BEFORE merging the release PR (worktree
+# task worktree and land it on main; that landing IS the release act, because
+# release-plz.yml's merge-release-pr job holds the release PR until the
+# changelog names the version it proposes and merges it once one does (worktree
 # discipline is CLAUDE.md's; the ordering keeps the tagged tree's changelog
-# already stamped). Refuses a VERSION this ERA already has, so a re-run is a
-# no-op failure, not a duplicate section.
+# already stamped, and it is now a gate rather than a convention). Refuses a
+# VERSION this ERA already has, so a re-run is a no-op failure, not a
+# duplicate section.
 #
 # Both halves are era-aware, and they must stay so (bl-4afc). CHANGELOG.md
 # spans the bl-2f58 rename fence: it carries lernie-era headings 0.0.1 through
