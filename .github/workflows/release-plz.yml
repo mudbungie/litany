@@ -224,6 +224,17 @@ name: Release-plz
 #      policy change and should be made as one, together with the three
 #      documents above.
 #
+# READS HOLD, ACTS SHOUT (bl-0187). Every fact this job reads through the API
+# — the head commit's parent, the head's Cargo.toml, the gated tree's
+# CHANGELOG.md — is a HOLD when it cannot be read, printed and skipped, never a
+# failed job. The job is a reconciler and wake-ups are plentiful (one per push
+# to main), so a fact unread this time is re-judged in minutes; and a red
+# release-plz run should mean the tree or the release is broken, not that
+# GitHub answered 504 once. The first armed run met exactly that 504 on the
+# first read and died under `set -e` before printing a single verdict. The two
+# ACTS are the exception and stay loud: `gh pr merge` and the dispatch are not
+# reads, and a failure in either is worth the red.
+#
 # A verdict line is printed for EVERY open pull request on EVERY run, passing
 # or not: a mechanism that merges silently is one nobody can audit, and the run
 # log is the only record it keeps. It writes nothing into any pull request body
@@ -495,7 +506,17 @@ jobs:
             # Guard 5: the bump must sit on the commit this run gated. The
             # release PR's own checks never run in this repository, so this
             # identity — not a check — is what ties the merge to a green tree.
-            parent="$(gh api "repos/$GH_REPO/commits/$sha" -q '.parents[0].sha')"
+            # An API read that fails is a HOLD, never a job failure: this
+            # job is a reconciler, wake-ups are plentiful, and a red run
+            # should mean the tree or the release is broken. The
+            # `if ! x="$(...)"` form is the one that does not trip `set -e`.
+            # Learned on the first armed run, which met an HTTP 504 here and
+            # died before printing a single verdict.
+            if ! parent="$(gh api "repos/$GH_REPO/commits/$sha" -q '.parents[0].sha')"; then
+              printf 'PR %s  hold: could not read the head commit; the next wake-up re-judges  [merge state %s]\n' \
+                "$number" "$state"
+              continue
+            fi
             if [ "$parent" != "$GATED_SHA" ]; then
               printf 'PR %s  hold: head sits on %s, not the gated %s  [merge state %s]\n' \
                 "$number" "${parent:0:8}" "${GATED_SHA:0:8}" "$state"
@@ -509,8 +530,12 @@ jobs:
             # into variables, never `gh api | grep -q`: a `-q` that exits on
             # the first match SIGPIPEs the reader, and under `pipefail` the
             # match would read as a failure.
-            manifest="$(gh api "repos/$GH_REPO/contents/Cargo.toml?ref=$sha" \
-              -H 'Accept: application/vnd.github.raw')"
+            if ! manifest="$(gh api "repos/$GH_REPO/contents/Cargo.toml?ref=$sha" \
+              -H 'Accept: application/vnd.github.raw')"; then
+              printf 'PR %s  hold: could not read Cargo.toml at %s; the next wake-up re-judges  [merge state %s]\n' \
+                "$number" "${sha:0:8}" "$state"
+              continue
+            fi
             version="$(awk '/^\[package\]/ { p = 1 }
                             p && /^version = / { gsub(/^version = "|"$/, ""); print; exit }' \
                        <<<"$manifest")"
@@ -519,8 +544,12 @@ jobs:
                 "$number" "${sha:0:8}"
               continue
             fi
-            changelog="$(gh api "repos/$GH_REPO/contents/CHANGELOG.md?ref=$GATED_SHA" \
-              -H 'Accept: application/vnd.github.raw')"
+            if ! changelog="$(gh api "repos/$GH_REPO/contents/CHANGELOG.md?ref=$GATED_SHA" \
+              -H 'Accept: application/vnd.github.raw')"; then
+              printf 'PR %s  hold: could not read CHANGELOG.md at %s; the next wake-up re-judges  [merge state %s]\n' \
+                "$number" "${GATED_SHA:0:8}" "$state"
+              continue
+            fi
             # `make promote-changelog`'s own predicate, with the compare URL
             # derived from the repository rather than restated.
             if ! grep -qF "## [$version](https://github.com/$GH_REPO/compare/" <<<"$changelog"; then
