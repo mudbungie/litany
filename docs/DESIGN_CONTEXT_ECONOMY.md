@@ -245,7 +245,9 @@ The shipped template still declares `every_n_commits: 20` — a row
 brazen states no window for is *declined*, so defaulting to the window
 trigger would refuse those workspaces at their first boundary. That
 survey has since run and kept the default: see **Surveyed (bl-4c64)**
-below, and ARCH's bl-a537 shipped-state note for the seam.
+below, re-read against brazen 0.0.13's window ladder in **Re-read
+(bl-d21b)** beside it, and ARCH's bl-a537 shipped-state note for the
+seam.
 
 **Surveyed (bl-4c64) — the default stays commit-counted.** The survey
 bl-a537 deferred ran against **brazen 0.0.9**, the pin at the time, and its verdict
@@ -276,17 +278,58 @@ naming a `context_key` their provider serves, or a window that does not
 wait on a discovery call. ARCH's bl-4c64 shipped-state note carries the
 row-by-row reading and the quoted decline.
 
-**A window an operator sets is still not a window brazen states
-(bl-3fe6).** brazen bl-f19d, which reached the pin at 0.0.10, made a provider row's
-`body_defaults` `extra` fold one namespace deep, so an `ollama` row's
-`options.num_ctx` now reaches the request instead of being dropped
-beside the typed caps. That changes the window the model actually runs
-with; it does **not** put a `context_window` on the `Usage` event, which
-is lifted from the models list under a key `ollama_chat` does not name.
-So the number in force and this trigger's denominator can now be made
-the same fact by one operator — and until brazen states it, that
-operator's row is still declined. The survey's verdict is unmoved, and
-what would move it is unchanged: a change in brazen's rows.
+**A window an operator sets was not a window brazen states — and since
+0.0.13 it is (bl-3fe6, superseded by bl-d21b).** brazen bl-f19d, which
+reached the pin at 0.0.10, made a provider row's `body_defaults` `extra`
+fold one namespace deep, so an `ollama` row's `options.num_ctx` reaches
+the request instead of being dropped beside the typed caps. That changed
+the window the model actually runs with, and bl-3fe6 recorded that it
+did **not** put a `context_window` on the `Usage` event, concluding
+"until brazen states it, that operator's row is still declined" and
+"what would move it is unchanged: a change in brazen's rows". **Both
+sentences are false since brazen 0.0.13.** A pinned `options.num_ctx` is
+now the FIRST rung of the window ladder brazen stamps on the event
+(below), so for that row the number in force and this trigger's
+denominator are one number on the wire, and the row is not declined.
+
+**Re-read (bl-d21b) — three sources now, and the default still stays
+commit-counted.** brazen 0.0.13 (brazen bl-c655) replaced the single
+source with a ladder of three, read most-specific-first (brazen
+`specs/model-discovery.md` §5.5): what THIS request's body **pins**
+(`options.num_ctx` on an `ollama` row — it truncates the model's
+capacity to the size the server will actually allocate, so where it is
+set it is the honest denominator and the capacity is not), else what the
+provider's list **served**, else what the `[[provider]]` row
+**declares** — `context_windows = { "<wire-model-id>" = <limit> }`, one
+entry per wire model id, read at the stamp and never folded into the
+model cache (brazen `specs/config.md` §4.7). A consumer never learns
+which rung answered: the key means the same thing in every case, so
+litany's read (`src/prompt/compactor/checkpoint/usage.rs`) and this
+section's denominator are both unchanged.
+
+That is the second of the two reversals bl-4c64 named — "a window that
+does not depend on a discovery call having been run" — and it does not
+flip the default, because **both new rungs are authored configuration**.
+A pinned or declared window exists only where an operator wrote one, and
+brazen ships none: `specs/config.md` §4.7, verbatim, *"Empty on every
+shipped row — brazen declares no capacity it did not observe."* So all
+eight built-in rows still state no window on a fresh box, a shipped
+`window_percent` would still land `Error::CompactionWindowUnknown` at the
+first boundary after the first model entry, and `template/workflow.yaml`
+keeps `every_n_commits: 20` with `keep_recent_tokens` unset beside it
+(§5.2 — they flip together or not at all).
+
+**The basis of the refusal moves, and that is the durable finding.**
+bl-4c64 refused because brazen *could not state* a window for seven of
+eight rows; the refusal now stands because a stated window is
+**authored**, and a shipped default may not assume an operator authored
+it. What the refusal costs is smaller: the opt-in is no longer "wait for
+a provider to serve a limit" but two lines of litany config beside one
+line of brazen config, on any row and any provider — which is exactly
+the severability the variant exists for. And what would flip the shipped
+default is now one path, not two: rung 2, a provider's own list serving
+the limit. Rung 3 cannot become it, because brazen has ruled itself out
+of declaring capacity on the shipped rows in the sentence quoted above.
 
 ### 5.2 The token tail
 
@@ -313,7 +356,9 @@ and compacts nothing until the tail outgrows the budget. That is the shape
 `keep_recent >= n` is refused for, in units no load-time check can
 compare. The token tail belongs with the window trigger (§5.1), and both
 flip together under the same survey of provider rows — which ran under
-bl-4c64 and refused the flip, so both stay as shipped.
+bl-4c64 and refused the flip, and was re-read under bl-d21b against a
+brazen that can now state a window for any row an operator writes one on
+and still refused it, so both stay as shipped.
 
 ### 5.3 The extract: a second compaction product, code-written
 
