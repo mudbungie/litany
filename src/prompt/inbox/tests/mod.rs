@@ -1,5 +1,9 @@
 //! Tests for the inbox substrate (ARCH §2.11), split by axis so each
-//! file stays under the repo's per-file line cap.
+//! file stays under the repo's per-file line cap. Since bl-6a7c the
+//! source is split on the same axes — [`super::launch`] under
+//! [`launcher`] and [`probe`], [`super::cli`] under [`probe`]'s
+//! orchestration beats — which is what made the seam a real one rather
+//! than a line count.
 //!
 //! - [`lock`]: `flock` acquire / exclusion / release-on-drop and the
 //!   errno interpretation.

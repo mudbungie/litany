@@ -123,8 +123,8 @@ fn detach_into_own_session_never_fails() {
     // in-process call is what puts the hook's lines in the coverage
     // numerator (counters incremented in the forked child are lost at
     // exec).
-    super::super::detach_into_own_session().unwrap();
-    super::super::detach_into_own_session().unwrap();
+    super::super::launch::detach_into_own_session().unwrap();
+    super::super::launch::detach_into_own_session().unwrap();
 }
 
 #[test]

@@ -2,8 +2,9 @@
 //! a quiescent agent starts a driver*, Writer/driver totality).
 
 use super::super::{
-    Launcher, MessageError, ProbeOutcome, USER_SENDER, cli_message, cli_run, inbox_dir,
-    probe_and_launch, resolve_cli_sender, try_acquire,
+    Launcher, ProbeOutcome, USER_SENDER,
+    cli::{MessageError, cli_message, resolve_cli_sender},
+    cli_run, inbox_dir, probe_and_launch, try_acquire,
 };
 use crate::prompt::Clock;
 use std::cell::RefCell;
