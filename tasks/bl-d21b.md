@@ -1,7 +1,8 @@
 +++
 title = "brazen 0.0.13 reverses the bl-4c64 survey: a row may DECLARE a context window its list does not serve, and that window rides the Usage event — so the shipped-default refusal and two doc sentences are now stale"
 created = 1788581602
-updated = 1788581602
+updated = 1788581638
+claimant = "Animations-N"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
