@@ -1,7 +1,8 @@
 +++
 title = "merge-release-pr reads mergeability once, and GitHub answers UNKNOWN while it computes: re-read, bounded"
 created = 1788582042
-updated = 1788582042
+updated = 1788582044
+claimant = "Animations-L"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
