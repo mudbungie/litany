@@ -34,7 +34,7 @@ Parity between the two is enforced mechanically, not by convention. `tests/comma
 
 ```
 cargo install litany --locked                    # or: make install, from a clone
-cargo install brazen --version =0.0.10 --locked   # the provider adapter, always needed
+cargo install brazen --version =0.0.12 --locked   # the provider adapter, always needed
 litany new ~/work/chat    # create a workspace (bare repo.git + config/default)
 ANTHROPIC_API_KEY=... litany prompt ~/work/chat 'hello'
 ```
@@ -59,7 +59,7 @@ Makefile and image routes lay down for you.
 
 ```
 cargo install litany --locked
-cargo install brazen --version =0.0.10 --locked   # the pinned provider adapter
+cargo install brazen --version =0.0.12 --locked   # the pinned provider adapter
 litany prime                                     # found the harness root
 ```
 
@@ -146,12 +146,12 @@ every provider (ARCH §4.4), it is **pinned exactly**, and litany refuses
 a `bz` at any other version rather than downgrading silently:
 
 ```
-cargo install brazen --version =0.0.10 --locked
+cargo install brazen --version =0.0.12 --locked
 ```
 
 The pin is not folklore you have to read this file for — the installed
 binary carries it: `litany --version` prints the linked pin beside its
-own version, `litany <version> (brazen 0.0.10)`. Its one home is the
+own version, `litany <version> (brazen 0.0.12)`. Its one home is the
 `brazen = "=<pin>"` line in `Cargo.toml`;
 the Makefile's `BRAZEN_PIN`, the load-time guard, `litany --version`,
 and every pin printed in this file all derive from that line (a test
@@ -1775,7 +1775,7 @@ stdin (canonical request, JSON) → bz → stdout (v=1 event stream, NDJSON, one
 The harness execs `bz --json --provider <row>` once per attempt, pipes a
 typed `brazen::CanonicalRequest` on stdin, and appends bz's stdout
 verbatim to the step's `response.json`. litany links the `brazen` crate
-(`brazen = "=0.0.10"`) for the canonical *types* only — the data plane
+(`brazen = "=0.0.12"`) for the canonical *types* only — the data plane
 always crosses the subprocess boundary (§3.4). Two facts follow:
 
 - **Retry is the harness's.** brazen never retries — one `bz` process,
@@ -1796,7 +1796,7 @@ always crosses the subprocess boundary (§3.4). Two facts follow:
   litany references a row by name and never sees credential material
   (ARCH §4.1). A load-time guard (`bz --version` == the linked crate
   version) rejects a mismatched binary; `make install` installs the pin
-  with `cargo install brazen --version =0.0.10`.
+  with `cargo install brazen --version =0.0.12`.
 - **A failed model call names the row.** Which row litany routed a model call
   under is litany's fact, not brazen's (it is the role's `provider:` in
   the config commit's `providers.yaml`), so the harness states it:
@@ -2110,7 +2110,7 @@ every agent on the box. Anyone running `make install` rewrites that binary at
 dies in five-plus e2e tests with
 
 ```
-bz version "0.0.6" does not match the linked brazen crate "0.0.10"
+bz version "0.0.6" does not match the linked brazen crate "0.0.12"
 ```
 
 which looks nothing like "someone else installed a binary" and everything

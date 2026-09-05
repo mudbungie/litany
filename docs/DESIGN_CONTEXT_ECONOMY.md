@@ -229,8 +229,8 @@ is a failed step and loud (ARCH §2.10).
 check, the last-usage read (`src/prompt/compactor/checkpoint/usage.rs`)
 and the unknown-window decline are in the tree, and **both numbers are
 now on the wire**: brazen bl-fb0c shipped `context_window` in 0.0.9 and
-brazen bl-d192 shipped `input_total_tokens` in 0.0.10, the pin litany
-carries, so the ratio this section names is two served facts divided
+brazen bl-d192 shipped `input_total_tokens` in 0.0.10, which the pin
+has carried since, so the ratio this section names is two served facts divided
 rather than one derived from three counters whose overlap the event
 never stated. The transcript writer folds both in with no edit on either
 side (the round trip is pinned against `brazen::Usage`'s own
@@ -248,7 +248,7 @@ survey has since run and kept the default: see **Surveyed (bl-4c64)**
 below, and ARCH's bl-a537 shipped-state note for the seam.
 
 **Surveyed (bl-4c64) — the default stays commit-counted.** The survey
-bl-a537 deferred ran against the pinned **brazen 0.0.9**, and its verdict
+bl-a537 deferred ran against **brazen 0.0.9**, the pin at the time, and its verdict
 is that the shipped default may not assume a window. brazen keeps no
 per-model table either: it lifts the window out of the provider's own
 models list, under the key a protocol or a row's `[provider.models]`
@@ -277,7 +277,7 @@ wait on a discovery call. ARCH's bl-4c64 shipped-state note carries the
 row-by-row reading and the quoted decline.
 
 **A window an operator sets is still not a window brazen states
-(bl-3fe6).** brazen bl-f19d, in the 0.0.10 pin, made a provider row's
+(bl-3fe6).** brazen bl-f19d, which reached the pin at 0.0.10, made a provider row's
 `body_defaults` `extra` fold one namespace deep, so an `ollama` row's
 `options.num_ctx` now reaches the request instead of being dropped
 beside the typed caps. That changes the window the model actually runs
