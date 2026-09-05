@@ -188,7 +188,13 @@ name: Release-plz
 #      false`, so a CHANGELOG.md inside one would mean that decision had moved
 #      and this guard should be re-derived rather than widened. It is a
 #      structural test no human pull request passes by accident.
-#   4. Not a draft, and GitHub says MERGEABLE.
+#   4. Not a draft, and GitHub says MERGEABLE. Mergeability is computed
+#      lazily and reads UNKNOWN while GitHub works, so the open set is
+#      re-read a bounded handful of times while any pull request in it says
+#      UNKNOWN, before this guard is allowed to hold on it (bl-d90b). The
+#      reconciler's next wake-up is the fallback, not the first answer: the
+#      push being judged may itself be the release act, and the 0.0.9 prep's
+#      own run held here and released nothing.
 #   5. The head commit's first parent is this run's commit — the tree `ci` just
 #      passed. release-plz rebases the release branch onto main on every push
 #      here, so the bump sits directly on `github.sha`; the job gates on that
@@ -224,10 +230,10 @@ name: Release-plz
 #      policy change and should be made as one, together with the three
 #      documents above.
 #
-# READS HOLD, ACTS SHOUT (bl-0187). Every fact this job reads through the API
-# — the head commit's parent, the head's Cargo.toml, the gated tree's
-# CHANGELOG.md — is a HOLD when it cannot be read, printed and skipped, never a
-# failed job. The job is a reconciler and wake-ups are plentiful (one per push
+# READS HOLD, ACTS SHOUT (bl-0187, bl-d90b). Every fact this job reads through
+# the API — the open pull requests, the head commit's parent, the head's
+# Cargo.toml, the gated tree's CHANGELOG.md — is a HOLD when it cannot be read,
+# printed and skipped, never a failed job. The job is a reconciler and wake-ups are plentiful (one per push
 # to main), so a fact unread this time is re-judged in minutes; and a red
 # release-plz run should mean the tree or the release is broken, not that
 # GitHub answered 504 once. The first armed run met exactly that 504 on the
@@ -459,8 +465,31 @@ jobs:
         run: |
           set -euo pipefail
 
-          prs="$(gh pr list --state open --limit 50 \
-            --json number,headRefName,headRefOid,isDraft,mergeable,mergeStateStatus,author,files)"
+          # GitHub computes mergeability LAZILY, on demand, and answers
+          # UNKNOWN while it is working — so the first read, taken moments
+          # after release-plz refreshed the release branch, can be UNKNOWN for
+          # reasons that have nothing to do with the pull request. Ask again,
+          # bounded, before letting guard 4 hold on it: the reconciler would
+          # recover on the next wake-up either way, but the wake-up must not be
+          # the FIRST answer when the push being judged is the release act
+          # itself (bl-d90b — the 0.0.9 prep's own run held on exactly this and
+          # released nothing).
+          attempt=0
+          while :; do
+            if ! prs="$(gh pr list --state open --limit 50 \
+              --json number,headRefName,headRefOid,isDraft,mergeable,mergeStateStatus,author,files)"; then
+              echo "could not read the open pull requests; the next wake-up re-judges"
+              exit 0
+            fi
+            jq -e 'any(.[]; .mergeable == "UNKNOWN")' >/dev/null <<<"$prs" || break
+            attempt=$((attempt + 1))
+            if [ "$attempt" -gt 5 ]; then
+              echo "mergeability still unknown after $((attempt - 1)) re-reads; judging as it stands"
+              break
+            fi
+            echo "GitHub is still computing mergeability; re-reading (attempt $attempt of 5)"
+            sleep 10
+          done
 
           count="$(jq 'length' <<<"$prs")"
           echo "open pull requests: $count"
