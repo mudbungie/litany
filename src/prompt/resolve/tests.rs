@@ -128,6 +128,9 @@ fn an_unmarked_agent_resolves_the_governing_workflow_the_basic_agentic_loop() {
     let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
     assert_eq!(cfg.workflow.retry.max_attempts, 3);
     assert!(cfg.workflow.compaction.is_some());
+    // With no mark the workflow's source IS the followed config commit,
+    // so the step record's two shas agree (bl-e4a0) — the general path.
+    assert_eq!(cfg.workflow_commit, cfg.config_commit);
 }
 
 #[test]
@@ -157,6 +160,12 @@ fn a_marked_agent_pins_the_marked_workflow_while_every_other_fact_follows_the_ti
         cfg.soul.contains("a switched soul"),
         "every unmarked control fact follows the tip (operator ruling 2026-09-01)",
     );
+    // The two shas the step record carries (bl-e4a0) disagree here, and
+    // their disagreement IS the record that a mark stood: control came
+    // from the tip, the workflow from the marked fork commit.
+    assert_eq!(cfg.workflow_commit, fork);
+    assert_eq!(cfg.config_commit, head(&ws));
+    assert_ne!(cfg.workflow_commit, cfg.config_commit);
 }
 
 #[test]

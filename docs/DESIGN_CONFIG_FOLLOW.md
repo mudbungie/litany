@@ -37,10 +37,12 @@ things:
    step record carries the policy's byte-for-byte *effects* (`request.json`,
    §2.3 — model id, soul, tools, workflow-derived retry all ride it), and an
    archive carries the lineage heads as of archiving (§9.2), so a replayed
-   workspace resolves the archived tips. What is filed rather than lost
-   silently: recording the resolved config commit in each step's `meta.json`
-   (bl-e4a0), which restores exact per-step policy provenance as a
-   diagnostic fact.
+   workspace resolves the archived tips. What was filed rather than
+   lost silently has since **shipped** (bl-e4a0): each step's `meta.json`
+   records the config commit the step resolved control from, and beside it
+   the commit its `workflow.yaml` came from — the two differ exactly when a
+   workflow mark stood (bl-f928). Exact per-step policy provenance is back,
+   as a diagnostic fact rather than a control input (§2.3).
 
 Mid-*step* consistency was never the freeze's job and is untouched:
 resolution is per-hop (§6 "no resident interpreter"), so a step in flight
@@ -114,6 +116,15 @@ iteration and re-reads the soul, the model binding, the retry policy, the
 budgets, the grant and the manifest rules with it. Step 1 keeps the fork
 resolution the start already took, which is step 1's own boundary.
 
+Shipped since, by bl-e4a0: per-step config provenance in `meta.json`.
+`resolve_workflow` hands back the commit it read the workflow from beside
+the workflow itself; `WorkerConfig` and `Resolved` carry it next to the
+config commit the grant already named; both step-loop drivers write
+`config_commit` and `workflow_commit` into every step record. Both are
+always written, equal on the unmarked path — so their disagreement is the
+record that a mark stood, and a reader never has to tell "no mark" from
+"not recorded". Neither is re-derived after the fact: a mark is a ref an
+operator can rewrite between the resolution and the question.
+
 Deferred, filed: the stale dispatch-time descriptions cut
-under a grant-changing tip — bl-37cd. Per-step config provenance in
-`meta.json` — bl-e4a0.
+under a grant-changing tip — bl-37cd.

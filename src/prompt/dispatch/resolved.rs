@@ -41,6 +41,10 @@ pub(in crate::prompt) struct Resolved<'a> {
     /// The full workflow (§6): per-step hooks and lifecycle bindings, the
     /// same seams `litany advance` runs (the §6 prompt→advance collapse).
     pub(in crate::prompt) workflow: &'a Workflow,
+    /// The commit `workflow` was read from (§6): the nearest standing
+    /// workflow mark's, else `grant.config_commit`. Recorded in each
+    /// step's `meta.json` as the step's policy provenance (bl-e4a0).
+    pub(in crate::prompt) workflow_commit: &'a str,
     /// The role's §5.2 context-assembly rules (`manifest.yaml`, §2.2);
     /// `None` (no entry for the role) assembles the transcript alone.
     pub(in crate::prompt) manifest: Option<&'a RoleRules>,

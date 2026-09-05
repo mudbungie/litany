@@ -182,9 +182,39 @@ pub fn in_flight(workspace: &std::path::Path, agent: &str) -> Option<std::path::
 /// (§2.10). `started_at` / `ended_at` bookend the call's wall-clock
 /// duration. Replay tooling reads `commit` to locate the tree state
 /// the request was assembled against.
+///
+/// **The two config shas are the step's policy provenance** (bl-e4a0,
+/// `docs/DESIGN_CONFIG_FOLLOW.md` §1). Under follow-the-tip a
+/// conversation resolves the workspace's *current* config at every step
+/// boundary, so "which config governed step N" stopped being derivable
+/// from the branch's ancestry and became a fact about **when** the step
+/// ran — knowable only if the step records it. `config_commit` is the
+/// commit this step resolved all control from ([`crate::workspace::current_config`]);
+/// `workflow_commit` is the commit its `workflow.yaml` came from — the
+/// same sha for every unmarked agent, and the workflow mark's commit
+/// when one stood (§6). Both are written whole rather than one being
+/// conditional on the other, so a reader that finds them equal knows no
+/// mark stood, rather than having to tell "no mark" from "not recorded".
+///
+/// Both are `Option` for exactly one reason: a `meta.json` written
+/// before bl-e4a0 carries neither, and `None` says so. Every record
+/// this harness writes carries both. Diagnostic provenance, the same
+/// class as `request.json` — read by audit and by a human, never a
+/// control input the harness feeds back (§2.3 *Diagnostic-only
+/// contract*); `commit` remains the one field replay is premised on.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StepMeta {
     pub commit: String,
+    /// The **followed config commit** this step resolved control from
+    /// (§2.2, bl-403b). `None` only in a record written before the field
+    /// existed.
+    #[serde(default)]
+    pub config_commit: Option<String>,
+    /// The commit whose `workflow.yaml` this step ran (§6): the nearest
+    /// standing workflow mark's, else `config_commit`. `None` only in a
+    /// record written before the field existed.
+    #[serde(default)]
+    pub workflow_commit: Option<String>,
     pub started_at: String,
     pub ended_at: String,
 }
@@ -232,6 +262,8 @@ mod tests {
     fn step_meta_round_trips_and_publishes_stable_keys() {
         let m = StepMeta {
             commit: "0123456789abcdef0123456789abcdef01234567".into(),
+            config_commit: Some("cfg1111111111111111111111111111111111111".into()),
+            workflow_commit: Some("wf22222222222222222222222222222222222222".into()),
             started_at: "2026-04-22T06:54:32Z".into(),
             ended_at: "2026-04-22T06:54:35Z".into(),
         };
@@ -239,8 +271,29 @@ mod tests {
         let back: StepMeta = serde_json::from_str(&json).unwrap();
         assert_eq!(m, back);
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-        for key in ["commit", "started_at", "ended_at"] {
+        for key in [
+            "commit",
+            "config_commit",
+            "workflow_commit",
+            "started_at",
+            "ended_at",
+        ] {
             assert!(v.get(key).is_some(), "missing key: {key}");
         }
+    }
+
+    #[test]
+    fn a_record_written_before_the_provenance_fields_still_reads() {
+        // Grows-only serde (bl-e4a0): every `meta.json` on every box
+        // predating the two config shas must keep parsing, and the
+        // absence must read as "not recorded" rather than as a sha.
+        // `budget::derive` sums wall-clock off these records and would
+        // otherwise start scoring every historical step as zero.
+        let back: StepMeta = serde_json::from_str(
+            r#"{"commit":"abc","started_at":"2026-04-22T06:54:32Z","ended_at":"2026-04-22T06:54:35Z"}"#,
+        )
+        .unwrap();
+        assert_eq!(back.config_commit, None);
+        assert_eq!(back.workflow_commit, None);
     }
 }

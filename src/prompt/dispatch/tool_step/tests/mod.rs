@@ -91,6 +91,7 @@ impl Resolution {
             retry: self.workflow.retry,
             budgets: self.workflow.budgets,
             workflow: &self.workflow,
+            workflow_commit: "c0ffee",
             manifest: None,
             expect_handshake: false,
         }

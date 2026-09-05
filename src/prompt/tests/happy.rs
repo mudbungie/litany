@@ -105,6 +105,13 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
     assert_eq!(meta.commit, STUB_SHA);
     assert_eq!(meta.started_at, "iso-2");
     assert_eq!(meta.ended_at, "iso-3");
+    // …and the step's policy provenance beside it (bl-e4a0): the config
+    // commit this step resolved control from, and the commit its
+    // workflow came from. No mark stands here, so the two agree — which
+    // is how a reader tells "unmarked" from "not recorded", the record
+    // carrying both rather than one conditionally.
+    assert_eq!(meta.config_commit.as_deref(), Some(STUB_SHA));
+    assert_eq!(meta.workflow_commit.as_deref(), Some(STUB_SHA));
 
     // Adapter called twice: the version guard (`bz --version`) then the
     // model call (`bz --json --provider anthropic`, request on stdin).

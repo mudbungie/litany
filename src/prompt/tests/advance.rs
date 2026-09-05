@@ -49,6 +49,7 @@ pub(super) fn worker_config() -> WorkerConfig {
         soul: "be helpful".into(),
         binary: "bz".into(),
         workflow: Workflow::parse("events: {}\n", std::path::Path::new("workflow.yaml")).unwrap(),
+        workflow_commit: super::stubs::STUB_SHA.into(),
         manifest: None,
         expect_handshake: false,
     }

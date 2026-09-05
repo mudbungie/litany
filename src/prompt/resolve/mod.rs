@@ -101,6 +101,13 @@ pub(super) struct WorkerConfig {
     /// derives both from it rather than mirroring them into their own
     /// fields (`docs/PRINCIPLES.md` Single source of truth).
     pub(super) workflow: Workflow,
+    /// The commit `workflow` was read from — the nearest standing
+    /// workflow mark's when one stands, else [`Self::config_commit`].
+    /// Carried, never re-derived: the mark is a ref an operator may
+    /// rewrite between this resolution and whoever asks later, and the
+    /// step record's policy provenance (bl-e4a0) must be what *this*
+    /// step resolved.
+    pub(super) workflow_commit: String,
     /// The role's context-assembly rules from the config's
     /// `manifest.yaml` `roles:` map (§5.2), read from the same config
     /// commit. `None` when the manifest lists no entry for this role —
@@ -135,6 +142,7 @@ impl WorkerConfig {
             retry: self.workflow.retry,
             budgets: self.workflow.budgets,
             workflow: &self.workflow,
+            workflow_commit: &self.workflow_commit,
             manifest: self.manifest.as_ref(),
             expect_handshake: self.expect_handshake,
         }
@@ -201,7 +209,8 @@ pub(super) fn resolve_worker(
     // The workflow question has its own answer (§6 *The workflow mark*):
     // the nearest workflow mark on the agent's descent when one stands,
     // else this same governing commit ([`workflow_source`]).
-    let workflow = workflow_source::resolve_workflow(workspace, &source, &commit, deps)?;
+    let (workflow, workflow_commit) =
+        workflow_source::resolve_workflow(workspace, &source, &commit, deps)?;
     // §4.3: every `dispatch(<role>)` binding must name a role the config
     // declares. Checked here, at the load — a workflow naming an
     // undeclared role is declined before the first model call, not at
@@ -232,6 +241,7 @@ pub(super) fn resolve_worker(
         soul,
         binary,
         workflow,
+        workflow_commit,
         manifest,
         expect_handshake,
     })

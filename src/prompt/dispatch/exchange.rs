@@ -202,6 +202,8 @@ pub(in crate::prompt) fn run_exchange(
             &step_dir_rel_str,
             &StepMeta {
                 commit: commit_sha,
+                config_commit: Some(resolved.grant.config_commit.to_string()),
+                workflow_commit: Some(resolved.workflow_commit.to_string()),
                 started_at,
                 ended_at,
             },

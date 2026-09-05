@@ -28,30 +28,39 @@ use crate::template::GitRunner;
 use crate::workspace::workflow_mark;
 use std::path::Path;
 
-/// The agent's workflow (§6): the nearest workflow mark's commit when
-/// one stands, else the governing config commit — the general path. A
-/// marked commit gets its own §10 schema-version guard before its
-/// workflow is interpreted, exactly as the governing commit did in
-/// [`super::resolve_worker`]: a mark aimed at a commit authored by a
-/// newer harness declines before parsing shapes it cannot read.
+/// The agent's workflow (§6) **and the commit it was read from**: the
+/// nearest workflow mark's commit when one stands, else the governing
+/// config commit — the general path. A marked commit gets its own §10
+/// schema-version guard before its workflow is interpreted, exactly as
+/// the governing commit did in [`super::resolve_worker`]: a mark aimed
+/// at a commit authored by a newer harness declines before parsing
+/// shapes it cannot read.
+///
+/// The commit comes back rather than being re-derived by whoever wants
+/// it: the mark is a ref an operator may rewrite at any moment, so a
+/// second read of it after the step is a different question with a
+/// different answer. The step record's provenance (bl-e4a0) is what
+/// *this* resolution answered.
 pub(super) fn resolve_workflow(
     workspace: &Path,
     source: &ConfigSource<'_>,
     governing: &str,
     deps: &Deps<'_>,
-) -> Result<Workflow, Error> {
+) -> Result<(Workflow, String), Error> {
     let marked = match source {
         ConfigSource::Fork(_) => None,
         ConfigSource::Agent(agent_id) => nearest_mark(workspace, agent_id, deps.git),
     };
-    match marked {
-        None => read_workflow(workspace, governing, deps),
+    let commit = match marked {
+        None => governing.to_string(),
         Some(commit) => {
             let version_raw = read_control(workspace, &commit, VERSION_FILE, deps)?;
             Version::parse(&version_raw, &control_origin(&commit, VERSION_FILE))?;
-            read_workflow(workspace, &commit, deps)
+            commit
         }
-    }
+    };
+    let workflow = read_workflow(workspace, &commit, deps)?;
+    Ok((workflow, commit))
 }
 
 /// One workflow read: `<commit>:workflow.yaml`, parsed under the closed
