@@ -76,7 +76,13 @@ fn a_dispatched_child_wears_its_name_and_message_resolves_it() {
     });
     assert!(matches!(r.unwrap(), Outcome::Quiet));
     // Beside the dispatch message the fork already deposited (§2.5),
-    // one `user`-sender deposit — ours, addressed by name.
+    // one `user`-sender deposit — ours, addressed by name. The prefix
+    // is a fact this beat owns: `with_fx` hands the verb
+    // `conv_branch: None`, so the sender is `user` by injection. It was
+    // read from the live process environment until bl-b5b1, which made
+    // this line load-sensitive — a sibling beat setting the §3.3
+    // contract vars for its own run renamed this deposit and left zero
+    // `user-` files here.
     let ours = std::fs::read_dir(inbox_dir(&ws, &child))
         .unwrap()
         .flatten()

@@ -68,6 +68,11 @@ const SEAM: &[&str] = &[
 /// The binding seam's own declarations, in the module that holds them
 /// (`cmd::seam`): the product, the injections and the failure.
 const SEAM_TYPES: &[&str] = &[
+    // The one contract variable a binding must read to fill
+    // `Fx.conv_branch`, re-exported beside that field because
+    // `prompt::tool` is below the surface (bl-b5b1) — the same reason
+    // `BUILTIN_TOOLS` is re-exported above.
+    "use ENV_CONV_BRANCH",
     "enum Outcome",
     "derive Outcome: Debug",
     "variant Outcome::Line",
@@ -77,6 +82,7 @@ const SEAM_TYPES: &[&str] = &[
     "struct Fx",
     "field Fx.driver_target",
     "field Fx.adapter_target",
+    "field Fx.conv_branch",
     "field Fx.editor",
     "field Fx.tool_stdin",
     "field Fx.tool_stdout",

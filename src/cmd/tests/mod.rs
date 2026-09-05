@@ -64,7 +64,7 @@ fn with_fx<R>(
     let mut stdout: Vec<u8> = Vec::new();
     let mut stderr: Vec<u8> = Vec::new();
     let stop = AtomicBool::new(false);
-    let mut fx = Fx { driver_target: PathBuf::from(driver_target), adapter_target: None, editor, tool_stdin: &mut stdin_ref, tool_stdout: &mut stdout, tool_stderr: &mut stderr, stop: &stop, tool_injection: None };
+    let mut fx = Fx { driver_target: PathBuf::from(driver_target), adapter_target: None, conv_branch: None, editor, tool_stdin: &mut stdin_ref, tool_stdout: &mut stdout, tool_stderr: &mut stderr, stop: &stop, tool_injection: None };
     let r = f(&mut fx);
     drop(fx);
     (r, stdout, stderr)

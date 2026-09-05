@@ -60,6 +60,10 @@ fn main() -> ExitCode {
             // stays the models.yaml `adapter:` override, else `bz` on PATH
             // (§4.2/§4.4). Only an embedding host names itself here.
             adapter_target: None,
+            // The §3.3 contract var as this process was started with it
+            // — the deposit sender `litany message` resolves. Read here,
+            // at the process edge, and nowhere else (§3.4).
+            conv_branch: std::env::var_os(litany::cmd::seam::ENV_CONV_BRANCH),
             editor: &editor,
             tool_stdin: &mut stdin,
             tool_stdout: &mut stdout,

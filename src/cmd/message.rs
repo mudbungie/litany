@@ -1,6 +1,7 @@
 //! `litany message` — deposit into an agent's inbox and probe the
-//! executor lock (ARCH §2.11, §3.4). The sender is resolved from
-//! `LITANY_CONV_BRANCH` inside [`crate::prompt::inbox::cli_run`].
+//! executor lock (ARCH §2.11, §3.4). The sender is resolved from the
+//! binding's [`Fx::conv_branch`](super::Fx) — the process's
+//! `LITANY_CONV_BRANCH` — inside [`crate::prompt::inbox::cli_run`].
 //!
 //! **The recipient is addressed by id or by unique name (§2.11).** This
 //! is the one verb that resolves a display name
@@ -62,8 +63,14 @@ pub fn run(args: Args, fx: &mut Fx) -> Result<Outcome, Error> {
     )
     .map_err(|e| Error::new("message", e))?;
     let failed = branch_failed(&args.workspace, &agent);
-    let probe = inbox::cli_run(&args.workspace, &agent, &args.content, &fx.driver_target)
-        .map_err(|e| Error::new("message", e))?;
+    let probe = inbox::cli_run(
+        &args.workspace,
+        &agent,
+        &args.content,
+        fx.conv_branch.as_deref(),
+        &fx.driver_target,
+    )
+    .map_err(|e| Error::new("message", e))?;
     if failed && probe == ProbeOutcome::Launched {
         eprintln!("{}", failed_branch_note(&agent));
     }

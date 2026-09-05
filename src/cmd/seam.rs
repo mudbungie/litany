@@ -16,6 +16,13 @@ use super::ToolInjection;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 
+/// The §3.3 stdio-contract variable [`Fx::conv_branch`] carries,
+/// re-exported beside the field a binding fills from it. `prompt::tool`
+/// is crate-private, so without this an exec binding would have to
+/// spell the name a second time — and a variable named in two places is
+/// a variable that gets renamed in one.
+pub use crate::prompt::tool::ENV_CONV_BRANCH;
+
 /// A verb's one product (ARCH §3.4 one-product convention). The binding
 /// performs it: [`Line`](Outcome::Line) is the verb's single stdout
 /// product; [`Quiet`](Outcome::Quiet) is a product-less success;
@@ -54,6 +61,21 @@ pub struct Fx<'a> {
     /// else `bz` on PATH); a named target skips the load-time version
     /// guard, the in-band `MessageStart.v` handshake governing (§4.4).
     pub adapter_target: Option<PathBuf>,
+    /// The §3.3 stdio contract's `LITANY_CONV_BRANCH` as this process
+    /// was started with it — the fact `litany message` resolves its
+    /// deposit **sender** from
+    /// ([`crate::prompt::inbox::resolve_cli_sender`]: set and non-empty
+    /// is the calling agent's id, anything else is `user`). It is a
+    /// field here for the reason every other field is one — it is a
+    /// process-global, and the library reaches for none of its own
+    /// (this type's own contract, §3.4). It was a `std::env::var_os`
+    /// inside the verb until bl-b5b1, where that read made a beat
+    /// load-sensitive rather than wrong: the environment is per-PROCESS
+    /// and the test binary runs its beats in threads, so a sibling beat
+    /// setting the contract vars for its own run decided which sender an
+    /// unrelated in-process `message` recorded. Nothing brackets that;
+    /// only not reading it does.
+    pub conv_branch: Option<std::ffi::OsString>,
     /// The `litany config` `$EDITOR` hand-off (§2.2) — the interactive
     /// spawn the exec binding supplies as `cli::edit_in_editor`.
     pub editor: &'a dyn Fn(&Path) -> std::io::Result<()>,

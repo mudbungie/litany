@@ -260,15 +260,17 @@ pub fn cli_message(
 /// can advise on a branch whose latest model call failed (§2.10).
 /// Kept in the lib so the bin stays under the 300-line cap and the wiring
 /// is unit-testable — the same discipline as `stop::cli_run`. Resolves
-/// the sender from the live `LITANY_CONV_BRANCH` ([`resolve_cli_sender`])
-/// and wires the production clock plus the real [`AdvanceLauncher`]
-/// detached spawn (§2.11) at `driver_target` — the running-binary path
-/// the exec binding injects (`cmd::Fx::driver_target`, §3.4), never
-/// resolved in the library.
+/// the sender from `conv_branch` ([`resolve_cli_sender`]) and wires the
+/// production clock plus the real [`AdvanceLauncher`] detached spawn
+/// (§2.11) at `driver_target`. **Both arrive from the binding** — each
+/// is a process-global, and neither is reached for here
+/// (`cmd::Fx::driver_target` and `cmd::Fx::conv_branch`, §3.4, whose
+/// own doc records what reading the second one *here* cost, bl-b5b1).
 pub fn cli_run(
     workspace: &Path,
     agent: &str,
     content: &str,
+    conv_branch: Option<&OsStr>,
     driver_target: &Path,
 ) -> Result<ProbeOutcome, MessageError> {
     crate::workspace::require(workspace)?;
@@ -278,8 +280,7 @@ pub fn cli_run(
         "a message is addressed to an existing agent, by id or unique name (ARCH §2.11)",
         &crate::template::RealGit::new(),
     )?;
-    let sender =
-        resolve_cli_sender(std::env::var_os(crate::prompt::tool::ENV_CONV_BRANCH).as_deref());
+    let sender = resolve_cli_sender(conv_branch);
     let launcher = AdvanceLauncher::with_exe(driver_target.to_path_buf());
     cli_message(workspace, agent, content, &sender, &SystemClock, &launcher)
 }
