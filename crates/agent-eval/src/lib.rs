@@ -22,6 +22,7 @@ pub mod agent;
 pub mod compare;
 pub mod experiment;
 pub mod metrics;
+pub mod paired;
 pub mod record;
 pub mod report;
 pub mod repro;

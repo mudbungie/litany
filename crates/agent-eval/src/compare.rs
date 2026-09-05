@@ -13,6 +13,7 @@
 //! from separate invocations get told what differed.
 
 use crate::metrics::Efficiency;
+use crate::paired;
 use crate::record::{self, Record, TaskRecord};
 use crate::report;
 use crate::stats::{self, Metrics};
@@ -51,6 +52,7 @@ pub fn render(baseline: &Record, candidate: &Record) -> String {
     out.push_str(&indent(&report::reproducibility_block(candidate)));
     out.push_str(&controls_line(baseline, candidate));
     out.push_str(&total_block(&mb, &mc, &shared_b, &shared_c));
+    out.push_str(&significance_block(&shared_b, &shared_c));
     out.push_str(&category_block(&mb, &mc));
     out.push_str(&task_block(&shared_b, &c_by_id));
     out.push_str(&unmatched_block("baseline", &baseline.tasks, &c_by_id));
@@ -111,6 +113,45 @@ fn total_block(mb: &Metrics, mc: &Metrics, b: &[TaskRecord], c: &[TaskRecord]) -
         counter_pair(eb.output_tokens, ec.output_tokens),
         counter_pair(eb.cache_read_tokens, ec.cache_read_tokens),
         counter_pair(eb.cache_write_tokens, ec.cache_write_tokens),
+    )
+}
+
+/// The paired verdict on the pass@1 delta (bl-a35e,
+/// [`crate::paired`]): one exact two-sided sign test over the shared
+/// tasks' pass rates, its counts, and the method named beside its
+/// assumptions — a delta with no answer about whether it is real is
+/// what the block above gives on its own, and the §12 criterion asks
+/// for the answer.
+///
+/// The pairs come from the two shared-task lists, which `render` built
+/// in the *same* order from the baseline's own ordering, so index `i`
+/// is one task on both sides.
+fn significance_block(b: &[TaskRecord], c: &[TaskRecord]) -> String {
+    let pairs: Vec<(f64, f64)> = b
+        .iter()
+        .zip(c)
+        .map(|(tb, tc)| (pass_rate(tb), pass_rate(tc)))
+        .collect();
+    let t = paired::sign_test(&pairs);
+    let verdict = match t.p_value {
+        None => "no task moved — no verdict".to_string(),
+        Some(p) => format!(
+            "p = {p:.4} ({}significant at alpha = {})",
+            if t.significant() { "" } else { "not " },
+            paired::ALPHA,
+        ),
+    };
+    format!(
+        "\npass@1 significance: {verdict}\n  \
+         {} better, {} worse, {} tied of {} shared task(s)\n  \
+         exact two-sided sign test, paired per task over per-task pass rates; ties \
+         discarded. Paired because runs cluster within a task, so pooling every run \
+         would treat them as independent trials; directional, so it reads which way \
+         each task moved and never how far\n",
+        t.better,
+        t.worse,
+        t.tied,
+        pairs.len(),
     )
 }
 

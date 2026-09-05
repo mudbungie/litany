@@ -232,3 +232,59 @@ fn an_unreported_model_set_is_never_called_a_difference() {
     let text = compare::render(&baseline, &candidate);
     assert!(text.contains("controls: held"));
 }
+
+#[test]
+fn the_report_answers_whether_the_pass_at_1_delta_is_real() {
+    // bl-a35e: the block above it renders each side's own Wilson
+    // interval and the difference, which is *how big* and never
+    // *whether*. Six tasks all improving is the smallest unanimous
+    // sample whose exact two-sided p (0.03125) clears 0.05.
+    let ids = ["a", "b", "c", "d", "e", "f"];
+    let arm = |pass: bool| {
+        ids.iter()
+            .map(|id| task(id, "early_termination", vec![run(pass, 1000, None)]))
+            .collect::<Vec<_>>()
+    };
+    let out = compare::render(
+        &Record {
+            provenance: provenance("d"),
+            tasks: arm(false),
+        },
+        &Record {
+            provenance: provenance("d"),
+            tasks: arm(true),
+        },
+    );
+    assert!(out.contains("pass@1 significance: p = 0.0312"), "{out}");
+    assert!(out.contains("(significant at alpha = 0.05)"), "{out}");
+    assert!(
+        out.contains("6 better, 0 worse, 0 tied of 6 shared task(s)"),
+        "{out}"
+    );
+    assert!(out.contains("exact two-sided sign test"), "{out}");
+}
+
+#[test]
+fn a_comparison_where_nothing_moved_reports_no_verdict() {
+    // An empty null distribution is the absence of an answer, and the
+    // report says so rather than printing a measured-looking p = 1.
+    let arm = || vec![task("a", "early_termination", vec![run(true, 1000, None)])];
+    let out = compare::render(
+        &Record {
+            provenance: provenance("d"),
+            tasks: arm(),
+        },
+        &Record {
+            provenance: provenance("d"),
+            tasks: arm(),
+        },
+    );
+    assert!(
+        out.contains("pass@1 significance: no task moved — no verdict"),
+        "{out}"
+    );
+    assert!(
+        out.contains("0 better, 0 worse, 1 tied of 1 shared task(s)"),
+        "{out}"
+    );
+}
