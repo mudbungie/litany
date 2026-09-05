@@ -21,14 +21,14 @@ use std::cell::RefCell;
 
 /// Commit the worktree the way the harness commits a tool's side effect
 /// (§2.3, §3.3 — `git add -A` with the tool result).
-fn commit_side_effect(wt: &std::path::Path) {
+pub(super) fn commit_side_effect(wt: &std::path::Path) {
     let g = RealGit::new();
     g.run(wt, &["add", "-A"]).unwrap();
     g.run(wt, &["commit", "-m", "tool: write_summary"]).unwrap();
 }
 
 /// Nothing is staged for the next commit — the decline removed nothing.
-fn nothing_staged(wt: &std::path::Path) {
+pub(super) fn nothing_staged(wt: &std::path::Path) {
     let staged = RealGit::new()
         .run_capture(wt, &["diff", "--cached", "--name-status"])
         .unwrap();
@@ -164,29 +164,32 @@ fn a_tree_with_no_dispatch_commit_has_no_product_of_its_own() {
     );
 }
 
-/// A runner that answers the founding-commit `log` and fails the
-/// own-product `diff`, so the git arm of [`written_by_this_pass`] is
-/// reachable without breaking the lookup ahead of it.
-struct DiffFails {
-    founding: String,
-    seen: RefCell<Vec<String>>,
+/// A runner that answers every git call the predicate makes ahead of
+/// `fails`, and fails that one — so each git arm of the predicate is
+/// reachable without breaking the lookups in front of it.
+pub(super) struct OneCallFails {
+    pub(super) fails: &'static str,
+    pub(super) founding: String,
+    pub(super) seen: RefCell<Vec<String>>,
 }
-impl GitRunner for DiffFails {
+impl GitRunner for OneCallFails {
     fn run(&self, _dir: &std::path::Path, _args: &[&str]) -> std::io::Result<()> {
         unreachable!("the decline precedes every write")
     }
     fn run_capture(&self, _dir: &std::path::Path, args: &[&str]) -> std::io::Result<String> {
         self.seen.borrow_mut().push(args.join(" "));
         match args.first() {
+            Some(v) if *v == self.fails => Err(std::io::Error::other("boom")),
             Some(&"log") => Ok(self.founding.clone()),
-            _ => Err(std::io::Error::other("diff boom")),
+            _ => Ok(String::new()),
         }
     }
 }
 
 #[test]
 fn a_failed_own_product_diff_surfaces_as_a_git_error() {
-    let git = DiffFails {
+    let git = OneCallFails {
+        fails: "diff",
         founding: "cafe1234\n".into(),
         seen: RefCell::new(Vec::new()),
     };

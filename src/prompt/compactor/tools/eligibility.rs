@@ -62,7 +62,10 @@
 //! nominable — the same distinction its summary draws, for the same
 //! reason: superseding it is the compaction.
 //!
-//! All three are declined **at the nomination**, in-band, so the
+//! All three are read against the **removal set** — every path
+//! `git rm -r` would take, not the string nominated (bl-7234) — so an
+//! ancestor nomination cannot walk around a class its own member is in.
+//! And all three are declined **at the nomination**, in-band, so the
 //! compactor's summary is never premised on a deletion that did not
 //! happen. Live-branch-wins is dropped at the landing instead, precisely
 //! because *its* fact — a race with the live branch — is not knowable
@@ -87,19 +90,70 @@ const DISPATCH_SEQ: u32 = 1;
 /// The first two classes are derived from the path alone — the dispatch
 /// entry from the same `NNN-` prefix reading `dispatch::transcript`'s
 /// counter uses, the system slot from the file names the composer pins —
-/// so they need no tree, no config and no state, and they hold for a
-/// `.md` delivery and a resumed conversation's inherited first entry
-/// alike. The third cannot be: "whose output is this file" is not in the
-/// name, and a blanket `summary/**` refusal would forbid the supersede
-/// the chain depends on (module docs). It reads the branch instead, at
-/// the one anchor the landing already classifies the product by.
+/// and they hold for a `.md` delivery and a resumed conversation's
+/// inherited first entry alike. The third cannot be: "whose output is
+/// this file" is not in the name, and a blanket `summary/**` refusal
+/// would forbid the supersede the chain depends on (module docs). It
+/// reads the branch instead, at the one anchor the landing already
+/// classifies the product by.
+///
+/// **The subject is the removal set, not the string** (bl-7234).
+/// `mark_for_deletion` runs `git rm -r`, so a nomination of an ancestor
+/// takes a not-eligible path with it while an exact-match predicate says
+/// nothing: `.` sheds the system slot, `messages` sheds the dispatch
+/// entry. So the two path-derived classes are read against the
+/// nomination *and* against every path [`removes`] says the nomination
+/// would remove, and the third is read with the nomination as a
+/// pathspec, which git already resolves over the subtree. One shape for
+/// all three, no ancestor/exact split: **a nomination is declined when
+/// what it would remove holds a path this pass may not shed**, and the
+/// decline names that path. Shedding `messages` wholesale is therefore
+/// refused — the dispatch entry's reason (the operator's only copy of
+/// the opening prompt, §2.7) does not weaken because the gesture was
+/// coarser, and every other entry stays nominable one by one.
 pub(super) fn not_compaction_eligible(
     worktree: &Path,
     agent_id: &str,
     path: &str,
     git: &dyn GitRunner,
-) -> Result<Option<&'static str>, Error> {
+) -> Result<Option<String>, Error> {
     let rel = path.strip_prefix("./").unwrap_or(path);
+    if let Some(what) = dispatch_written(rel) {
+        return Ok(Some(what.to_string()));
+    }
+    for member in removes(worktree, rel, git)? {
+        if let Some(what) = dispatch_written(&member) {
+            return Ok(Some(carries(&member, what)));
+        }
+    }
+    if let Some(member) = written_by_this_pass(worktree, agent_id, rel, git)? {
+        return Ok(Some(if member == rel {
+            OWN_PRODUCT.to_string()
+        } else {
+            carries(&member, OWN_PRODUCT)
+        }));
+    }
+    Ok(None)
+}
+
+/// The third class's phrase, shared by the nomination arm and the
+/// removal-set arm below.
+const OWN_PRODUCT: &str = "this compaction pass's own product — a file this compactor has written since \
+     its own dispatch commit, which is what the landing carries forward (ARCH §2.6), \
+     not history it may shed";
+
+/// The decline's phrasing when the nomination is not itself the
+/// not-eligible path but removes it. The model is told the member and
+/// the rule, so it can re-nominate the siblings rather than guess which
+/// file in the subtree it hit.
+fn carries(member: &str, what: &str) -> String {
+    format!("a nomination `git rm -r` would remove {member} with, which is {what}")
+}
+
+/// What the **dispatch wrote** — the two classes knowable from the path
+/// alone, or `None` when the path is neither. Read once against the
+/// nomination and once against every path the nomination removes.
+fn dispatch_written(rel: &str) -> Option<&'static str> {
     if rel
         .strip_prefix(MESSAGES_DIR)
         .and_then(|r| r.strip_prefix('/'))
@@ -107,39 +161,60 @@ pub(super) fn not_compaction_eligible(
         .and_then(|nnn| nnn.parse::<u32>().ok())
         == Some(DISPATCH_SEQ)
     {
-        return Ok(Some(
+        return Some(
             "the branch's dispatch entry, its opening prompt in transcript form, \
              written at dispatch and never rewritten",
-        ));
+        );
     }
     if crate::prompt::dispatch::step_commit::SYSTEM_SLOT_FILES.contains(&rel)
         || rel == crate::facts::FILE
     {
-        return Ok(Some(
+        return Some(
             "one of the system slot's files (goal.md, soul.md, name) or the lineage's \
              facts.md, composed into the head of every model call (ARCH §5.2, §5.5), \
              written at dispatch and never rewritten",
-        ));
+        );
     }
-    if written_by_this_pass(worktree, agent_id, rel, git)? {
-        return Ok(Some(
-            "this compaction pass's own product — a file this compactor has written since \
-             its own dispatch commit, which is what the landing carries forward (ARCH §2.6), \
-             not history it may shed",
-        ));
-    }
-    Ok(None)
+    None
 }
 
-/// Has *this* compaction pass written `rel` — is it an addition or a
-/// rewrite in the range after the compactor's own dispatch commit?
+/// Every tracked path `git rm -r -- <rel>` would remove — the index
+/// entries the nomination's pathspec matches, which for a file is that
+/// file and for a directory is its whole subtree.
+///
+/// This is the **removal set**, and it is what the predicate judges: a
+/// nomination is a gesture, and the invariant is about the files the
+/// gesture takes away. `git ls-files` reads the index, which is the same
+/// list `git rm` acts on, so the two can never disagree. An untracked or
+/// nonexistent path answers with an empty set and falls through to the
+/// nonexistent-path decline `git rm` raises itself.
+fn removes(worktree: &Path, rel: &str, git: &dyn GitRunner) -> Result<Vec<String>, Error> {
+    let out = git
+        .run_capture(worktree, &["ls-files", "-z", "--", rel])
+        .map_err(|source| Error::Git {
+            op: "mark_for_deletion removal set",
+            source,
+        })?;
+    Ok(out.split_terminator('\0').map(str::to_string).collect())
+}
+
+/// Which path *this* compaction pass has written under `rel` — the
+/// first addition or rewrite in the range after the compactor's own
+/// dispatch commit, or `None` when there is none.
+///
+/// A **directory** nomination is covered by the same call and needs no
+/// arm of its own: a git pathspec naming a directory matches its whole
+/// subtree, so `-- summary` answers with `summary/002.md` exactly as
+/// `-- summary/002.md` does. That is why the removal set above judges
+/// only the two path-derived classes — this one already reads the
+/// gesture, not the string.
 ///
 /// That range is the landing's definition of the compaction product
 /// ([`super::land::base`]: "a path *added under `summary/`* is the
 /// `write_summary` product"), read here against the **index** rather
 /// than a commit pair, which is exactly the set `git rm` could carry
 /// away: a summary already committed by its tool step and one merely
-/// staged both answer the same, and an untracked one answers `false`
+/// staged both answer the same, and an untracked one answers `None`
 /// because `git rm` refuses it anyway — the nonexistent-path decline
 /// takes that case, and nothing is lost either way.
 ///
@@ -157,9 +232,9 @@ fn written_by_this_pass(
     agent_id: &str,
     rel: &str,
     git: &dyn GitRunner,
-) -> Result<bool, Error> {
+) -> Result<Option<String>, Error> {
     let Some(dispatch) = crate::prompt::role::founding_sha(worktree, "HEAD", agent_id, git)? else {
-        return Ok(false);
+        return Ok(None);
     };
     let out = git
         .run_capture(
@@ -179,5 +254,5 @@ fn written_by_this_pass(
             op: "mark_for_deletion own-product diff",
             source,
         })?;
-    Ok(!out.trim().is_empty())
+    Ok(out.lines().next().map(str::to_string))
 }

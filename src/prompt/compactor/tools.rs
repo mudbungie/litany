@@ -96,7 +96,7 @@ pub(crate) fn mark_for_deletion(
     if let Some(what) = not_compaction_eligible(worktree, agent_id, path, git)? {
         return Err(Error::NotCompactionEligible {
             path: path.to_string(),
-            what: what.to_string(),
+            what,
         });
     }
     git.run(worktree, &["rm", "-r", "-q", "--", path])
@@ -132,3 +132,5 @@ fn next_seq(dir: &Path) -> std::io::Result<u32> {
 mod tests;
 #[cfg(test)]
 mod tests_own_product;
+#[cfg(test)]
+mod tests_removal_set;
