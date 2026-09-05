@@ -1,6 +1,8 @@
 //! The evaluation orchestrator (ARCH §9.3): experiment × suite × N.
 //!
-//! For each task, for each of N runs, the runner seeds a fresh isolated
+//! For each task, for each of N runs, **for each experiment** — the
+//! order is deliberate (bl-b653, [`evaluate_all`]) — the runner seeds a
+//! fresh isolated
 //! workspace (its own `LITANY_HOME` and working directory under `base`),
 //! runs the task `setup` (shell), invokes the agent through the [`Agent`]
 //! seam, then runs the task `check` (shell) — **exit 0 is the sole pass
@@ -47,7 +49,27 @@ pub struct EvalConfig {
 /// value for every variant — held equal by construction, not checked
 /// after the fact — and each variant's runs are namespaced under
 /// `base/<experiment>` so the arms share no run directory. The order
-/// given is preserved: the first record is the comparison's baseline.
+/// given is preserved in the result: the first record is the
+/// comparison's baseline.
+///
+/// **Execution is interleaved, not arm-after-arm** (bl-b653). Every
+/// declared control is held equal by construction, but **time is an
+/// undeclared one**: a live evaluation is long, the provider changes
+/// under it, and running one variant to completion before starting the
+/// next hands the whole of that drift to the later arms. So the loops
+/// invert — the outer walk is (task, run) and the *inner* walk is the
+/// experiments — which places the arms of one cell adjacent in time.
+/// Round-robin rather than a seeded shuffle, because adjacency is
+/// stronger than evenness and costs no seed to reproduce: a shuffle
+/// spreads drift evenly across arms, while pairing puts the two
+/// measurements of one (task, run) within seconds of each other, which
+/// is the design the paired comparison reads (`crate::compare`).
+///
+/// Nothing else moves: the run directory is still
+/// `base/<experiment>/<task>/<run>` and a failing run's archive is
+/// still namespaced by variant, so the record the evaluation writes is
+/// byte-identical to the one the sequential order wrote — this changes
+/// *when* each run happens, never what is recorded.
 pub fn evaluate_all(
     experiments: &[Experiment],
     tasks: &[Task],
@@ -57,47 +79,36 @@ pub fn evaluate_all(
     cfg: &EvalConfig,
     controls: &Controls,
 ) -> io::Result<Vec<Record>> {
-    experiments
+    let mut arms: Vec<Vec<TaskRecord>> = experiments
         .iter()
-        .map(|experiment| {
-            let tasks = evaluate(
-                tasks,
-                experiment,
-                &base.join(&experiment.name),
-                agent,
-                bundler,
-                cfg,
-            )?;
-            Ok(Record {
-                provenance: controls.provenance(experiment),
-                tasks,
-            })
+        .map(|_| {
+            tasks
+                .iter()
+                .map(|task| TaskRecord {
+                    id: task.id.clone(),
+                    categories: task.categories.clone(),
+                    runs: Vec::with_capacity(cfg.runs),
+                })
+                .collect()
         })
-        .collect()
-}
-
-/// Run the whole evaluation, yielding every task's per-run observations.
-pub fn evaluate(
-    tasks: &[Task],
-    experiment: &Experiment,
-    base: &Path,
-    agent: &dyn Agent,
-    bundler: Option<&dyn Bundler>,
-    cfg: &EvalConfig,
-) -> io::Result<Vec<TaskRecord>> {
-    let mut records = Vec::with_capacity(tasks.len());
-    for task in tasks {
-        let mut runs = Vec::with_capacity(cfg.runs);
+        .collect();
+    for (t, task) in tasks.iter().enumerate() {
         for run in 0..cfg.runs {
-            runs.push(run_once(task, experiment, base, agent, bundler, cfg, run)?);
+            for (e, experiment) in experiments.iter().enumerate() {
+                let base = base.join(&experiment.name);
+                let record = run_once(task, experiment, &base, agent, bundler, cfg, run)?;
+                arms[e][t].runs.push(record);
+            }
         }
-        records.push(TaskRecord {
-            id: task.id.clone(),
-            categories: task.categories.clone(),
-            runs,
-        });
     }
-    Ok(records)
+    Ok(experiments
+        .iter()
+        .zip(arms)
+        .map(|(experiment, tasks)| Record {
+            provenance: controls.provenance(experiment),
+            tasks,
+        })
+        .collect())
 }
 
 /// One (task, run): seed, setup, agent (timed), metrics, check.
