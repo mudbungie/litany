@@ -123,7 +123,12 @@ BRANCH="agents/$ID"
 # Observable check 1: the agent ref exists and carries a transcript commit.
 git -C "$BARE" show-ref --verify --quiet "refs/heads/$BRANCH" \
   || fail "agent ref $BRANCH does not exist"
-git -C "$BARE" log --format=%s "$BRANCH" | grep -q '^transcript ' \
+# The subject is a herestring and not a pipe (bl-d3bc): under the `pipefail`
+# set at the head of this file, a piped `grep -q` reports the pipeline FAILED
+# exactly when the pattern MATCHED — the writer dies of SIGPIPE the instant the
+# reader answers — so this beat would fail the smoke run precisely when the
+# transcript commit it is looking for is there.
+grep -q '^transcript ' <<<"$(git -C "$BARE" log --format=%s "$BRANCH")" \
   || fail "no committed transcript entry on $BRANCH"
 
 # Observable check 2: a step record exists off-worktree (ARCH §2.2).

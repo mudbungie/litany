@@ -36,19 +36,25 @@
 # not an invariant, and a file that leaked once and was never touched again
 # would never be looked at again.
 #
-# THE REGRESSION HALF IS `--self-test`, and it is the point of this file. A
-# leak gate does not die by being wrong; it dies by silently matching nothing
-# after a pattern is edited, and then passing everything forever. So every
-# rule owns a fixture (`scripts/leak-fixtures/<rule>.txt`) in which EVERY
-# non-comment line must be flagged — line granularity, not file granularity,
-# so one dead alternative inside a nine-way `vendor-token` pattern cannot hide
-# behind the eight that still work — and must carry `FIXTURE_MARKER`, because
-# no regex can tell a real secret from a fabricated one and only the value can
-# say so. `rules-audit` (the ast-grep equivalent in the Makefile) only asserts
-# its fixture DIRECTORY is flagged; this is the stronger check. The other
-# direction is `clean.txt` / `clean-paths.txt`: near-misses that must NOT be
-# flagged, because a gate that cries wolf on a fifth of the tree gets
-# bypassed, and a bypassed gate is no gate.
+# THE REGRESSION HALF IS `--self-test`, and its harness lives next door in
+# `scripts/leak-selftest.sh` — sourced into this shell, never re-implementing
+# the mechanism, and in its own file because "mechanism" and "the proof the
+# mechanism still bites" are a real seam rather than a shaved line. Its head
+# carries the reasoning; the one rule of it that binds THIS file is the next
+# paragraph.
+#
+# A `grep -q` HERE READS FROM A HERESTRING, NEVER FROM A PIPE, and the check at
+# the foot of `self_test` (leak-selftest.sh) holds every tracked bash script in
+# the tree to it. A `grep -q` on the receiving end of a pipe is a race, not a
+# style: it exits the instant it matches and closes the read end, the writer is
+# killed by SIGPIPE part-way through its own write, and `set -o pipefail` then
+# takes the pipeline's status from that DEAD WRITER rather than from the reader
+# that answered — so the pipeline reports FAILURE exactly when the pattern
+# MATCHED. `PIPESTATUS` at a false answer reads `141 0`. In `scan_paths`, where
+# the shape is `&& report`, it DROPS a real forbidden path in silence, which is
+# the gate lying rather than a harness mis-scoring itself. The ban is on the
+# SHAPE rather than on the option, because a sourced file cannot see whether
+# its caller set `pipefail`. Measured and reasoned in full on yog bl-e33a.
 #
 # NOTHING IS EXEMPT FROM THE TREE SCAN ANY MORE. The scanner and its rule
 # table used to be skipped for being made of the patterns; they are scanned,
@@ -124,10 +130,16 @@ scan_rule() {
 }
 
 # scan_paths PATH... -> findings for the path rule.
+#
+# The subject is a herestring and not a pipe, and here that is the gate's own
+# correctness rather than a style (reasoned in full at the head of this file): a
+# piped `grep -q` dies of SIGPIPE when it MATCHES, and under this file's
+# `pipefail` the `&&` would then DROP the finding — a real forbidden path
+# reported by nobody.
 scan_paths() {
   local p
   for p in "$@"; do
-    printf '%s\n' "$p" | grep -qE "$FORBIDDEN_PATH" && printf '  %s  [forbidden-path]\n' "$p"
+    grep -qE "$FORBIDDEN_PATH" <<<"$p" && printf '  %s  [forbidden-path]\n' "$p"
   done
   return 0
 }
@@ -139,7 +151,7 @@ scan_binary() {
   for f in "$@"; do
     [ -s "$f" ] || continue
     grep -qI '' "$f" 2>/dev/null && continue
-    printf '%s\n' "$f" | grep -qE "$BINARY_ALLOWED" && continue
+    grep -qE "$BINARY_ALLOWED" <<<"$f" && continue
     printf '  %s  [binary-content]\n' "$f"
   done
   return 0
@@ -205,73 +217,11 @@ scan_tree() {
   echo "leak-scan: $(( ${#files[@]} + ${#fixtures[@]} )) tracked files, no disclosure findings"
 }
 
-# --- self-test -------------------------------------------------------------
-
-# Every non-blank, non-'#' line of a rule's fixture must be flagged BY THAT
-# RULE and must carry FIXTURE_MARKER; nothing in the clean fixtures may be
-# flagged by anything.
-fixture_lines() {
-  local rule="$1" fixture="$2" hit="$3" ln fails=0 n=0 content
-  while IFS= read -r ln; do
-    [ -n "$ln" ] || continue
-    n=$((n + 1))
-    content="$(sed -n "${ln}p" "$fixture")"
-    if [ "$rule" = forbidden-path ]; then
-      printf '%s\n' "$hit" | grep -qF "$content" || {
-        echo "self-test: [$rule] line $ln of $fixture was NOT flagged" >&2; fails=1; }
-      continue
-    fi
-    printf '%s\n' "$hit" | grep -qE ":$ln  \[" || {
-      echo "self-test: [$rule] line $ln of $fixture was NOT flagged" >&2; fails=1; }
-    printf '%s' "$content" | grep -qi "$FIXTURE_MARKER" || {
-      echo "self-test: [$rule] line $ln of $fixture carries no '$FIXTURE_MARKER' marker — a fixture value must be unmistakably fabricated" >&2
-      fails=1; }
-  done <<<"$(grep -nvE '^(#|$)' "$fixture" | cut -d: -f1)"
-  [ "$n" -gt 0 ] || { echo "self-test: $fixture has no cases" >&2; fails=1; }
-  return "$fails"
-}
-
-self_test() {
-  local rule fixture fails=0 hit p
-  for rule in "${RULES[@]}" forbidden-path; do
-    fixture="$FIXTURES/$rule.txt"
-    if [ ! -f "$fixture" ]; then
-      echo "self-test: rule '$rule' has no fixture at $fixture" >&2; fails=1; continue
-    fi
-    if [ "$rule" = forbidden-path ]; then
-      hit="$(grep -vE '^(#|$)' "$fixture" | while IFS= read -r p; do scan_paths "$p"; done)"
-    else
-      hit="$(scan_rule "$rule" "$fixture")"
-    fi
-    fixture_lines "$rule" "$fixture" "$hit" || fails=1
-  done
-  # binary-content owns bytes, not lines: its fixture cannot carry a marker or
-  # be read at all, so it is capped instead. 512 bytes is far too small to
-  # smuggle a dump through the one file the scanner cannot look inside.
-  fixture="$FIXTURES/binary-content.bin"
-  [ -n "$(scan_binary "$fixture")" ] || {
-    echo "self-test: [binary-content] $fixture was NOT flagged" >&2; fails=1; }
-  [ "$(wc -c <"$fixture")" -le 512 ] || {
-    echo "self-test: $fixture is over the 512-byte cap on unreadable fixtures" >&2; fails=1; }
-  [ -z "$(scan_binary assets/yog-16.png)" ] || {
-    echo "self-test: a declared derivation (assets/yog-16.png) was flagged binary" >&2; fails=1; }
-  # The false-positive direction, and the half that keeps the gate usable: a
-  # near-miss for every rule, none of which may be flagged.
-  if ! scan "$FIXTURES/clean.txt"; then
-    echo "self-test: $FIXTURES/clean.txt was flagged above — a rule is over-broad" >&2
-    fails=1
-  fi
-  while IFS= read -r p; do
-    case "$p" in '#'*|'') continue ;; esac
-    [ -z "$(scan_paths "$p")" ] || {
-      echo "self-test: clean path '$p' was flagged — forbidden-path is over-broad" >&2; fails=1; }
-  done <"$FIXTURES/clean-paths.txt"
-  [ "$fails" -eq 0 ] || exit 1
-  echo "leak-scan: self-test OK — ${#RULES[@]} content rules + forbidden-path + binary-content all live, clean fixtures unflagged"
-}
 
 case "${1-}" in
-  --self-test) self_test ;;
+  # SOURCED rather than executed, so the harness runs against the same
+  # `scan`/`scan_rule`/`scan_paths`/`scan_binary` above that the gate runs.
+  --self-test) . "$HERE/leak-selftest.sh"; self_test ;;
   '') scan_tree ;;
   *) scan "$@" || exit 1 ;;
 esac
