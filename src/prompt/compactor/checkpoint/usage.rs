@@ -8,11 +8,26 @@
 //! assembly walks — and never `steps/`, which is diagnostic-only (§2.3).
 //!
 //! **Both numbers are the provider's, recorded and never computed.** The
-//! numerator is the entry's *prompt side*: `input_tokens` plus
-//! `cache_read_tokens` plus `cache_write_tokens`, each absent counter
-//! contributing nothing, because a `0` for a counter the provider never
-//! stated would be litany's arithmetic wearing brazen's voice
+//! numerator is the entry's `input_total_tokens` — the call's WHOLE
+//! prompt, cached slices included, which brazen seals per protocol
+//! shape so no consumer has to learn which dialect puts the cached
+//! slice inside the prompt counter and which puts it beside (brazen
+//! `specs/canonical-protocol.md` §3.2, brazen bl-d192). Its documented
+//! consumer rule is exactly this trigger's: `input_total_tokens /
+//! context_window` is fullness.
+//!
+//! **A record that predates the counter is read the old way.** The
+//! entry was written by whatever `bz` answered the call, so a pre-0.0.10
+//! adapter's `usage` sibling carries no `input_total_tokens`; that entry
+//! falls back to `input_tokens` plus `cache_read_tokens` plus
+//! `cache_write_tokens`, each absent counter contributing nothing,
+//! because a `0` for a counter the provider never stated would be
+//! litany's arithmetic wearing brazen's voice
 //! ([`crate::prompt::dispatch::entry`], brazen's zero-vs-unknown rule).
+//! The fallback over-reports on the three dialects whose prompt counter
+//! already contains the cached slice — it fires the trigger early, never
+//! late, which is the safe direction for a compaction clock.
+//!
 //! The denominator is the `context_window` the same report carries —
 //! brazen states it in band on the `Usage` event, and the transcript
 //! writer folds it in beside the counters like any other field brazen
@@ -41,8 +56,10 @@ const TOOL_ORIGIN: &str = "tool";
 /// The provider's report on the branch's newest model entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LastUsage {
-    /// The prompt side as reported: `input_tokens + cache_read_tokens +
-    /// cache_write_tokens`, absent counters contributing nothing.
+    /// The prompt side as reported: brazen's `input_total_tokens`, or —
+    /// for an entry written before that counter existed — the sum of
+    /// `input_tokens`, `cache_read_tokens` and `cache_write_tokens`,
+    /// absent counters contributing nothing (module docs).
     pub prompt_tokens: u64,
     /// The model's context window as the same report states it; `None`
     /// when the provider could not state one (module docs).
@@ -117,6 +134,9 @@ pub(super) fn model_entry(path: &Path) -> Option<(u32, String)> {
 
 /// The `usage` sibling of one entry's bytes, folded into a [`LastUsage`].
 /// A bare block array, or an object with no `usage`, reports nothing.
+/// The prompt side prefers brazen's served `input_total_tokens` and
+/// falls back to the three-counter sum only when the entry predates it
+/// (module docs).
 pub(super) fn report(bytes: &[u8], model: &str) -> Option<LastUsage> {
     let usage = serde_json::from_slice::<Value>(bytes)
         .ok()?
@@ -124,9 +144,14 @@ pub(super) fn report(bytes: &[u8], model: &str) -> Option<LastUsage> {
         .clone();
     let counter = |name: &str| usage.get(name).and_then(Value::as_u64).unwrap_or(0);
     Some(LastUsage {
-        prompt_tokens: counter("input_tokens")
-            + counter("cache_read_tokens")
-            + counter("cache_write_tokens"),
+        prompt_tokens: usage
+            .get("input_total_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or_else(|| {
+                counter("input_tokens")
+                    + counter("cache_read_tokens")
+                    + counter("cache_write_tokens")
+            }),
         context_window: usage.get("context_window").and_then(Value::as_u64),
         model: model.to_string(),
     })

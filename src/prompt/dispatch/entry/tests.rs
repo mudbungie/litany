@@ -92,6 +92,27 @@ fn a_reported_counter_is_never_superseded_by_an_unreported_one() {
 }
 
 #[test]
+fn a_counter_brazen_added_under_v1_rides_through_with_no_edit_here() {
+    // The fold is over the SERIALIZED counter names, not a field list, so
+    // `input_total_tokens` — brazen 0.0.10's resolved prompt total
+    // (bl-d192) — reaches the committed entry without an edit in this
+    // module. The compaction window trigger reads it back off exactly
+    // these bytes (`prompt::compactor::checkpoint::usage`).
+    let mut u = Usage::default();
+    u.input_tokens = Some(1);
+    u.cache_read_tokens = Some(900);
+    u.input_total_tokens = Some(901);
+    u.context_window = Some(200_000);
+    let mut report = UsageReport::default();
+    report.fold(&u);
+    assert_eq!(
+        sealed("", &report)["usage"],
+        json!({"input_tokens": 1, "cache_read_tokens": 900,
+               "input_total_tokens": 901, "context_window": 200_000})
+    );
+}
+
+#[test]
 fn cache_counters_ride_through_verbatim() {
     let mut u = Usage::default();
     u.input_tokens = Some(1);

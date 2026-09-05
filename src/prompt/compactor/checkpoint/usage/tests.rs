@@ -19,10 +19,32 @@ fn usage_of(prompt: u64, window: Option<u64>, model: &str) -> LastUsage {
 }
 
 #[test]
-fn the_prompt_side_sums_every_reported_counter_and_ignores_the_output() {
-    // §5.1: input + cache_read + cache_write, and *not* output_tokens —
-    // the trigger measures what the next call must re-send, which is the
-    // prompt side alone.
+fn the_prompt_side_is_the_served_total_and_ignores_the_output() {
+    // §5.1: brazen's `input_total_tokens` — the whole prompt, cached
+    // slices included — and *not* `output_tokens`: the trigger measures
+    // what the next call must re-send, which is the prompt side alone.
+    // The served total wins over the three raw counters, which here would
+    // sum to 35 on a dialect whose prompt counter already contains the
+    // cached slice.
+    let dir = TempDir::new().unwrap();
+    write(
+        dir.path(),
+        "004-claude-fable-5.json",
+        r#"{"content":[],"usage":{"input_tokens":10,"cache_read_tokens":20,
+            "cache_write_tokens":5,"input_total_tokens":30,
+            "output_tokens":900,"context_window":1000}}"#,
+    );
+    let last = last(dir.path()).unwrap().expect("a model entry");
+    assert_eq!(last.prompt_tokens, 30);
+    assert_eq!(last.context_window, Some(1000));
+    assert_eq!(last.model, "claude-fable-5");
+}
+
+#[test]
+fn an_entry_without_the_served_total_falls_back_to_the_three_counters() {
+    // A `messages/NNN-….json` written by a pre-0.0.10 `bz` carries no
+    // `input_total_tokens`, so the prompt side is read the old way:
+    // input + cache_read + cache_write, output still excluded.
     let dir = TempDir::new().unwrap();
     write(
         dir.path(),

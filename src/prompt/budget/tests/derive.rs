@@ -2,7 +2,7 @@
 //! on-disk step trees (ARCH §6/§8).
 
 use super::super::derive::{depth, spend, wall_seconds};
-use super::{repo, seg, usage_line, write_meta, write_response};
+use super::{repo, seg, usage_line, usage_line_with_total, write_meta, write_response};
 
 #[test]
 fn spend_sums_every_segment_of_every_step() {
@@ -69,12 +69,33 @@ fn spend_none_counter_is_zero_and_cache_counters_count() {
 }
 
 #[test]
+fn spend_takes_the_served_input_total_over_the_fallback_fold() {
+    // Since brazen 0.0.10 every decoder seals `input_total_tokens` — the
+    // whole prompt, cached slices included. Anthropic's three prompt
+    // counters are disjoint, so the served total is their sum (92,200)
+    // while the fallback fold's max() would report only 91,000: the two
+    // answers differ, and the served one wins (ARCH §6).
+    let r = repo();
+    let body = seg(&usage_line_with_total(
+        Some(1_200),
+        Some(50),
+        Some(90_000),
+        Some(1_000),
+        Some(92_200),
+    ));
+    write_response(r.path(), "conv", 1, &body);
+    assert_eq!(spend(r.path(), "conv"), 92_250);
+}
+
+#[test]
 fn spend_bills_a_contained_cached_slice_once() {
-    // OpenAI-shaped / Google-shaped providers report a prompt counter that
-    // CONTAINS the cached one (`prompt_tokens` ⊇ `cached_tokens`,
-    // `promptTokenCount` ⊇ `cachedContentTokenCount`). Summing the four
-    // would bill the cached slice twice — here 185,336 for a 93,556-token
-    // prompt (ARCH §6 "The cached slice is billed once").
+    // A record written by a pre-0.0.10 `bz` carries no
+    // `input_total_tokens`, so the fallback fold answers. OpenAI-shaped /
+    // Google-shaped providers report a prompt counter that CONTAINS the
+    // cached one (`prompt_tokens` ⊇ `cached_tokens`, `promptTokenCount` ⊇
+    // `cachedContentTokenCount`). Summing the four would bill the cached
+    // slice twice — here 185,336 for a 93,556-token prompt (ARCH §6 "The
+    // cached slice is billed once").
     let r = repo();
     let body = seg(&usage_line(Some(93_556), Some(132), Some(91_648), None));
     write_response(r.path(), "conv", 1, &body);
@@ -83,8 +104,9 @@ fn spend_bills_a_contained_cached_slice_once() {
 
 #[test]
 fn spend_counts_disjoint_cache_counters_beside_a_smaller_prompt() {
-    // Anthropic's three prompt counters are disjoint slices, and the
-    // uncached remainder is typically the small one — so the fold takes
+    // The same pre-0.0.10 record, Anthropic-shaped: its three prompt
+    // counters are disjoint slices, and the uncached remainder is
+    // typically the small one — so the fallback fold takes
     // cache_read + cache_write and the result is a floor, never an
     // over-statement (ARCH §6).
     let r = repo();

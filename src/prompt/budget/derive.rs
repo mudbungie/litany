@@ -104,36 +104,40 @@ fn step_tokens(step_dir: &Path) -> u64 {
         .sum()
 }
 
-/// One `Usage` event's tokens, folded so a cached slice that already
-/// sits INSIDE the prompt counter is billed once (ARCH §6 "The cached
-/// slice is billed once"): `max(input, cache_read + cache_write) +
-/// output`.
+/// One `Usage` event's tokens: `input_total_tokens + output_tokens`
+/// (ARCH §6 "The cached slice is billed once").
 ///
-/// brazen's canonical `Usage` reports each provider's own counters
-/// unaltered (brazen `specs/architecture.md` §3.2), and providers
-/// disagree about overlap: Anthropic's prompt counters are disjoint
-/// slices (`input_tokens` beside `cache_read_input_tokens` /
-/// `cache_creation_input_tokens`), while the OpenAI-shaped and Google
-/// decoders map a prompt counter that CONTAINS the cached one
-/// (`prompt_tokens` ⊇ `prompt_tokens_details.cached_tokens`,
-/// `input_tokens` ⊇ `input_tokens_details.cached_tokens`,
-/// `promptTokenCount` ⊇ `cachedContentTokenCount`). Nothing on the
-/// `Usage` event says which shape it is, and a step record carries no
-/// protocol, so the fold takes the larger of the two readings of the
-/// prompt rather than their sum: exact where the slice is contained,
-/// a floor (never an over-statement) where the counters are disjoint,
-/// and plain `input + output` where no cache counter is reported.
+/// The prompt side is **brazen's own answer**, not a fold litany
+/// performs. `input_total_tokens` is the call's whole prompt, cached
+/// slices included, sealed by the decoder that knows which dialect
+/// answered: it adds the cached and written slices back where they sit
+/// BESIDE the prompt counter (Anthropic) and leaves them alone where
+/// the prompt counter already contains them (OpenAI chat, OpenAI
+/// Responses, Google; Ollama reports no cache counter at all, the same
+/// formula on empty inputs). brazen `specs/canonical-protocol.md` §3.2,
+/// brazen bl-d192 — the ball this fold's predecessor named as the day
+/// it would collapse.
 ///
-/// A floor rather than a ceiling on purpose — spend is what was really
-/// consumed, and billing a prompt twice ends a conversation before the
-/// ceiling its operator declared. Collapses back to the plain sum if
-/// brazen ever guarantees disjoint slices (litany bl-68f5 / brazen
-/// bl-d192). Each `None` field is 0; non-`Usage` events carry no tokens.
+/// **The old fold stays as the fallback**, because the counter is only
+/// as present as the `bz` that wrote the record: a `response.json` line
+/// from a pre-0.0.10 adapter carries no `input_total_tokens`, and so
+/// does a partial event that reports only `output_tokens` (absent stays
+/// absent, never a fabricated `0`). Such an event is read the old way —
+/// `max(input, cache_read + cache_write)`, exact where the cached slice
+/// is contained and a floor, never an over-statement, where the
+/// counters are disjoint. Each `None` field is 0; non-`Usage` events
+/// carry no tokens.
 fn usage_tokens(event: Event) -> u64 {
     match event {
         Event::Usage(u) => {
-            let cached = opt(u.cache_read_tokens) + opt(u.cache_write_tokens);
-            opt(u.input_tokens).max(cached) + opt(u.output_tokens)
+            let prompt = match u.input_total_tokens {
+                Some(total) => u64::from(total),
+                None => {
+                    let cached = opt(u.cache_read_tokens) + opt(u.cache_write_tokens);
+                    opt(u.input_tokens).max(cached)
+                }
+            };
+            prompt + opt(u.output_tokens)
         }
         _ => 0,
     }

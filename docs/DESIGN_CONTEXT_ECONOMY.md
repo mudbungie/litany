@@ -195,9 +195,9 @@ except that this pointer is one the model can *follow* through the same tool.
 `window_percent`, with `n` the percentage (the shipped template keeps
 `every_n_commits`: the flip was surveyed and refused — **Surveyed
 (bl-4c64)** below). It is due when the
-branch's **last usage** prompt side — `input_tokens` plus `cache_read_tokens`
-plus `cache_write_tokens`, each absent counter contributing nothing (ARCH §2.3:
-recorded, never computed) — is at least `n`% of the model's **context
+branch's **last usage** prompt side — `input_total_tokens`, the whole
+prompt with the cached slices included (ARCH §2.3: recorded, never
+computed) — is at least `n`% of the model's **context
 window**. ARCH §5.2 already reserved this home: "its home is a further
 `compaction: trigger:` variant … one place, config rather than a second
 policy vocabulary." It sits beside `every_n_commits` / `every_t_seconds` /
@@ -225,18 +225,27 @@ step boundary and a fired checkpoint suppresses the next until it lands
 the window while a pass is in flight — is the provider's own refusal, which
 is a failed step and loud (ARCH §2.10).
 
-**Shipped (bl-a537).** The variant, its `1..=100` range check, the
-last-usage read (`src/prompt/compactor/checkpoint/usage.rs`) and the
-unknown-window decline are in the tree, and **the denominator is on the
-wire**: brazen bl-fb0c shipped in 0.0.9, which litany pins, so
-`context_window` rides every `usage` event and the transcript writer
-folds it in with no edit on either side (the round trip is pinned
-against `brazen::Usage`'s own serialization, not a transcribed key).
+**Shipped (bl-a537, amended bl-3fe6).** The variant, its `1..=100` range
+check, the last-usage read (`src/prompt/compactor/checkpoint/usage.rs`)
+and the unknown-window decline are in the tree, and **both numbers are
+now on the wire**: brazen bl-fb0c shipped `context_window` in 0.0.9 and
+brazen bl-d192 shipped `input_total_tokens` in 0.0.10, the pin litany
+carries, so the ratio this section names is two served facts divided
+rather than one derived from three counters whose overlap the event
+never stated. The transcript writer folds both in with no edit on either
+side (the round trip is pinned against `brazen::Usage`'s own
+serialization, not a transcribed key). An entry a **pre-0.0.10 `bz`**
+wrote carries no total and falls back to the three-counter sum; that
+reading over-states the prompt on the three dialects whose prompt
+counter already contains the cached slice, so the clock fires early
+rather than late — the safe direction here, unlike §5.2's tail, where
+the same over-statement only shortens what is kept.
+
 The shipped template still declares `every_n_commits: 20` — a row
 brazen states no window for is *declined*, so defaulting to the window
-trigger would refuse those workspaces at their first boundary; the flip
-is its own change against a surveyed set of rows, not this one. See
-ARCH's bl-a537 shipped-state note for the seam.
+trigger would refuse those workspaces at their first boundary. That
+survey has since run and kept the default: see **Surveyed (bl-4c64)**
+below, and ARCH's bl-a537 shipped-state note for the seam.
 
 **Surveyed (bl-4c64) — the default stays commit-counted.** The survey
 bl-a537 deferred ran against the pinned **brazen 0.0.9**, and its verdict
@@ -266,6 +275,18 @@ would reverse it is a change in **brazen**, not here — built-in rows
 naming a `context_key` their provider serves, or a window that does not
 wait on a discovery call. ARCH's bl-4c64 shipped-state note carries the
 row-by-row reading and the quoted decline.
+
+**A window an operator sets is still not a window brazen states
+(bl-3fe6).** brazen bl-f19d, in the 0.0.10 pin, made a provider row's
+`body_defaults` `extra` fold one namespace deep, so an `ollama` row's
+`options.num_ctx` now reaches the request instead of being dropped
+beside the typed caps. That changes the window the model actually runs
+with; it does **not** put a `context_window` on the `Usage` event, which
+is lifted from the models list under a key `ollama_chat` does not name.
+So the number in force and this trigger's denominator can now be made
+the same fact by one operator — and until brazen states it, that
+operator's row is still declined. The survey's verdict is unmoved, and
+what would move it is unchanged: a change in brazen's rows.
 
 ### 5.2 The token tail
 
