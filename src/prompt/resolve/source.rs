@@ -11,7 +11,7 @@ use crate::workspace;
 use std::path::Path;
 
 /// Which config commit governs the resolution (ARCH §2.2).
-pub(in crate::prompt) enum ConfigSource<'a> {
+pub(crate) enum ConfigSource<'a> {
     /// A fresh root about to fork off this ref (§2.3 *Any ref is a legal
     /// fork point*): a config lineage's head, or any commit of any agent
     /// (`--from`, §7.2). Either way resolution follows the governing

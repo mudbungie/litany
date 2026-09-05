@@ -17,7 +17,7 @@ fn mark(ws: &std::path::Path, agent: &str) {
             workflow::Args {
                 workspace: ws.to_path_buf(),
                 agent: agent.to_string(),
-                config: None,
+                config: Some("default".into()),
                 clear: false,
             },
             fx,
@@ -68,7 +68,7 @@ fn a_target_whose_workflow_does_not_parse_declines_before_the_mark() {
             workflow::Args {
                 workspace: ws.clone(),
                 agent: "20260101-a1".into(),
-                config: None,
+                config: Some("default".into()),
                 clear: false,
             },
             fx,
@@ -93,7 +93,7 @@ fn a_target_failing_the_version_guard_declines_before_the_mark() {
             workflow::Args {
                 workspace: ws.clone(),
                 agent: "20260101-a1".into(),
-                config: None,
+                config: Some("default".into()),
                 clear: false,
             },
             fx,
@@ -142,7 +142,7 @@ fn a_mark_that_cannot_be_written_surfaces_the_uniform_failure() {
             workflow::Args {
                 workspace: ws.clone(),
                 agent: "20260101-a1".into(),
-                config: None,
+                config: Some("default".into()),
                 clear: false,
             },
             fx,

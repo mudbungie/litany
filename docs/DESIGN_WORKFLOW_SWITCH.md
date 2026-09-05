@@ -94,9 +94,8 @@ Why this shape falls out of the architecture rather than being bolted on:
   and the mark still overrides it. Deliberate — the mark is the more specific
   assertion, and clearing it is one act.
 
-**The verb.** `litany workflow <workspace> <agent> [--config <name>]` writes
-the mark at `config/<name>`'s head (`<name>` defaults to `default`);
-`--clear` deletes it, returning the agent to its governing config's workflow
+**The verb.** `litany workflow <workspace> <agent> --config <name>` writes
+the mark at `config/<name>`'s head; `--clear` deletes it, returning the agent to its governing config's workflow
 — removing the mark deletes config, never code (PRINCIPLES severability).
 Validity precedes the mark (the retarget discipline): the workspace, the
 agent, and the lineage must exist, and the target head's `version` (§10) and
@@ -188,8 +187,27 @@ dispatch(reviewer)` and `reviewer_return: stage_proposal`
 declared and unbound in `template/`. §3 holds: the basic agentic loop's bytes
 are untouched, and an install that never switches pays nothing.
 
-Deferred, filed: surfacing the
-derivation in `litany scan` (bl-5c02). The eval A/B driver (bl-f838 —
+Shipped since, by bl-5c02: **the derivation has a read surface.** Bare —
+neither `--config` nor `--clear` — `litany workflow <ws> <agent>` answers
+which `workflow.yaml` governs, in one line on stdout: the commit, the
+`config/*` lineage standing on it when one does, and whether the answer
+came from a mark on this agent, a mark on an *ancestor* (the half an
+operator cannot guess, since marking a root switches its whole tree), or
+the followed lineage. The read and the resolver compose the same
+`workflow_source::source_of`, so the surface cannot drift from what
+actually resolves, and `nearest_mark` now answers with its **holder**
+beside the commit because the holder is what the read exists to show.
+
+Three choices, all subtractions. It is not a row in `litany scan`, as
+this section originally filed it: `scan` is an **act** — it sweeps and
+launches drivers (§2.11) — and asking a policy question must not fork
+anything, nor must the answer be reachable only by running a sweep. It
+is not a new verb: the fact already has an owner. And **bare no longer
+marks** — it used to mean `--config default`, so the gesture that reads
+most like an inspection silently pinned an agent; a write now names its
+target, which is `litany proposal`'s shape (§3's own "one verb, modes by
+argument, the `litany workflow` shape") and a default whose removal
+deletes config rather than code. The eval A/B driver (bl-f838 —
 since landed: `agent-eval run` takes `--config` repeatably and reports
 the baseline → candidate comparison per variant, §9.3 shipped-state
 note).

@@ -226,8 +226,8 @@ fn a_childs_own_mark_overrides_its_ancestors() {
     workflow_mark::write(&ws, "20260101-r1-20260102-c1", &governing, &fx.git).unwrap();
     assert_eq!(
         nearest_mark(&ws, "20260101-r1-20260102-c1", &fx.git),
-        Some(governing),
-        "nearest wins: the child's own mark, not the root's",
+        Some(("20260101-r1-20260102-c1".to_string(), governing)),
+        "nearest wins, and it names its holder: the child's own mark, not the root's",
     );
     let cfg = resolve_worker(
         &ws,

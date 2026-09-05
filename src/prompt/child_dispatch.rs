@@ -275,7 +275,7 @@ fn budgets(
 ) -> Result<crate::config::Budgets, Error> {
     let wf_commit =
         crate::prompt::resolve::workflow_source::nearest_mark(req.repo, req.parent_branch, git)
-            .unwrap_or_else(|| commit.to_string());
+            .map_or_else(|| commit.to_string(), |(_, commit)| commit);
     let raw =
         workspace::show_control(req.repo, &wf_commit, WORKFLOW_FILE, git).map_err(|source| {
             Error::ControlRead {

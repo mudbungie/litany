@@ -47,20 +47,62 @@ pub(super) fn resolve_workflow(
     governing: &str,
     deps: &Deps<'_>,
 ) -> Result<(Workflow, String), Error> {
-    let marked = match source {
-        ConfigSource::Fork(_) => None,
-        ConfigSource::Agent(agent_id) => nearest_mark(workspace, agent_id, deps.git),
-    };
-    let commit = match marked {
-        None => governing.to_string(),
-        Some(commit) => {
-            let version_raw = read_control(workspace, &commit, VERSION_FILE, deps)?;
-            Version::parse(&version_raw, &control_origin(&commit, VERSION_FILE))?;
-            commit
-        }
-    };
+    let answer = source_of(workspace, source, governing, deps.git);
+    if let Source::Marked { commit, .. } = &answer {
+        let version_raw = read_control(workspace, commit, VERSION_FILE, deps)?;
+        Version::parse(&version_raw, &control_origin(commit, VERSION_FILE))?;
+    }
+    let commit = answer.commit().to_string();
     let workflow = read_workflow(workspace, &commit, deps)?;
     Ok((workflow, commit))
+}
+
+/// **Which commit answers the workflow question for one agent, and
+/// why** — the derivation above as a value, so the resolver and the
+/// operator read (`litany workflow <ws> <agent>`, bl-5c02) compose it
+/// once instead of each spelling out "nearest mark, else the followed
+/// commit". Without this the only way to ask was raw git against a ref
+/// namespace no verb printed.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Source {
+    /// A standing mark on the agent's descent answers. `holder` is the
+    /// id carrying it — the agent's own, or the ancestor whose mark it
+    /// inherits, which is the fact an operator cannot guess: marking a
+    /// root switches its whole tree (§6).
+    Marked { holder: String, commit: String },
+    /// No mark anywhere on the descent, so the followed config commit
+    /// answers — the general path every unmarked agent takes.
+    Followed { commit: String },
+}
+
+impl Source {
+    /// The commit whose `workflow.yaml` governs, whichever arm answered.
+    pub(crate) fn commit(&self) -> &str {
+        match self {
+            Source::Marked { commit, .. } | Source::Followed { commit } => commit,
+        }
+    }
+}
+
+/// Compose the derivation: the nearest mark on the descent, else
+/// `followed`. A [`ConfigSource::Fork`] is a root that has no id yet and
+/// therefore no mark — the general path with empty inputs, not a case.
+pub(crate) fn source_of(
+    workspace: &Path,
+    source: &ConfigSource<'_>,
+    followed: &str,
+    git: &dyn GitRunner,
+) -> Source {
+    let marked = match source {
+        ConfigSource::Fork(_) => None,
+        ConfigSource::Agent(agent_id) => nearest_mark(workspace, agent_id, git),
+    };
+    match marked {
+        Some((holder, commit)) => Source::Marked { holder, commit },
+        None => Source::Followed {
+            commit: followed.to_string(),
+        },
+    }
 }
 
 /// One workflow read: `<commit>:workflow.yaml`, parsed under the closed
@@ -80,15 +122,19 @@ fn read_workflow(workspace: &Path, commit: &str, deps: &Deps<'_>) -> Result<Work
 /// dispatch budget gate ([`crate::prompt::child_dispatch`]), so the
 /// ceiling a fork is refused under and the ceiling the child's own
 /// steps check are one answer, not two.
+/// The answer is the **holder and the commit**, not the commit alone:
+/// which id on the descent carries the mark is the half an operator
+/// cannot derive from the agent they asked about, and it is what makes
+/// "marking a root switches the tree" legible on the read surface.
 pub(in crate::prompt) fn nearest_mark(
     workspace: &Path,
     agent_id: &str,
     git: &dyn GitRunner,
-) -> Option<String> {
+) -> Option<(String, String)> {
     let mut id = agent_id.to_string();
     loop {
         if let Some(commit) = workflow_mark::read(workspace, &id, git) {
-            return Some(commit);
+            return Some((id, commit));
         }
         id = crate::prompt::inbox::parent_of(&id)?;
     }

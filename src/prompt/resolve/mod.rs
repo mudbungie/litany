@@ -20,9 +20,9 @@
 //! acquire, nothing due) exits before any config is read (§6).
 
 mod source;
-pub(in crate::prompt) mod workflow_source;
+pub(crate) mod workflow_source;
 
-pub(in crate::prompt) use source::ConfigSource;
+pub(crate) use source::ConfigSource;
 use source::{agent_role, config_commit};
 
 #[cfg(test)]

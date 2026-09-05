@@ -705,10 +705,26 @@ agent is just changing which commit is consulted for it (ARCH §6 *The
 workflow mark*):
 
 ```
-litany workflow <workspace> <agent>                 # config/default's workflow
+litany workflow <workspace> <agent>                 # READ: which workflow governs it
 litany workflow <workspace> <agent> --config alt    # config/alt's workflow
 litany workflow <workspace> <agent> --clear         # back to the governing config's
 ```
+
+**Bare, it reads.** One line on stdout naming the commit whose
+`workflow.yaml` governs, the `config/*` lineage standing on that commit
+when one does, and where the answer came from — a mark on this agent, a
+mark on an ancestor (marking a root switches its whole tree, so this is
+the half you cannot guess from the agent you asked about), or the
+followed lineage:
+
+```
+20260101-r1 runs 4e5f6a7b8c9d:workflow.yaml (config/alt) — marked on [20260101-r1]
+```
+
+A write names its target. Bare used to mean `--config default`, which
+made the gesture that reads most like an inspection silently pin an
+agent; `litany proposal`'s shape — bare reads, a flag acts — is the
+house one.
 
 It writes one **standing** ref, `refs/litany/workflow/<agent-id>`, at
 the named lineage's head — and nothing else. From the agent's next step

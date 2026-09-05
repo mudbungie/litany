@@ -42,7 +42,7 @@ pub(crate) mod notice;
 mod pin;
 pub mod pinned_doc;
 pub(crate) mod rebase_forward;
-mod resolve;
+pub(crate) mod resolve;
 pub mod retarget;
 pub(crate) mod reviewer;
 pub mod role;
