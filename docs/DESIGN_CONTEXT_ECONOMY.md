@@ -192,7 +192,9 @@ except that this pointer is one the model can *follow* through the same tool.
 ### 5.1 The window trigger
 
 **Decision.** A fourth `compaction.intermediate.trigger` variant,
-`window_percent`, with `n` the percentage (the template flips to it at 50 once brazen bl-fb0c ships; until then `every_n_commits` stays). It is due when the
+`window_percent`, with `n` the percentage (the shipped template keeps
+`every_n_commits`: the flip was surveyed and refused — **Surveyed
+(bl-4c64)** below). It is due when the
 branch's **last usage** prompt side — `input_tokens` plus `cache_read_tokens`
 plus `cache_write_tokens`, each absent counter contributing nothing (ARCH §2.3:
 recorded, never computed) — is at least `n`% of the model's **context
@@ -236,6 +238,35 @@ trigger would refuse those workspaces at their first boundary; the flip
 is its own change against a surveyed set of rows, not this one. See
 ARCH's bl-a537 shipped-state note for the seam.
 
+**Surveyed (bl-4c64) — the default stays commit-counted.** The survey
+bl-a537 deferred ran against the pinned **brazen 0.0.9**, and its verdict
+is that the shipped default may not assume a window. brazen keeps no
+per-model table either: it lifts the window out of the provider's own
+models list, under the key a protocol or a row's `[provider.models]`
+names, and reads it back off a local per-row cache. Two conditions must
+both hold, and across the eight built-in rows the first holds once. **A
+key must be named** — of the protocol defaults only
+`google_generative_ai` names one (`inputTokenLimit`), while
+`anthropic_messages`, `openai_chat`, `openai_responses` and `ollama_chat`
+default to the empty key and `claude_code` is an exec row with no models
+shape at all; no built-in row overrides it. So of `anthropic`, `openai`,
+`mistral`, `openai-responses`, `google`, `ollama`, `claude-code` and
+`openai-chatgpt`, exactly one can state a window — and the set that
+cannot holds both the row a bare `bz` reaches and the exec row an
+agentic workspace usually names. **The list must have been discovered** —
+the data plane's own cache writer appends a bare id with no metadata, so
+even `google` states nothing until `bz --list-models` has run for that
+row. And the decline is not quiet: `Error::CompactionWindowUnknown` lands
+at the first boundary after the first model entry and at every boundary
+after it, so a flipped default would let such a workspace take one step
+and no more. `template/workflow.yaml` therefore keeps `every_n_commits:
+20`, `keep_recent_tokens` stays unset beside it (§5.2), and the variant
+stays an opt-in two-line edit for a row that does state a window. What
+would reverse it is a change in **brazen**, not here — built-in rows
+naming a `context_key` their provider serves, or a window that does not
+wait on a discovery call. ARCH's bl-4c64 shipped-state note carries the
+row-by-row reading and the quoted decline.
+
 ### 5.2 The token tail
 
 **Decision.** `keep_recent_tokens: <n>` beside `keep_recent`; declaring
@@ -260,7 +291,8 @@ coming back empty — the branch re-walks its transcript at every boundary
 and compacts nothing until the tail outgrows the budget. That is the shape
 `keep_recent >= n` is refused for, in units no load-time check can
 compare. The token tail belongs with the window trigger (§5.1), and both
-flip together under the same survey of provider rows.
+flip together under the same survey of provider rows — which ran under
+bl-4c64 and refused the flip, so both stay as shipped.
 
 ### 5.3 The extract: a second compaction product, code-written
 

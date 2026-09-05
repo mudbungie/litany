@@ -41,9 +41,17 @@ events:
 # every usage event), but the shipped trigger stays `every_n_commits`: a
 # model whose provider row states no window is *declined* under
 # `window_percent` rather than left silently never-due, so defaulting to
-# it would refuse those workspaces at their first boundary. The variant is
-# available, not defaulted; flipping the default to `window_percent` /
-# `n: 50` is its own change, against a surveyed set of rows.
+# it would refuse those workspaces at their first boundary. That is not a
+# hypothetical any more — the survey ran (bl-4c64) and refused the flip.
+# Of brazen 0.0.9's eight built-in rows exactly ONE can state a window at
+# all (`google`, whose protocol names `inputTokenLimit`); the rest name no
+# key to lift one from, `anthropic` and `claude-code` among them. And even
+# that one states nothing until `bz --list-models` has run for it, because
+# the window is read off the local model cache and the data plane's own
+# writer stores a bare id with no metadata. So the variant is available,
+# not defaulted: turn it on here when your row states a window, and see
+# docs/ARCHITECTURE.md's bl-4c64 shipped-state note for what would make it
+# the default (a change in brazen's rows, not in litany).
 #
 # `keep_recent_tokens` is unset here for the same reason and one more: a
 # token tail under a COMMIT clock leaves a stretch where the clock is over
