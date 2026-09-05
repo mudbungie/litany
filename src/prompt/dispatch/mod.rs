@@ -26,6 +26,7 @@ pub mod driver;
 pub(crate) mod entry;
 mod exchange;
 mod model_call;
+mod one_call;
 mod resolved;
 mod result_deposit;
 mod staging;

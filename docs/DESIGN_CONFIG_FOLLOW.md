@@ -92,10 +92,11 @@ Two mechanisms no longer mean one thing; each keeps one meaning:
 
 - **A step in flight** — one hop's resolution (structural, §6).
 - **The workflow mark** — a deliberate per-agent pin (bl-f928).
-- **Dispatch-time tree artifacts** — the `descriptions/**` cut and the
-  `goal.md`/`soul.md`/`name` copies are the fork's. The wire soul already
-  follows (the step composes it from resolution, never the tree copy); the
-  descriptions refresh under a tip that changes a grant is filed (bl-37cd).
+- **Dispatch-time tree artifacts** — the `goal.md`/`soul.md`/`name`
+  copies are the fork's. The wire soul already follows (the step composes
+  it from resolution, never the tree copy). The `descriptions/**` cut no
+  longer pins: since bl-37cd it is re-derived at every step boundary
+  against the commit and grant that just resolved (below).
 - **Diverged lineages** — held on the fork commit, loudly, until retargeted
   (the conservative arm of §2, never a guess).
 
@@ -126,5 +127,45 @@ record that a mark stood, and a reader never has to tell "no mark" from
 "not recorded". Neither is re-derived after the fact: a mark is a ref an
 operator can rewrite between the resolution and the question.
 
-Deferred, filed: the stale dispatch-time descriptions cut
-under a grant-changing tip — bl-37cd.
+Shipped since, by bl-37cd: **the descriptor cut follows the tip too.**
+`descriptions/**` was cut to the role's grant at the dispatch commit and
+never again, so a followed tip that *widened* a grant left the agent
+calling a tool nothing in its tree described, and one that *revoked* a
+grant left a convincing schema on disk for a tool the wire no longer
+declared — which is the exact failure the cut exists to close (yog
+bl-55b1), one config edit later.
+
+The refresh is the cut, re-run: `descriptors::refresh` calls the same two
+halves the fork does, and lets **git** answer whether anything moved
+(`git status --porcelain -- descriptions`), so there is no
+change-detection, no record of which commit the tree was last cut from,
+and no special case for the boundary where nothing changed. It commits
+what moved, and it commits **before** the read-state capture — the wire
+reads descriptors off the worktree while replay re-assembles against
+`meta.json`'s `commit` (§2.10), so a worktree-only refresh would put
+bytes on the wire that no replay could reproduce. That is the same shape
+and the same moment as the boundary's other landing acts, the inbox drain
+and the child-result interpretation.
+
+Three decisions came with it. **It re-cuts but does not re-decline**: the
+fork refuses a grant the config commit does not describe, before a branch
+exists; at a boundary the agent already exists, and killing a running
+conversation over an operator's edit is the very failure class this
+ruling was made to fix — so an undescribed tool is left out of the tree
+with an operator notice, and `tools::compose`'s intersection drops it as
+it drops any absent schema. **Undescribed is not revoked**: the drop half
+reads the grant *whole*, so a tool still granted but no longer described
+keeps its bytes (a config disagreement must not destroy the only
+surviving description), while a tool the tip removed from `tools:` loses
+its stale copy, which is the revoke half. And **step 1 does not refresh**
+— its boundary is the fork the caller already resolved against, and the
+dispatch commit made this very cut from that answer, the same carve-out
+the per-step resolution already has.
+
+One neighbour moved with it: a reviewer's proposal reads *what the
+reviewer changed* as its founding commit against its terminal ref, and
+now excludes `descriptions/**` beside `messages/**` and `summary/**`
+(`child_result::proposal::edits`) — all three are harness-written on the
+branch, so none is a reviewer's edit. Without that, a tip moving
+mid-review would refuse the whole proposal as *Outside*, precisely when a
+review is most worth having.

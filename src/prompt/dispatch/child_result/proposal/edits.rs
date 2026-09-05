@@ -12,24 +12,31 @@
 use super::{MESSAGES_DIR, SKILLS_DIR, SUMMARY_DIR};
 use crate::facts::FILE as FACTS_FILE;
 use crate::prompt::Error;
+use crate::prompt::dispatch::step_commit::DESCRIPTIONS_DIR;
 use crate::template::GitRunner;
 use std::collections::BTreeSet;
 use std::path::Path;
 
 /// The paths the reviewer's own commits changed: its founding commit's
-/// tree against its terminal ref's, with the branch's **transcript**
-/// excluded — `messages/**` is written by every branch's executor (ARCH
-/// §2.3) and `summary/**` by a compaction landing, so neither is a
-/// reviewer's edit and neither is a proposal's business.
+/// tree against its terminal ref's, with everything **the harness
+/// writes on the branch** excluded — `messages/**` by every branch's
+/// executor (ARCH §2.3), `summary/**` by a compaction landing, and
+/// `descriptions/**` by the descriptor cut, which is re-derived from the
+/// governing config commit at every step boundary under follow-the-tip
+/// (§3.3, bl-37cd). None of the three is a reviewer's edit, so none is a
+/// proposal's business — and the third would otherwise refuse the whole
+/// proposal as *Outside* whenever the config tip moved mid-review, which
+/// is precisely when a review is most worth having.
 pub(super) fn changed_paths(
     worktree: &Path,
     founding: &str,
     terminal: &str,
     git: &dyn GitRunner,
 ) -> Result<Vec<String>, Error> {
-    let (messages, summary) = (
+    let (messages, summary, descriptions) = (
         format!(":(exclude){MESSAGES_DIR}"),
         format!(":(exclude){SUMMARY_DIR}"),
+        format!(":(exclude){DESCRIPTIONS_DIR}"),
     );
     let out = git
         .run_capture(
@@ -42,6 +49,7 @@ pub(super) fn changed_paths(
                 "--",
                 &messages,
                 &summary,
+                &descriptions,
             ],
         )
         .map_err(|source| Error::Git {

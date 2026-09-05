@@ -20,17 +20,17 @@
 
 use super::model_call::ModelCall;
 use super::step_commit::{
-    DEFAULT_MAX_TOKENS, commit_dispatch, compose_system, read_branch_tip, spawn_branch,
-    write_dispatch_files, write_meta, write_request,
+    DEFAULT_MAX_TOKENS, commit_dispatch, compose_system, read_branch_tip, refresh_descriptors,
+    spawn_branch, write_dispatch_files,
 };
 use super::tool_step::{self, run_tool_calls};
 use super::{
-    Resolved, assembler, canonical, child_result, drain, driver, model_call, result_deposit,
+    Resolved, assembler, canonical, child_result, drain, driver, one_call, result_deposit,
     stop_signal, terminal, tools, transcript,
 };
 use crate::prompt::inbox::{self, Epitaph};
 use crate::prompt::resolve::{ConfigSource, WorkerConfig, resolve_worker};
-use crate::prompt::step::{RESPONSE_FILE, STAGING_FILE, StepMeta, step_dir_rel};
+use crate::prompt::step::STAGING_FILE;
 use crate::prompt::{Deps, Error};
 use brazen::Content;
 use std::path::Path;
@@ -121,6 +121,17 @@ pub(in crate::prompt) fn run_exchange(
         // boundary `litany advance` does — empty-inputs no-op for a root.
         child_result::interpret_pending(repo, &conv_id, &worktree_path, resolved.workflow, deps)?;
 
+        // §3.3 × §2.2: re-derive the descriptor cut against what just
+        // resolved, ahead of the read-state capture (bl-37cd). Under the
+        // same boundary rule as the resolution above — step 1's boundary
+        // is the fork the caller already resolved against, and the
+        // dispatch commit made this very cut from that answer moments
+        // earlier, so asking again there is a provable no-op paid for in
+        // git forks.
+        if step_seq > 1 {
+            refresh_descriptors(&worktree_path, &conv_id, &resolved.grant, deps.git)?;
+        }
+
         let commit_sha = read_branch_tip(&worktree_path, deps)?;
 
         // §2.9 step 3 check point: a stop between steps (or during a prior
@@ -178,36 +189,15 @@ pub(in crate::prompt) fn run_exchange(
             resolved.effort,
             resolved.priority,
         );
-        let request_value =
-            serde_json::to_value(&request).expect("CanonicalRequest is always serializable");
-        let step_dir_rel_str = step_dir_rel(&conv_id, step_seq);
-        write_request(repo, &step_dir_rel_str, &request_value)?;
-
-        let request_bytes =
-            serde_json::to_vec(&request).expect("CanonicalRequest is always serializable");
-        let started_at = deps.clock.now_iso8601();
-        let response_path = repo.join(&step_dir_rel_str).join(RESPONSE_FILE);
-        let call_outcome = model_call::run(&call, &request_bytes, &response_path);
-        // §2.9 step 3 check point: a stop during the call killed `bz`. The
-        // flag classifies, not the error's shape ([`model_call`]) — swallow
-        // whatever it surfaced (on-disk signature untouched) and exit.
-        if stop_signal::stopped(deps.stop) {
+        let step = one_call::Step {
+            conv_repo: repo,
+            conv_id: &conv_id,
+            seq: step_seq,
+            tip: commit_sha,
+        };
+        let Some(step_dir_rel_str) = one_call::issue(step, &request, &call, resolved, deps)? else {
             break Epitaph::Stopped;
-        }
-        call_outcome?;
-        let ended_at = deps.clock.now_iso8601();
-
-        write_meta(
-            repo,
-            &step_dir_rel_str,
-            &StepMeta {
-                commit: commit_sha,
-                config_commit: Some(resolved.grant.config_commit.to_string()),
-                workflow_commit: Some(resolved.workflow_commit.to_string()),
-                started_at,
-                ended_at,
-            },
-        )?;
+        };
 
         // Transcript writer (§2.3): seal-and-rename the staging entry to
         // `messages/NNN-<model-id>.json` (origin = authoring model) + commit.

@@ -28,7 +28,16 @@ mod tests_facts;
 mod trim;
 mod unsettled;
 
-pub(crate) use descriptors::{Grant, Undescribed, require_described};
+pub(crate) use descriptors::{Grant, Undescribed, refresh_descriptors, require_described};
+
+/// Worktree-relative root of the derived descriptor tree (ARCH §3.3) —
+/// harness-written on every branch, at the dispatch commit and again at
+/// every step boundary ([`descriptors::refresh`]). Named here rather
+/// than inside the cut because two unrelated rules read it: the refresh
+/// scopes its own stage and commit to it, and the reviewer's proposal
+/// excludes it from what it calls the reviewer's edits
+/// (`child_result::proposal::edits`).
+pub(crate) const DESCRIPTIONS_DIR: &str = "descriptions";
 pub(crate) use trim::trim_to_context;
 
 use crate::prompt::Deps;

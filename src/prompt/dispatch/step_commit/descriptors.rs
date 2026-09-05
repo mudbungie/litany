@@ -244,5 +244,8 @@ fn skill_path(tool: &str) -> String {
     format!("{SKILLS_DIR}/{tool}.md")
 }
 
+mod refresh;
+pub(crate) use refresh::refresh as refresh_descriptors;
+
 #[cfg(test)]
 mod tests;

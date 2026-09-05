@@ -10,13 +10,13 @@
 //! `stopped`-epitaph terminal rather than riding into a successor.
 
 use super::super::{
-    assembler, canonical, child_result, model_call, result_deposit, step_commit, stop_signal,
-    terminal, tool_step, tools, transcript,
+    assembler, canonical, child_result, model_call, one_call, result_deposit, step_commit,
+    stop_signal, terminal, tool_step, tools, transcript,
 };
 use crate::config::Event;
 use crate::prompt::inbox::Epitaph;
 use crate::prompt::resolve::WorkerConfig;
-use crate::prompt::step::{RESPONSE_FILE, STAGING_FILE, StepMeta, next_step_seq, step_dir_rel};
+use crate::prompt::step::{STAGING_FILE, next_step_seq};
 use crate::prompt::workflow_actions;
 use crate::prompt::{Deps, Error};
 use brazen::Content;
@@ -86,6 +86,12 @@ pub(super) fn step(
     };
 
     let step_seq = next_step_seq(workspace, agent_id)?;
+    // §3.3 × §2.2: the descriptor cut is re-derived at this boundary
+    // against the commit and grant that just resolved, and lands as a
+    // commit *before* the read state is captured — so a followed tip
+    // that changed the role's grant cannot leave the tree describing a
+    // callable set the request no longer declares (bl-37cd).
+    step_commit::refresh_descriptors(worktree, agent_id, &resolved.grant, deps.git)?;
     let commit_sha = step_commit::read_branch_tip(worktree, deps)?;
     // §2.3 / §5: assemble the model-facing history from the tree — the
     // §5.2 head/body under the role's manifest rules, then the
@@ -111,36 +117,15 @@ pub(super) fn step(
         resolved.effort,
         resolved.priority,
     );
-    let request_value =
-        serde_json::to_value(&request).expect("CanonicalRequest is always serializable");
-    let step_dir_rel_str = step_dir_rel(agent_id, step_seq);
-    step_commit::write_request(workspace, &step_dir_rel_str, &request_value)?;
-
-    let request_bytes =
-        serde_json::to_vec(&request).expect("CanonicalRequest is always serializable");
-    let started_at = deps.clock.now_iso8601();
-    let response_path = workspace.join(&step_dir_rel_str).join(RESPONSE_FILE);
-    let call_outcome = model_call::run(&call, &request_bytes, &response_path);
-    // §2.9 step-3 check point: a stop during the call killed `bz` — the
-    // flag classifies, not the error's shape ([`model_call`]). Same rule
-    // as `run_exchange`.
-    if stop_signal::stopped(deps.stop) {
+    let step = one_call::Step {
+        conv_repo: workspace,
+        conv_id: agent_id,
+        seq: step_seq,
+        tip: commit_sha,
+    };
+    let Some(step_dir_rel_str) = one_call::issue(step, &request, &call, &resolved, deps)? else {
         return Ok(StepOutcome::Terminal(Epitaph::Stopped));
-    }
-    call_outcome?;
-    let ended_at = deps.clock.now_iso8601();
-
-    step_commit::write_meta(
-        workspace,
-        &step_dir_rel_str,
-        &StepMeta {
-            commit: commit_sha,
-            config_commit: Some(resolved.grant.config_commit.to_string()),
-            workflow_commit: Some(resolved.workflow_commit.to_string()),
-            started_at,
-            ended_at,
-        },
-    )?;
+    };
 
     // Transcript writer (§2.3): seal-and-rename the staging entry.
     let staging_path = workspace.join(&step_dir_rel_str).join(STAGING_FILE);

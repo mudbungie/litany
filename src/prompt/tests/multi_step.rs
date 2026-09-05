@@ -152,14 +152,19 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     // and the soul are read again (7 — `StubGit` answers every
     // `rev-parse` with a sha, so the mark probe reads as a standing mark
     // and pays a second `version` read a live unmarked agent does not))
-    // + 1 (step-2 drain stray-probe) + 1 (step 2 rev-parse) + 2 (step-2
-    // model-output entry add+commit) = 48. The terminal result deposit
+    // + 1 (step-2 drain stray-probe) + 6 (the step-2 descriptor refresh,
+    // bl-37cd: the cut is re-derived against the commit that just
+    // resolved, so it costs a `cat-file -e` schema probe and a skill
+    // probe per granted tool (4), one `checkout` of what the grant
+    // covers, and one `status` asking whether any of it moved — which
+    // here it did not, so no commit follows) + 1 (step 2 rev-parse) + 2
+    // (step-2 model-output entry add+commit) = 54. The terminal result deposit
     // adds none: the
     // last prompter is `user` (the on-ramp message), so the reply
     // addresses no inbox and neither the branch-tip read nor the returned
     // mark runs (§2.6). Merge-back is gone. The version guard runs no git.
     let runs = git.runs.borrow();
-    assert_eq!(runs.len(), 48);
+    assert_eq!(runs.len(), 54);
     assert_eq!(runs[20].1, vec!["add", "name"]);
     assert_eq!(runs[21].1, vec!["add", "goal.md", "soul.md"]);
     assert!(runs[22].1[2].contains("step 001: dispatch"));
@@ -197,9 +202,17 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     // branch-tip capture (advanced by step 1's transcript commits), and
     // its own model-output entry (004).
     assert_eq!(runs[44].1, vec!["status", "--porcelain", "--", "messages"]);
-    assert_eq!(runs[45].1, vec!["rev-parse", "HEAD"]);
-    assert_eq!(runs[46].1, vec!["add", "messages/004-claude-sonnet-5.json"]);
-    assert!(runs[47].1[2].contains("transcript 004: claude-sonnet-5"));
+    // Then the boundary descriptor refresh (bl-37cd): the cut re-derived
+    // against the commit step 2 just resolved, ending in the one
+    // question that decides whether it commits — did anything move?
+    assert_eq!(runs[49].1[0], "checkout");
+    assert_eq!(
+        runs[50].1,
+        vec!["status", "--porcelain", "--", "descriptions"]
+    );
+    assert_eq!(runs[51].1, vec!["rev-parse", "HEAD"]);
+    assert_eq!(runs[52].1, vec!["add", "messages/004-claude-sonnet-5.json"]);
+    assert!(runs[53].1[2].contains("transcript 004: claude-sonnet-5"));
     // The terminal result deposit is one structural no-op — the operator
     // prompted this agent, so its reply addresses no inbox (§2.6) — so
     // the entry commit is the last git op and no merge-back follows.
