@@ -1,7 +1,8 @@
 +++
 title = "the shipped workflows/learning-loop.yaml tells the operator stage_proposal is unimplemented vocabulary, and it has been implemented since bl-5b62"
 created = 1788673910
-updated = 1788673910
+updated = 1788674124
+claimant = "Cantaloups-L3"
 priority = 3
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["usability-r1"]
