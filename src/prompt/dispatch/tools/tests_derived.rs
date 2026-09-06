@@ -5,6 +5,7 @@
 //! dispatch commit puts in the child's tree is what the child's request
 //! declares. Split into its own file so both stay under the 300-line cap.
 
+use super::tests::granted;
 use super::*;
 use crate::prompt::child_dispatch::{ChildDispatchRequest, run};
 use crate::prompt::inbox::Launcher;
@@ -86,7 +87,7 @@ fn a_dispatched_role_declares_its_whole_grant_whatever_its_dispatchers_was() {
 
     let tools = compose(
         &workspace::agent_worktree(&ws, &sensor),
-        &declared(&["message"]),
+        &granted(&declared(&["message"])),
         &[],
         &[],
     )
@@ -105,7 +106,7 @@ fn a_dispatched_role_declares_its_whole_grant_whatever_its_dispatchers_was() {
     // The dispatcher's own request is unchanged by any of this.
     let worker_tools = compose(
         &workspace::agent_worktree(&ws, &worker),
-        &declared(&["bash"]),
+        &granted(&declared(&["bash"])),
         &[],
         &[],
     )

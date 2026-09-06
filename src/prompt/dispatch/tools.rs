@@ -58,13 +58,14 @@
 //! Declaring is not permitting: what a role may *call* is decided at
 //! execution ([`super::tool_step`]), and nothing here widens it.
 
+use super::Grant;
 use crate::prompt::Error;
 use crate::prompt::compactor;
 use crate::prompt::tool::ToolExecutor;
 use crate::prompt::tool::inject::InjectedTool;
 use crate::skill;
-use brazen::{Content, Message, Tool};
-use serde_json::{Value, json};
+use brazen::{Message, Tool};
+use serde_json::Value;
 use std::path::Path;
 
 /// Worktree-relative directory holding the committed tool schemas
@@ -100,18 +101,23 @@ pub(super) fn injected(
 }
 
 /// Everything the next model call declares: the `injected` toolset
-/// first, then the role's `declared` names intersected with the schemas under
+/// first, then the role's granted names intersected with the schemas under
 /// `<worktree>/descriptions/tools/` (in declared order, minus any name
-/// injection already took), then the closure over `history` (§3.3, §4.3,
-/// §2.7).
+/// injection already took), then the closure over `history`
+/// ([`history::close_over`], §3.3, §4.3, §2.7).
+///
+/// The whole `grant` rather than its `tools:` list alone, because the
+/// third part needs the role too: an entry it adds for referential
+/// integrity is declared **not callable**, and which those are is the
+/// grant gate's question, asked of the same three facts (bl-9c1d).
 pub(super) fn compose(
     worktree: &Path,
-    declared: &[String],
+    grant: &Grant<'_>,
     history: &[Message],
     injected: &[InjectedTool],
 ) -> Result<Vec<Tool>, Error> {
     let mut tools: Vec<Tool> = injected.iter().map(injected_entry).collect();
-    for name in declared {
+    for name in grant.tools {
         // Injection outranks election on a shared name: the model must
         // read the schema of the thing that will actually answer it.
         if tools.iter().any(|t| tool_name(t) == name) {
@@ -122,7 +128,7 @@ pub(super) fn compose(
             tools.push(entry(worktree, name, input_schema)?);
         }
     }
-    close_over_history(worktree, &mut tools, history)?;
+    history::close_over(worktree, grant, injected, &mut tools, history)?;
     Ok(tools)
 }
 
@@ -137,51 +143,6 @@ fn injected_entry(tool: &InjectedTool) -> Tool {
         input_schema: tool.input_schema.clone(),
         strict: None,
     }
-}
-
-/// Append a declaration for every tool `history` names that `tools` does
-/// not already carry (ARCH §3.3 — the request's referential integrity).
-///
-/// The history is not rewritten to fit the declaration; the declaration
-/// is widened to fit the history. Transcript entries are immutable
-/// (§2.3) and the wire framing is transcript-backed (§3.3), so the
-/// alternative — stripping or textualizing a `tool_use` block whose tool
-/// this role does not offer — would make the model call disagree with
-/// the branch's own record.
-///
-/// Where the committed schema exists it is used verbatim, exactly as for
-/// an elected tool. Where it does not — a name the model invented, whose
-/// exchange nonetheless landed in the transcript — a bare
-/// `{"type": "object"}` stands in: the entry exists to make the history
-/// legible, not to offer the tool.
-fn close_over_history(
-    worktree: &Path,
-    tools: &mut Vec<Tool>,
-    history: &[Message],
-) -> Result<(), Error> {
-    for name in referenced(history) {
-        if tools.iter().any(|t| tool_name(t) == name) {
-            continue;
-        }
-        let input_schema =
-            read_schema(worktree, &name)?.unwrap_or_else(|| json!({"type":"object"}));
-        tools.push(entry(worktree, &name, input_schema)?);
-    }
-    Ok(())
-}
-
-/// Tool names the `tool_use` blocks of `history` reference, in
-/// first-appearance order and deduplicated.
-fn referenced(history: &[Message]) -> Vec<String> {
-    let mut names: Vec<String> = Vec::new();
-    for block in history.iter().flat_map(|m| m.content.iter()) {
-        if let Content::ToolUse { name, .. } = block
-            && !names.iter().any(|seen| seen == name)
-        {
-            names.push(name.clone());
-        }
-    }
-    names
 }
 
 /// The declared name of a composed entry, whichever variant carries it.
@@ -260,10 +221,14 @@ pub(in crate::prompt) fn read_description(
         })
 }
 
+mod history;
+
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_derived;
+#[cfg(test)]
+mod tests_history;
 #[cfg(test)]
 mod tests_injected;
 #[cfg(test)]

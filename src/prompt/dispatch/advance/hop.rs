@@ -104,7 +104,7 @@ pub(super) fn step(
     // edge case for it — it is the standing case.
     let tools = tools::compose(
         worktree,
-        resolved.grant.tools,
+        &resolved.grant,
         &messages,
         &tools::injected(resolved.grant.role, deps.tool_executor, workspace, agent_id),
     )?;

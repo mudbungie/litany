@@ -132,16 +132,22 @@ fn a_compactor_declares_the_inherited_transcripts_tools_alongside_its_own() {
         "{}",
         req["messages"]
     );
-    // The inherited schema is sent verbatim, not a stand-in.
+    // …and the inherited name is declared as one the compactor may NOT
+    // call (bl-9c1d): the door's own refusal as its description and an
+    // opaque schema, not the inherited definition. The entry exists to
+    // make the history legible, and the compactor spent a model call per
+    // checkpoint discovering that the hard way.
     let bash = req["tools"]
         .as_array()
         .unwrap()
         .iter()
         .find(|t| t["name"] == "bash")
         .unwrap();
-    assert_eq!(
-        bash["input_schema"],
-        serde_json::from_str::<serde_json::Value>(BASH_SCHEMA).unwrap()
+    assert_eq!(bash["input_schema"], serde_json::json!({"type": "object"}));
+    let description = bash["description"].as_str().unwrap_or_default();
+    assert!(
+        description.contains("not callable by a compactor"),
+        "{description}"
     );
 }
 

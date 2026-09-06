@@ -6,7 +6,7 @@
 //! [`super::compose`] as one list, ahead of election. Split into its own
 //! file so [`super::tests`] stays under the 300-line cap.
 
-use super::tests::{BASH_SCHEMA, custom, history_calling, write_schema};
+use super::tests::{BASH_SCHEMA, custom, granted, history_calling, write_schema};
 use super::*;
 use crate::prompt::compactor::COMPACTOR_ROLE;
 use crate::prompt::tool::inject::{InjectedTool, RoutedCall, RoutedCapture, ToolInjection};
@@ -131,7 +131,7 @@ fn an_injected_definition_composes_verbatim_and_ahead_of_election() {
     let host = Host::new("teleop");
     let tools = compose(
         wt.path(),
-        &["bash".to_string()],
+        &granted(&["bash".to_string()]),
         &[],
         &host.tools(Path::new("/ws"), "agent-1"),
     )
@@ -156,7 +156,7 @@ fn an_injected_name_outranks_the_elected_tool_it_shadows() {
     let host = Host::new("bash");
     let tools = compose(
         wt.path(),
-        &["bash".to_string()],
+        &granted(&["bash".to_string()]),
         &[],
         &host.tools(Path::new("/ws"), "agent-1"),
     )
@@ -174,7 +174,7 @@ fn an_injected_name_is_never_re_declared_by_the_history_closure() {
     let host = Host::new("teleop");
     let tools = compose(
         wt.path(),
-        &[],
+        &granted(&[]),
         &history_calling(&["teleop", "frobnicate"]),
         &host.tools(Path::new("/ws"), "agent-1"),
     )

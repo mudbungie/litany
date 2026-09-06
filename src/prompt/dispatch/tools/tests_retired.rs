@@ -12,7 +12,7 @@
 //! (`cmd::tests::invoking_gates`). Declaring is not permitting, and a
 //! retirement is the sharpest case of it.
 
-use super::tests::{custom, history_calling};
+use super::tests::{custom, granted, history_calling};
 use super::*;
 use serde_json::json;
 use tempfile::TempDir;
@@ -20,14 +20,25 @@ use tempfile::TempDir;
 #[test]
 fn a_transcript_that_names_the_retired_multi_tool_still_assembles() {
     // No `descriptions/tools/multi_tool.json` is committed anywhere any
-    // more — the pool stopped shipping one — so the closure stands in
-    // the bare object schema, exactly as for a name a model invented.
+    // more — the pool stopped shipping one — and the name is in no
+    // role's grant, so the closure declares it with the opaque schema
+    // and the door's refusal as its description (bl-9c1d): resolvable,
+    // never offered.
     let wt = TempDir::new().unwrap();
-    let tools = compose(wt.path(), &[], &history_calling(&["multi_tool"]), &[]).unwrap();
+    let tools = compose(
+        wt.path(),
+        &granted(&[]),
+        &history_calling(&["multi_tool"]),
+        &[],
+    )
+    .unwrap();
 
     assert_eq!(tools.len(), 1);
     let (name, description, input_schema) = custom(&tools[0]);
     assert_eq!(name, "multi_tool");
-    assert_eq!(description, None);
+    assert!(
+        description.is_some_and(|d| d.contains("not callable")),
+        "{description:?}"
+    );
     assert_eq!(*input_schema, json!({"type":"object"}));
 }

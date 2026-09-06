@@ -176,7 +176,7 @@ pub(in crate::prompt) fn run_exchange(
         let messages = assembler::assemble(&worktree_path, resolved.manifest)?;
         let tools = tools::compose(
             &worktree_path,
-            resolved.grant.tools,
+            &resolved.grant,
             &messages,
             &tools::injected(resolved.grant.role, deps.tool_executor, repo, &conv_id),
         )?;
