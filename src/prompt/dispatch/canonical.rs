@@ -7,6 +7,21 @@
 use crate::config::Effort;
 use brazen::{CanonicalRequest, Content, Message, Tool};
 
+/// The per-request `max_tokens` output cap a role that states none takes
+/// — one model call's output ceiling, distinct from the §6 spend budgets
+/// and from the §5.2 manifest's `budget_tokens` (an assembled-context
+/// budget with no output cap).
+///
+/// It lives here, beside the one function that spends it, because it is
+/// a **fallback** rather than the value: since bl-a928 a role states its
+/// own with `max_output_tokens:` in `providers.yaml` (§4.3), and this is
+/// what the general path with empty inputs resolves to. 4096 is small
+/// for a role whose job is writing files, which is exactly why the knob
+/// exists; it stays the default because raising a ceiling every caller
+/// pays for is an operator's decision about their own models, not one a
+/// template can make for them.
+pub(in crate::prompt) const DEFAULT_MAX_TOKENS: u32 = 4096;
+
 /// Build a typed [`CanonicalRequest`] (§4.4): building the struct
 /// directly makes brazen's fail-open `extra` map unreachable. `stream`
 /// is left `None` — streaming is brazen's default and litany never
@@ -23,12 +38,15 @@ use brazen::{CanonicalRequest, Content, Message, Tool};
 /// the provider's default lane governs. litany never asks for
 /// `Standard` — refusing the priority lane outright is a different
 /// intent from having no preference, and no config key expresses it.
+/// `max_output_tokens` is the role's own ceiling (§4.3); `None` takes
+/// [`DEFAULT_MAX_TOKENS`], so the default has one home and no caller
+/// carries a number.
 pub(super) fn build_request(
     model_id: &str,
     system: &str,
     messages: Vec<Message>,
     tools: Vec<Tool>,
-    max_tokens: u32,
+    max_output_tokens: Option<u32>,
     effort: Option<Effort>,
     priority: Option<bool>,
 ) -> CanonicalRequest {
@@ -37,7 +55,7 @@ pub(super) fn build_request(
         system: Some(vec![Content::Text(system.to_string())]),
         messages,
         tools,
-        max_tokens: Some(max_tokens),
+        max_tokens: Some(max_output_tokens.unwrap_or(DEFAULT_MAX_TOKENS)),
         reasoning: effort.map(Into::into),
         service_tier: priority
             .unwrap_or(false)
@@ -65,7 +83,7 @@ mod tests {
             "sys",
             vec![],
             vec![tool.clone()],
-            4096,
+            None,
             None,
             None,
         );
@@ -87,7 +105,7 @@ mod tests {
     fn the_role_effort_rides_the_reasoning_knob() {
         // §4.3: the assignment's `effort:` is the whole source of the
         // request's `reasoning`; the level crosses unchanged.
-        let req = build_request("m", "sys", vec![], vec![], 4096, Some(Effort::High), None);
+        let req = build_request("m", "sys", vec![], vec![], None, Some(Effort::High), None);
         assert_eq!(req.reasoning, Some(brazen::ReasoningEffort::High));
     }
 
@@ -97,7 +115,7 @@ mod tests {
         // the canonical processing-lane intent — brazen projects it per
         // dialect (OpenAI `"priority"`, Anthropic's asymmetric `"auto"`,
         // which is org-provisioned capacity with a standard fallback).
-        let req = build_request("m", "sys", vec![], vec![], 4096, None, Some(true));
+        let req = build_request("m", "sys", vec![], vec![], None, None, Some(true));
         assert_eq!(req.service_tier, Some(brazen::ServiceTier::Priority));
     }
 
@@ -106,9 +124,20 @@ mod tests {
         // The checkbox has two states, not three (§4.3): unchecked is
         // "no lane preference", byte-for-byte the omitted case — so no
         // config can make litany demand the standard lane by accident.
-        let unchecked = build_request("m", "sys", vec![], vec![], 4096, None, Some(false));
-        let absent = build_request("m", "sys", vec![], vec![], 4096, None, None);
+        let unchecked = build_request("m", "sys", vec![], vec![], None, None, Some(false));
+        let absent = build_request("m", "sys", vec![], vec![], None, None, None);
         assert_eq!(unchecked.service_tier, None);
         assert_eq!(unchecked, absent);
+    }
+
+    #[test]
+    fn the_role_output_cap_rides_max_tokens_and_absent_takes_the_default() {
+        // §4.3 `max_output_tokens:` (bl-a928): the role's own ceiling
+        // crosses unchanged, and stating none is the general path with
+        // empty inputs — the harness default, whose one home is here.
+        let stated = build_request("m", "sys", vec![], vec![], Some(32000), None, None);
+        assert_eq!(stated.max_tokens, Some(32000));
+        let absent = build_request("m", "sys", vec![], vec![], None, None, None);
+        assert_eq!(absent.max_tokens, Some(DEFAULT_MAX_TOKENS));
     }
 }

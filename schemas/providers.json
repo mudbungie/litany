@@ -23,7 +23,7 @@
       ]
     },
     "RoleAssignment": {
-      "description": "One role's assignment: which provider (by brazen row name) and which model (by wire id), plus the role's enabled tools (ARCH §4.3). This pointer is the whole model binding (bl-35e2) — no global table mediates it; id validity is caught at the first live model call (§4.2). Endpoint and auth resolve inside brazen at call time (§4.1 — no `auth_env` / `endpoint_env` here). `tools` selects which tools the role's agent may call (§3.3); omitted or empty means none. `effort` is the role's reasoning-effort level ([`Effort`], §4.3); omitted means none requested — the general path with empty inputs. `priority` asks the provider's priority lane for the role's model calls (§4.3); `false` and omitted are one fact — no lane preference, the provider's default lane — so there is no third state to carry.",
+      "description": "One role's assignment: which provider (by brazen row name) and which model (by wire id), plus the role's enabled tools (ARCH §4.3). This pointer is the whole model binding (bl-35e2) — no global table mediates it; id validity is caught at the first live model call (§4.2). Endpoint and auth resolve inside brazen at call time (§4.1 — no `auth_env` / `endpoint_env` here). `tools` selects which tools the role's agent may call (§3.3); omitted or empty means none. `effort` is the role's reasoning-effort level ([`Effort`], §4.3); omitted means none requested — the general path with empty inputs. `priority` asks the provider's priority lane for the role's model calls (§4.3); `false` and omitted are one fact — no lane preference, the provider's default lane — so there is no third state to carry. `max_output_tokens` is the ceiling on ONE model call's output (§4.3, bl-a928) — distinct from the §6 spend budgets and from the §5.2 manifest's `budget_tokens`, which bounds the assembled *prompt*. Per role because how much a role writes is a property of the role: a compactor emits a summary, a worker writes files. Omitted takes the harness default (`canonical::DEFAULT_MAX_TOKENS`) — the general path with empty inputs. It is NOT deferred to a provider row's `body_defaults`: brazen fills only what a request leaves absent, and the canonical request always states this field, so a row naming it never won and never will.",
       "type": "object",
       "required": [
         "model",
@@ -39,6 +39,14 @@
               "type": "null"
             }
           ]
+        },
+        "max_output_tokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
         },
         "model": {
           "type": "string"

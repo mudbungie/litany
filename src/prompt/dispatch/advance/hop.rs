@@ -113,7 +113,7 @@ pub(super) fn step(
         &system_with_goal,
         messages,
         tools,
-        step_commit::DEFAULT_MAX_TOKENS,
+        resolved.max_output_tokens,
         resolved.effort,
         resolved.priority,
     );

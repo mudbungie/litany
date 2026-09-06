@@ -135,6 +135,14 @@ pub enum Error {
     )]
     AdapterHalfStream { stderr_log: PathBuf, tail: String },
     #[error(
+        "the model's response was cut off at the request's output cap: a truncation, not \
+         an answer, so nothing was committed and no tool call was run (ARCH §2.10). Raise \
+         the role's `max_output_tokens:` in the config commit's providers.yaml (§4.3), or \
+         ask for less in one step; the step's request.json and response.json hold the cap \
+         and the cut stream"
+    )]
+    OutputTruncated,
+    #[error(
         "bz version {found:?} does not match the linked brazen crate {expected:?} \
          (ARCH §4.4 — install the pinned binary: cargo install brazen --version ={expected})"
     )]

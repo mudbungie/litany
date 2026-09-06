@@ -46,12 +46,6 @@ use crate::prompt::step::{META_FILE, REQUEST_FILE, StepMeta};
 use serde_json::Value;
 use std::path::Path;
 
-/// Per-request `max_tokens` output cap — one model call's output
-/// ceiling, distinct from the §6 spend budgets and from the §5.2
-/// manifest's `budget_tokens` (an assembled-context budget, no output
-/// cap). It lives beside [`write_request`], the one writer that spends
-/// it, and both callers of that writer read it from here.
-pub(super) const DEFAULT_MAX_TOKENS: u32 = 4096;
 /// Worktree-relative path where the conversation's goal is committed
 /// at dispatch time (ARCH §2.8). Lives at the worktree root so the
 /// manifest's `pinned: [goal.md]` rule (§5.2) sees it.

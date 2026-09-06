@@ -60,6 +60,7 @@ mod tests {
                 tools: Vec::new(),
                 effort: None,
                 priority: None,
+                max_output_tokens: None,
             },
         );
         PerRepoProviders { roles }

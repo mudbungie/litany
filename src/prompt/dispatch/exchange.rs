@@ -20,8 +20,8 @@
 
 use super::model_call::ModelCall;
 use super::step_commit::{
-    DEFAULT_MAX_TOKENS, commit_dispatch, compose_system, read_branch_tip, refresh_descriptors,
-    spawn_branch, write_dispatch_files,
+    commit_dispatch, compose_system, read_branch_tip, refresh_descriptors, spawn_branch,
+    write_dispatch_files,
 };
 use super::tool_step::{self, run_tool_calls};
 use super::{
@@ -185,7 +185,7 @@ pub(in crate::prompt) fn run_exchange(
             &system_with_goal,
             messages,
             tools,
-            DEFAULT_MAX_TOKENS,
+            resolved.max_output_tokens,
             resolved.effort,
             resolved.priority,
         );

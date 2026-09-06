@@ -66,3 +66,29 @@ fn the_role_priority_follows_the_tip_to_the_resolved_shape() {
     let after = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
     assert_eq!(after.priority, Some(false));
 }
+
+#[test]
+fn the_role_output_cap_follows_the_tip_to_the_resolved_shape() {
+    // §4.3 `max_output_tokens:` × follow-the-tip (bl-a928): the one
+    // number of the three token limits an operator could not state.
+    // Shipped absent — the harness default governs — and set on the
+    // lineage's head it reaches a running agent at its next boundary.
+    let (_h, ws) = fixture::workspace();
+    fixture::spawn_root(&ws, "20260101-r1");
+    let fx = Fx::new();
+    let before = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
+    assert_eq!(
+        before.max_output_tokens, None,
+        "the shipped template states no ceiling"
+    );
+    fixture::amend_config(
+        &ws,
+        &[(
+            "providers.yaml",
+            &providers_with("max_output_tokens: 32000"),
+        )],
+    );
+    let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
+    assert_eq!(cfg.max_output_tokens, Some(32000));
+    assert_eq!(cfg.as_resolved().max_output_tokens, Some(32000));
+}

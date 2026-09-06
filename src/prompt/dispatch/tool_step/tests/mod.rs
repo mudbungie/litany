@@ -86,6 +86,7 @@ impl Resolution {
             provider_row: "anthropic",
             effort: None,
             priority: None,
+            max_output_tokens: None,
             soul: "be helpful".into(),
             binary: "bz".into(),
             retry: self.workflow.retry,

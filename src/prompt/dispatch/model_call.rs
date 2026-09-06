@@ -33,8 +33,34 @@
 //! callers' §2.9 step-3 check points discard *whatever* came back when
 //! it is set, and propagate it as a fault when it is not.
 //!
+//! **A response cut at the output cap is a truncation, not an answer**
+//! (bl-ecf9, bl-155f, bl-a928). When the terminal `Finish` reason is
+//! `Length` the provider stopped because the request's own `max_tokens`
+//! ran out, so the last block is cut wherever the counter reached — a
+//! `tool_use` whose `input` never finished arrives as `{}` and, before
+//! this, was committed and executed. Measured: every one of nine
+//! reviewer `apply_patch` calls in a learning-loop run arrived as
+//! `input: {}` at exactly 4096 output tokens, each answered with
+//! *"invalid input JSON: missing field `input`"*, and the loop staged
+//! nothing; from the seat the conversation read "came to rest — your
+//! turn". So the segment is its own outcome and the call fails with
+//! [`Error::OutputTruncated`]: the staging sink is never sealed, so no
+//! entry is committed and no tool runs, and the branch settles as
+//! *failed* rather than as a conversation that finished.
+//!
+//! **It is not retried**, unlike a retryable in-band `Error`. The
+//! request is a pure function of the branch's tree (§2.3), so a second
+//! attempt re-issues the identical prompt against the identical ceiling
+//! and is cut at the same byte — the retry loop would pay a whole
+//! further model call to reach the same place. That was measured too:
+//! three consecutive steps re-emitting the same oversized `apply_patch`,
+//! each paying a ~100k-token context, leaving a 0-byte file. The remedy
+//! is config (`max_output_tokens:`, §4.3) or a smaller ask, and the
+//! error names both.
+//!
 //! The adapter's stderr rides beside the call — see [`stderr`].
 
+mod attempt;
 mod stderr;
 
 use super::staging::{StagingWriter, staging_path_for};
@@ -42,10 +68,10 @@ use super::stop_signal;
 use crate::config::RetryConfig;
 use crate::prompt::Error;
 use crate::prompt::adapter::AdapterRunner;
-use brazen::{CanonicalError, EVENT_SCHEMA_VERSION, Event};
+use attempt::run_attempt;
+use brazen::{CanonicalError, EVENT_SCHEMA_VERSION};
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
@@ -58,6 +84,12 @@ enum SegmentOutcome {
     /// handshake version stamped on the first `message_start`, if any,
     /// rides along for the adapter-override guard (§4.4).
     Complete { handshake_v: Option<u8> },
+    /// Trailing `end`, no `error`, and the segment's `Finish` reason is
+    /// [`brazen::FinishReason::Length`]: the provider cut the response
+    /// at the request's own `max_tokens`. Framing, like every other
+    /// variant here — the reason is on the terminal event, not in the
+    /// content (bl-ecf9).
+    Truncated,
     /// An in-band `error` event: the retry loop classifies retryability
     /// via [`CanonicalError::retryable`] (§2.10).
     Failed(CanonicalError),
@@ -145,6 +177,20 @@ pub(super) fn run(
                 drop(response_file);
                 return Ok(());
             }
+            SegmentOutcome::Truncated => {
+                // A response the provider cut at the cap is a truncation,
+                // not an answer (bl-ecf9): the staging sink is dropped
+                // unsealed, so nothing is committed and nothing is
+                // executed. It is NOT retried — the request is a pure
+                // function of the branch's tree (§2.3), so a second
+                // attempt would re-issue the identical prompt against the
+                // identical ceiling and cost a whole further model call
+                // to be cut at the same byte. `response.json` keeps the
+                // stream, terminal `Finish` reason included, as the
+                // record of what happened.
+                drop(response_file);
+                return Err(Error::OutputTruncated);
+            }
             SegmentOutcome::Failed(err) => {
                 // §4.4 segment authority: an `Error`-terminated segment
                 // contributes nothing — truncate its blocks from staging.
@@ -185,76 +231,6 @@ pub(super) fn run(
             }
         }
     }
-}
-
-/// One `bz` attempt: tee every stdout line to the open `response_file`
-/// (as a segment) and stream content and usage into the `staging` sink
-/// (§2.3), tracking only the segment's *framing* — the terminal `end`, an
-/// in-band `error`, and the first `message_start`'s handshake `v`
-/// (§4.4). Events after the terminal `end` are ignored (defensive — a
-/// buggy adapter emitting stray lines must not corrupt the entry). A
-/// malformed event line — or a `content_stop`'d tool-use block whose
-/// `json_delta` does not parse — surfaces as [`Error::AdapterJson`]; a
-/// tool-use block never `content_stop`'d is caught by the sink's seal
-/// (§2.3, [`StagingWriter::seal`]).
-fn run_attempt(
-    call: &ModelCall<'_>,
-    args: &[&str],
-    request_bytes: &[u8],
-    response_file: &mut File,
-    stderr_file: &mut File,
-    staging: &mut StagingWriter,
-) -> Result<SegmentOutcome, Error> {
-    let mut feed_err: Option<serde_json::Error> = None;
-    let mut staging_err: Option<Error> = None;
-    let mut error: Option<CanonicalError> = None;
-    let mut ended = false;
-    let mut handshake_v: Option<u8> = None;
-    let stderr = call
-        .adapter
-        .run(call.binary, args, request_bytes, &mut |line| {
-            response_file.write_all(line)?;
-            response_file.write_all(b"\n")?;
-            if feed_err.is_none() && staging_err.is_none() && !ended {
-                match serde_json::from_slice::<Event>(line) {
-                    Ok(event) => {
-                        match &event {
-                            Event::MessageStart { v, .. } => handshake_v = Some(*v),
-                            Event::Error(e) => error = Some(e.clone()),
-                            Event::End => ended = true,
-                            _ => {}
-                        }
-                        // Terminal `end`/`error`/`finish` are no-ops in the
-                        // sink (§2.3), `usage` is not — it rides the entry;
-                        // stray post-terminal lines the `!ended` guard blocks.
-                        if let Err(e) = staging.feed(&event) {
-                            staging_err = Some(e);
-                        }
-                    }
-                    Err(e) => feed_err = Some(e),
-                }
-            }
-            Ok(())
-        })
-        .map_err(|e| crate::prompt::adapter::spawn_error(call.binary, e))?;
-    stderr_file.write_all(&stderr)?;
-    if let Some(e) = feed_err {
-        return Err(Error::AdapterJson(e));
-    }
-    if let Some(e) = staging_err {
-        return Err(e);
-    }
-    // An `error` segment is `Failed` even if a trailing `end` closed it;
-    // no `end` at all is the kill signature (§2.9).
-    if let Some(err) = error {
-        return Ok(SegmentOutcome::Failed(err));
-    }
-    if !ended {
-        return Ok(SegmentOutcome::HalfStream {
-            stderr_tail: stderr::tail(&stderr),
-        });
-    }
-    Ok(SegmentOutcome::Complete { handshake_v })
 }
 
 /// Under an `adapter:` override the completed segment must carry a

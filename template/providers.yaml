@@ -8,6 +8,20 @@
 # holds the two in step. Narrowing a deployment is an operator edit of
 # this file (or a `<config-root>/template/` override) — policy lives in
 # the config, never in code.
+#
+# `max_output_tokens:` (optional, per role) is the ceiling on ONE model
+# call's output — the third and last of the three token limits, beside
+# the §6 `budgets:` whole-tree spend and the §5.2 manifest's
+# `budget_tokens` prompt budget, and until bl-a928 the only one an
+# operator could not state. Omitted takes the harness default of 4096,
+# which is small for a role whose job is writing files: a step that
+# reaches it is refused as a truncation (§2.10), never committed and
+# never executed, so the number is worth stating where a role's answers
+# are long. It is not settable from a provider row's `body_defaults`:
+# brazen fills only what a request leaves absent and the canonical
+# request always states this field, so a row naming it silently loses.
+# Nothing ships with one set — an output ceiling raised for every
+# workspace is an operator's decision about their own models.
 roles:
   worker:
     provider: anthropic

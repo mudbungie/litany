@@ -41,6 +41,16 @@ pub struct PerRepoProviders {
 /// `priority` asks the provider's priority lane for the role's model
 /// calls (§4.3); `false` and omitted are one fact — no lane preference,
 /// the provider's default lane — so there is no third state to carry.
+/// `max_output_tokens` is the ceiling on ONE model call's output
+/// (§4.3, bl-a928) — distinct from the §6 spend budgets and from the
+/// §5.2 manifest's `budget_tokens`, which bounds the assembled
+/// *prompt*. Per role because how much a role writes is a property of
+/// the role: a compactor emits a summary, a worker writes files. Omitted
+/// takes the harness default (`canonical::DEFAULT_MAX_TOKENS`) — the
+/// general path with empty inputs. It is NOT deferred to a provider
+/// row's `body_defaults`: brazen fills only what a request leaves
+/// absent, and the canonical request always states this field, so a row
+/// naming it never won and never will.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct RoleAssignment {
     pub provider: String,
@@ -51,6 +61,8 @@ pub struct RoleAssignment {
     pub effort: Option<Effort>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub priority: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
 }
 
 const LEGACY_KEYS: &[&str] = &["providers", "models"];

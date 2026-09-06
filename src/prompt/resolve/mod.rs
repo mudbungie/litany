@@ -80,6 +80,11 @@ pub(super) struct WorkerConfig {
     /// fact: no lane preference (the field is `Option` only because the
     /// config key is optional).
     pub(super) priority: Option<bool>,
+    /// The role's per-call output ceiling (§4.3 `max_output_tokens:`),
+    /// from that same assignment — carried to every model call's
+    /// `max_tokens`. `None` takes the harness default
+    /// ([`crate::prompt::dispatch::canonical::DEFAULT_MAX_TOKENS`]).
+    pub(super) max_output_tokens: Option<u32>,
     /// The role's declared tool names (§4.3 `tools:`).
     pub(super) tools: Vec<String>,
     /// The config commit every control file above was read from — the
@@ -137,6 +142,7 @@ impl WorkerConfig {
             provider_row: &self.provider_row,
             effort: self.effort,
             priority: self.priority,
+            max_output_tokens: self.max_output_tokens,
             soul: self.soul.clone(),
             binary: self.binary.clone(),
             retry: self.workflow.retry,
@@ -236,6 +242,7 @@ pub(super) fn resolve_worker(
         provider_row: assignment.provider.clone(),
         effort: assignment.effort,
         priority: assignment.priority,
+        max_output_tokens: assignment.max_output_tokens,
         tools: assignment.tools.clone(),
         config_commit: commit,
         soul,

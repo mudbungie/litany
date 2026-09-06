@@ -30,6 +30,10 @@ pub(in crate::prompt) struct Resolved<'a> {
     /// `priority:`) — rides every model call's `service_tier` knob.
     /// Unset and `false` are one fact: the knob stays absent.
     pub(in crate::prompt) priority: Option<bool>,
+    /// The role's per-call output ceiling (§4.3 `max_output_tokens:`) —
+    /// rides every model call's `max_tokens`; `None` takes the harness
+    /// default ([`super::canonical::DEFAULT_MAX_TOKENS`]).
+    pub(in crate::prompt) max_output_tokens: Option<u32>,
     pub(in crate::prompt) soul: String,
     /// The adapter binary (`bz` or the `adapter:` override, §4.2).
     pub(in crate::prompt) binary: OsString,
