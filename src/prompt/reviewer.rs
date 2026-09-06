@@ -21,9 +21,8 @@
 //!
 //! Its edits land nowhere: `stage_proposal` (§3 there, bl-5b62) consumes
 //! the return into one commit on `proposal/<reviewer-id>`, which an
-//! operator accepts or rejects. Until that action ships, the §6
-//! interpreter declines it loudly (bl-30fe) — a reviewer that runs and
-//! proposes still writes no lineage.
+//! operator accepts or rejects — so a reviewer that runs and proposes
+//! still writes no lineage itself.
 
 use super::{Error, subagent};
 use std::path::Path;

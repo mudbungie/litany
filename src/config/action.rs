@@ -53,10 +53,10 @@ pub enum Action {
     /// and epitaph-gated like [`Action::LandCompaction`]; the return is
     /// consumed, never delivered, so a proposed skill or facts patch
     /// reaches no lineage until `litany proposal --accept` fast-forwards
-    /// it. **Vocabulary only today** (bl-30fe): it parses, and the
-    /// interpreter declines it with `ActionUnsupported` until the
-    /// landing ships (`docs/PRINCIPLES.md` "Decline illegal
-    /// operations").
+    /// it. **Shipped since bl-5b62** — it parsed and the interpreter
+    /// declined it with `ActionUnsupported` for one release (bl-30fe);
+    /// the landing is
+    /// [`crate::prompt::dispatch::child_result`]'s `proposal`.
     StageProposal,
     MarkAbandoned,
     NotifyUi,

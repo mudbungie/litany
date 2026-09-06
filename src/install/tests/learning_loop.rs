@@ -114,3 +114,32 @@ fn the_default_still_dispatches_no_reviewer() {
     );
     assert!(basic.actions_for(Event::ReviewerReturn).is_empty());
 }
+
+/// **The asset's prose may not contradict the interpreter.** The comment
+/// above `reviewer_return` described `stage_proposal` as vocabulary the
+/// interpreter declines "until its landing ships", and the landing had
+/// shipped (bl-5b62) — in the one file whose job is to make adoption a
+/// config edit, so the document that sells the feature argued against it
+/// (bl-bc51).
+///
+/// Mechanical, because the claim is: `src/prompt/tests/
+/// workflow_vocabulary.rs` already proves every action a shipped
+/// workflow binds is one the §6 interpreter performs, so a sentence in
+/// this file saying an action is declined is false by construction.
+/// Phrase-level rather than shape-level for the same reason the soul's
+/// look-fors are pinned as literal phrases: the defect is prose, and
+/// prose is what has to be held.
+#[test]
+fn the_seeded_asset_claims_nothing_the_interpreter_refuses() {
+    for dead in [
+        "Vocabulary today",
+        "interpreter declines",
+        "until its landing ships",
+    ] {
+        assert!(
+            !LEARNING_LOOP_YAML.contains(dead),
+            "learning-loop.yaml still tells the operator {dead:?}, and every action it \
+             binds is implemented"
+        );
+    }
+}

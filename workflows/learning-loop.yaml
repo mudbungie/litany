@@ -39,8 +39,9 @@ events:
   # The reviewer's landing (§3 there): one config commit on
   # `proposal/<reviewer-id>`, parented on the followed config commit the
   # reviewer read, which no lineage points at until `litany proposal
-  # --accept` fast-forwards it. Vocabulary today — the action parses and
-  # the interpreter declines it until its landing ships.
+  # --accept` fast-forwards it. Shipped since bl-5b62: the action stages
+  # the proposal, and `litany proposal <ws>` is where an operator reads,
+  # accepts or rejects it.
   reviewer_return:
     - stage_proposal
   branch_stopped:
