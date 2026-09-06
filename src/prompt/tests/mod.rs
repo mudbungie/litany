@@ -38,5 +38,6 @@ mod stubs;
 mod tool_control;
 mod tool_control_resume;
 mod tool_stub;
+mod two_agent_exchange;
 mod verifier_gate;
 mod workflow_vocabulary;

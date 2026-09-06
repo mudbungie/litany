@@ -29,15 +29,11 @@
 use super::super::inbox::{self, Epitaph, USER_SENDER};
 use super::super::{Deps, Error};
 use super::step_commit::read_branch_tip;
-use super::transcript::MESSAGES_DIR;
 use super::transfer::terminal_ref_of;
 use brazen::Content;
 use std::path::Path;
 
-/// Extension of a delivered message's transcript entry (§2.3 —
-/// `messages/NNN-<sender>.md`; model output and tool results are
-/// `.json`, so the extension alone separates speech from step output).
-const DELIVERED_EXT: &str = ".md";
+mod debt;
 
 /// The terminal response body iff the agent spoke: the concatenated
 /// [`Content::Text`] blocks of the final assistant content, or `None`
@@ -66,11 +62,20 @@ pub(super) fn terminal_text(blocks: &[Content]) -> Option<String> {
 /// death even when the branch was mid-conversation with somebody else.
 ///
 /// A **reply** — `final-response` — answers whoever last prompted this
-/// agent ([`last_prompter`]). For the dispatch step the last prompter
-/// *is* the dispatcher (the goal arrives as its message, §2.5), so the
-/// old parent-addressed rule is this rule's first case rather than a
-/// rule of its own; `user` is nobody's inbox, so an operator-prompted
-/// reply deposits nothing and is read in this agent's own conversation.
+/// agent ([`last_prompter`]), **if it owes one at all** ([`debt`]). For
+/// the dispatch step the last prompter *is* the dispatcher (the goal
+/// arrives as its message, §2.5), so the old parent-addressed rule is
+/// this rule's first case rather than a rule of its own; `user` is
+/// nobody's inbox, so an operator-prompted reply deposits nothing and is
+/// read in this agent's own conversation.
+///
+/// **A reply is owed once, to a question** (§2.6, bl-82d8). Nothing
+/// bounded the answer before, so two agents that spoke to each other
+/// answered each other's answers forever. The debt is derived from this
+/// branch's own transcript — has anything been delivered since the
+/// previous terminal response that *asks* this agent for something —
+/// and a terminal event that owes nothing addresses nobody, which is the
+/// same structural no-op an operator-prompted reply already takes.
 pub(super) fn recipient(
     worktree: &Path,
     agent_id: &str,
@@ -79,7 +84,13 @@ pub(super) fn recipient(
     if epitaph != Epitaph::FinalResponse {
         return Ok(inbox::parent_of(agent_id));
     }
-    Ok(match last_prompter(worktree, agent_id)? {
+    // One reading of `messages/` for both halves of the rule (§2.3 —
+    // order lives in the filename, so the list comes back newest first).
+    let entries = debt::read_entries(worktree)?;
+    if !debt::owes_a_reply(&entries, agent_id)? {
+        return Ok(None);
+    }
+    Ok(match last_prompter(&entries, agent_id)? {
         Some(sender) if sender == USER_SENDER => None,
         Some(sender) => Some(sender),
         // No surviving prompt: the dispatch message is the transcript's
@@ -109,42 +120,15 @@ pub(super) fn recipient(
 ///   answer is the agent's own next step, which has already happened;
 ///   addressing a reply to one's own inbox would deposit into the very
 ///   inbox whose delivery produced it and never terminate.
-fn last_prompter(worktree: &Path, agent_id: &str) -> Result<Option<String>, Error> {
-    let dir = worktree.join(MESSAGES_DIR);
-    let rd = match std::fs::read_dir(&dir) {
-        Ok(rd) => rd,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(Error::Io(e)),
-    };
-    let mut delivered: Vec<(u32, String, std::path::PathBuf)> = Vec::new();
-    for entry in rd {
-        let entry = entry.map_err(Error::Io)?;
-        let name = entry.file_name();
-        let Some((seq, sender)) = name.to_str().and_then(parse_delivered) else {
-            continue;
-        };
-        if sender != agent_id {
-            delivered.push((seq, sender.to_string(), entry.path()));
-        }
-    }
-    delivered.sort_unstable();
-    for (_, sender, path) in delivered.into_iter().rev() {
-        if terminal_ref_of(&std::fs::read_to_string(path)?).is_none() {
-            return Ok(Some(sender));
+fn last_prompter(entries: &[debt::Entry], agent_id: &str) -> Result<Option<String>, Error> {
+    for entry in entries.iter().filter(|e| e.delivered) {
+        if entry.origin != agent_id
+            && terminal_ref_of(&std::fs::read_to_string(&entry.path)?).is_none()
+        {
+            return Ok(Some(entry.origin.clone()));
         }
     }
     Ok(None)
-}
-
-/// Split `NNN-<sender>.md` into its counter and its origin token (§2.3).
-/// A sender id carries hyphens of its own (the descent, §2.3), so the
-/// split is at the *first* hyphen and the remainder is the whole token.
-/// Anything else under `messages/` — a `.json` step entry, a stray — is
-/// `None`.
-fn parse_delivered(name: &str) -> Option<(u32, &str)> {
-    let (seq, sender) = name.strip_suffix(DELIVERED_EXT)?.split_once('-')?;
-    let seq = seq.parse().ok()?;
-    (!sender.is_empty()).then_some((seq, sender))
 }
 
 /// Deposit this branch's result message on its own behalf at a terminal
