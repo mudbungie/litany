@@ -241,7 +241,7 @@ counter already contains the cached slice, so the clock fires early
 rather than late — the safe direction here, unlike §5.2's tail, where
 the same over-statement only shortens what is kept.
 
-The shipped template still declares `every_n_commits: 20` — a row
+The shipped template still declares `every_n_commits` — a row
 brazen states no window for is *declined*, so defaulting to the window
 trigger would refuse those workspaces at their first boundary. That
 survey has since run and kept the default: see **Surveyed (bl-4c64)**
@@ -270,8 +270,8 @@ even `google` states nothing until `bz --list-models` has run for that
 row. And the decline is not quiet: `Error::CompactionWindowUnknown` lands
 at the first boundary after the first model entry and at every boundary
 after it, so a flipped default would let such a workspace take one step
-and no more. `template/workflow.yaml` therefore keeps `every_n_commits:
-20`, `keep_recent_tokens` stays unset beside it (§5.2), and the variant
+and no more. `template/workflow.yaml` therefore keeps `every_n_commits`,
+`keep_recent_tokens` stays unset beside it (§5.2), and the variant
 stays an opt-in two-line edit for a row that does state a window. What
 would reverse it is a change in **brazen**, not here — built-in rows
 naming a `context_key` their provider serves, or a window that does not
@@ -316,7 +316,7 @@ shipped row — brazen declares no capacity it did not observe."* So all
 eight built-in rows still state no window on a fresh box, a shipped
 `window_percent` would still land `Error::CompactionWindowUnknown` at the
 first boundary after the first model entry, and `template/workflow.yaml`
-keeps `every_n_commits: 20` with `keep_recent_tokens` unset beside it
+keeps `every_n_commits` with `keep_recent_tokens` unset beside it
 (§5.2 — they flip together or not at all).
 
 **The basis of the refusal moves, and that is the durable finding.**
@@ -371,7 +371,7 @@ bodies, the review's "verbatim user messages"), error strings (the last
 lines of `is_error` tool results and non-zero exit tails), pull-request
 numbers, commit shas (7–40 hex), and paths — each section deduplicated,
 newest first, the cap stated in `compaction.intermediate.extract_bytes`
-(shipped: 32768; omit it and no extract is written — severable like
+(shipped value in `template/workflow.yaml`, justified in §7.1; omit the key and no extract is written — severable like
 `tool_output`). The name sorts after its summary (`003.md` < `003.refs.md`),
 so the model reads the prose first and the list second, and
 `drop_oldest_summaries` sheds the pair together.
@@ -565,6 +565,59 @@ lives, nothing lost. Two gaps, neither this document's to close:
   address is the model-followable pointer for *transcript* content; the
   raw capture stays diagnostic (ARCH §2.3), and "re-run with a filter" —
   the marker's own advice — remains the answer for it.
+
+### 7.1 The shipped numbers, and why they are these numbers (bl-ce09)
+
+**Decision.** `tool_output: {head_bytes: 2048, tail_bytes: 2048}`,
+`compaction.intermediate: {n: 60, extract_bytes: 8192}`. The mechanism is
+unchanged; this section is the *values*, and they are one decision because
+the clock counts commits and what a commit costs is the bound.
+
+**What was shipped and what it cost.** 16 KiB + 16 KiB is ~8,000 tokens
+for ONE tool result, and `n: 20` is a compactor about every ten steps.
+Measured on ordinary goals: `bl --help; bl list --help` put 7,684 bytes
+into a transcript whole; a `find` over a home tree put 32,985 bytes in
+essentially whole; a status report about four tasks spent 2,607,869 tokens
+across six compactor children in four minutes; a second conversation
+reading a repository reached 122,000 prompt tokens by its eighth step on
+`cat` output alone and compacted three times on the way to 4,060,308. The
+same three goals under `claude -p` and `codex exec` compacted zero times,
+and codex finished the status report on 51,733 tokens total. The bound and
+the clock were each defensible alone and ruinous together.
+
+**The rule the numbers are picked under.** The shipped value is what an
+*ordinary* conversation pays on every step for the rest of its life, so it
+is chosen against the ordinary case, not against the rare one that wants a
+whole capture. An ordinary conversation should finish without compacting
+once; a long one should compact rarely rather than continuously. At 4 KiB
+a result is ~1,000 tokens and a `--help` / `ls -la` / `git status` / test
+summary lands whole or lands with its two useful ends. At `n: 60` — about
+thirty steps — a tool-heavy span is tens of thousands of prompt tokens,
+inside every shipped model's window with the retained tail and the pinned
+head on top.
+
+**The cost, stated rather than hidden.** A source file read whole is now
+cut in the middle. That is the trade and not an oversight: the full
+capture is on disk, the marker names its path and the byte and line counts
+(ARCH §3.3), and re-reading a named range costs one cheap tool call, where
+carrying every whole file forever costs every later step. §7's first gap —
+`read_file` has no offset/limit — is what makes the re-read a `bash`
+recipe rather than a first-class one, and it is still that owner's to
+close. A workspace whose work really is reading long files end to end
+raises both numbers; that is what a severable policy block is for.
+
+**`extract_bytes` moved for a different reason.** Since bl-2071 (§5.5) the
+landing sweeps the span's transcript entries itself, so the extract now
+derives from the whole span rather than from whatever a model nominated —
+it will fill toward its cap, and unlike a tool result it stays in context
+until its summary is shed. 32 KiB was a ceiling nothing reached; at
+8 KiB it is ~2,000 tokens of references per compaction.
+
+**Both shipped workflows carry the same numbers.** `template/workflow.yaml`
+and `workflows/learning-loop.yaml` are held equal outside their `events:`
+block by `install::tests::learning_loop`, so the pair cannot drift, and
+`install::tests::shipped_template` pins the values themselves — a default
+nothing asserts is a default the next edit silently moves.
 
 ## 8. F — Recoverability: what git gives, and the verb refused
 

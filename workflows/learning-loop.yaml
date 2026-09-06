@@ -64,11 +64,35 @@ events:
 # the compaction takes out of context, written by code beside the
 # compactor's prose (docs/DESIGN_CONTEXT_ECONOMY.md §5.3); omit it and no
 # extract is written. Omit the whole block and the branch never compacts.
+#
+# `n: 60` and `extract_bytes: 8192` are chosen together with the
+# `tool_output:` bound below, because the clock counts commits and what
+# a commit COSTS is that bound (bl-ce09). A step writes two commits, so
+# 60 is about thirty steps. At the shipped 4 KiB-per-result bound a
+# tool-heavy step appends a few thousand prompt tokens, so a span of
+# thirty steps is tens of thousands — inside every shipped model's
+# window, with the retained tail and the pinned head on top. The
+# previous `n: 20` fired every ten steps whatever the context held: on
+# the measured goals an ordinary conversation compacted six times, and
+# each compaction is a model dispatch carrying the whole inherited
+# transcript, so the clock cost more than the context it was reclaiming.
+# The rule the pair is picked under is: an ORDINARY conversation should
+# finish without compacting once, and a long one should compact rarely
+# rather than continuously.
+#
+# `extract_bytes` moved with it for a reason that is not symmetry. Since
+# bl-2071 the landing sweeps the span's transcript entries itself, so
+# the extract is now derived from the whole span rather than from
+# whatever a model happened to nominate — it will actually fill toward
+# its cap, and unlike a tool result it stays in context until its
+# summary is shed. 8 KiB is about two thousand tokens of references per
+# compaction; 32 KiB was a cap nothing reached before and would now be
+# paid every time.
 compaction:
   intermediate:
     trigger: every_n_commits
-    n: 20
-    extract_bytes: 32768
+    n: 60
+    extract_bytes: 8192
 
 # Harness-owned retry policy for a step's model call (ARCH §2.10, §4.4):
 # brazen never retries — the harness re-invokes `bz` on a retryable
@@ -85,9 +109,31 @@ retry:
 # (steps/<agent-id>/<NNN>/tools/<tool-id>/output.json — always complete).
 # Counts are bytes, never tokens. Omit the block and tool output reaches
 # the transcript unbounded.
+#
+# 2 KiB + 2 KiB is the shipped bound, and it is small on purpose
+# (bl-ce09). The number that ships is the one an ordinary conversation
+# pays on EVERY step for the rest of its life, so it is chosen against
+# the ordinary case and not against the rare one that wants the whole
+# capture. At 4 KiB a result is roughly a thousand tokens: a `--help`,
+# an `ls -la`, a `git status`, a test summary all land whole or land
+# with their two useful ends and a marker between them. The previous
+# 16 KiB + 16 KiB made ONE result worth about eight thousand tokens —
+# measured, three ordinary calls filled a context, one `find` over a
+# home tree put 32,985 bytes into a transcript essentially whole, and a
+# conversation reading a repository reached 122,000 prompt tokens by its
+# eighth step on `cat` output alone.
+#
+# What it costs is real and is priced here: a source file read whole is
+# cut in the middle, and the model gets the marker instead. That is the
+# intended trade — the full capture is on disk, the marker names its
+# path and the byte and line counts, and re-reading a named range
+# (`sed -n '120,180p'`) costs one cheap tool call, where carrying every
+# whole file forever costs every later step. Raise both numbers on a
+# workspace whose work really is reading long files end to end; that is
+# what a severable policy block is for.
 tool_output:
-  head_bytes: 16384
-  tail_bytes: 16384
+  head_bytes: 2048
+  tail_bytes: 2048
 
 # Context files (ARCH §3.3 *Context files ride the next tool result*,
 # `docs/DESIGN_CONTEXT_ECONOMY.md` §6). File NAMES, looked for in every

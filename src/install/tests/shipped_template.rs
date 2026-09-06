@@ -166,3 +166,46 @@ fn the_embedded_template_ships_no_facts_file() {
             .is_none()
     );
 }
+
+/// The shipped context-economy numbers, pinned (bl-ce09).
+///
+/// These four are severable policy, and severable policy that nothing
+/// asserts is policy the next edit moves without noticing. They are
+/// pinned together rather than one apiece because they are **one
+/// decision**: the compaction clock counts commits, and what a commit
+/// costs is the tool-output bound, so a change to either without the
+/// other is the pairing that shipped 16 KiB results under a ten-step
+/// clock — an ordinary conversation compacting six times and spending
+/// millions of tokens on a four-task status report.
+///
+/// The reasoning behind each value lives beside it in
+/// `template/workflow.yaml` and in `docs/DESIGN_CONTEXT_ECONOMY.md`
+/// §7.1; this test only refuses a silent move.
+#[test]
+fn the_shipped_workflow_pins_the_context_economy_numbers() {
+    let raw = crate::template::TEMPLATE
+        .get_file("workflow.yaml")
+        .expect("the template ships workflow.yaml")
+        .contents_utf8()
+        .expect("workflow.yaml is UTF-8");
+    let shipped = crate::config::Workflow::parse(raw, Path::new("template/workflow.yaml"))
+        .expect("the shipped template parses");
+
+    let bound = shipped.tool_output.expect("the shipped bound is declared");
+    assert_eq!(
+        (bound.head_bytes, bound.tail_bytes),
+        (2048, 2048),
+        "a tool result is ~1000 tokens; see workflow.yaml's comment before moving it"
+    );
+    let intermediate = &shipped
+        .compaction
+        .as_ref()
+        .expect("the shipped clock is declared")
+        .intermediate;
+    assert_eq!(
+        intermediate.n,
+        Some(60),
+        "about thirty steps at two commits each"
+    );
+    assert_eq!(intermediate.extract_bytes, Some(8192));
+}
