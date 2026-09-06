@@ -20,6 +20,14 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tempfile::TempDir;
 
+/// An ordinary **steering** deposit into `agent`'s inbox — a message
+/// with no `terminal_ref:`, which is what makes it not a child result.
+/// The distinction both `has_pending_result` and `interpret_pending`
+/// turn on ([`super::cases`]).
+pub(super) fn steer(ws: &Path, agent: &str) {
+    crate::prompt::inbox::deposit(ws, agent, "user", "hi", &SystemClock, &RealGit::new()).unwrap();
+}
+
 struct NoAdapter;
 impl AdapterRunner for NoAdapter {
     fn run(

@@ -55,7 +55,7 @@ pub(super) fn is_driven(workspace: &Path, branch: &str) -> Result<bool, ScanErro
 
 /// Has the child `child` returned a result to `parent`? The durable
 /// answer is the **returned mark** `refs/litany/returned/<child>` that
-/// every result deposit writes ([`crate::prompt::inbox::deposit::RETURNED_REF_PREFIX`])
+/// every result deposit writes ([`crate::prompt::inbox::deposit::result::RETURNED_REF_PREFIX`])
 /// — the message file and even its delivered transcript entry are
 /// consumable (a compaction landing removes the trigger without a
 /// transcript entry, and a later compaction can squash a delivered

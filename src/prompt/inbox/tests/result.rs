@@ -15,11 +15,14 @@ use tempfile::TempDir;
 
 /// Recording [`GitRunner`]: every `run` invocation's args, so a test
 /// asserts the returned-mark `update-ref` (its one git effect) without a
-/// real repo. `fail` makes `run` error, for the Mark-arm test.
+/// real repo. `fail` makes `run` error, for the Mark-arm test. `name` is
+/// what `git show agents/<id>:name` answers — the sender's display name
+/// the frontmatter attributes by (§2.11, bl-a457); empty is unnamed.
 #[derive(Default)]
 struct RecGit {
     runs: RefCell<Vec<Vec<String>>>,
     fail: bool,
+    name: &'static str,
 }
 impl GitRunner for RecGit {
     fn run(&self, _dest: &Path, args: &[&str]) -> io::Result<()> {
@@ -32,7 +35,7 @@ impl GitRunner for RecGit {
         Ok(())
     }
     fn run_capture(&self, _dest: &Path, _args: &[&str]) -> io::Result<String> {
-        unreachable!("result deposit never captures git output")
+        Ok(self.name.to_string())
     }
 }
 
@@ -82,6 +85,42 @@ fn result_message_carries_epitaph_ref_and_body_when_spoke() {
         read(&path),
         "---\nfrom: parent-child\ndeposited_at: 2026-07-11T00:00:00Z\n\
          epitaph: final-response\nterminal_ref: abc123\n---\nall done\n"
+    );
+}
+
+// bl-a457: `dispatch`'s schema calls the name "the child's identity in
+// every surface", and a returning child's result is the surface an
+// operator and a parent model both read. The id stays the address; the
+// name rides beside it, so a deposit is attributable by one word instead
+// of ~60 characters of timestamped hex.
+#[test]
+fn a_named_sender_is_attributed_by_its_name_beside_its_id() {
+    let ws = TempDir::new().unwrap();
+    let path = deposit_result(
+        ws.path(),
+        "parent",
+        "parent-child",
+        Epitaph::FinalResponse,
+        "abc123",
+        Some("spec written\n"),
+        &FixedClock,
+        &RecGit {
+            name: "Speccer",
+            ..RecGit::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        read(&path),
+        "---\nfrom: parent-child\nfrom_name: Speccer\n\
+         deposited_at: 2026-07-11T00:00:00Z\n\
+         epitaph: final-response\nterminal_ref: abc123\n---\nspec written\n"
+    );
+    // The file name is still the id's: it is the addressing token, the
+    // sender-namespaced sequence, and the handle that survives the name.
+    assert_eq!(
+        path,
+        inbox_dir(ws.path(), "parent").join("parent-child-001.md")
     );
 }
 

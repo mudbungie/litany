@@ -148,8 +148,24 @@ fn one_exchange_between_two_agents_terminates() {
     // The exchange, as the `message` tool deposits it (§2.11): the spec
     // to the builder, and the builder's "DONE" back — one call each, the
     // whole of what the two agents deliberately said to each other.
-    inbox::deposit(&ws, &builder, &speccer, "the spec", &DescentClock).unwrap();
-    inbox::deposit(&ws, &speccer, &builder, "DONE", &DescentClock).unwrap();
+    inbox::deposit(
+        &ws,
+        &builder,
+        &speccer,
+        "the spec",
+        &DescentClock,
+        &RealGit::new(),
+    )
+    .unwrap();
+    inbox::deposit(
+        &ws,
+        &speccer,
+        &builder,
+        "DONE",
+        &DescentClock,
+        &RealGit::new(),
+    )
+    .unwrap();
 
     let launcher = ExchangeLauncher::new();
     advance_with(&ws, &builder, &launcher);

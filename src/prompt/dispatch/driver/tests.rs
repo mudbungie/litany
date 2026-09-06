@@ -33,7 +33,7 @@ fn a_held_lock_means_already_driven() {
     let (_h, ws) = workspace();
     let ws = ws.as_path();
     let _held = try_acquire(&inbox_dir(ws, AGENT)).unwrap().expect("free");
-    let outcome = drive(ws, AGENT, &RealGit::new()).unwrap();
+    let outcome = drive(ws, AGENT, &crate::template::RealGit::new()).unwrap();
     assert_eq!(outcome, DriveOutcome::AlreadyDriven);
 }
 
@@ -45,7 +45,7 @@ fn empty_inbox_exits_silently_without_stepping_or_relaunching() {
     let (_h, ws) = workspace();
     let ws = ws.as_path();
     let before = tip(ws);
-    let outcome = drive(ws, AGENT, &RealGit::new()).unwrap();
+    let outcome = drive(ws, AGENT, &crate::template::RealGit::new()).unwrap();
     assert_eq!(outcome, DriveOutcome::NothingToDeliver);
     assert_eq!(tip(ws), before, "no step: the tip must not move");
     // No deposit anywhere: the workspace inbox tree holds only the
@@ -66,8 +66,16 @@ fn a_late_deposit_is_delivered_by_the_launched_driver() {
     // released lock and delivers it as a delivery commit.
     let (_h, ws) = workspace();
     let ws = ws.as_path();
-    deposit(ws, AGENT, "user", "late mail", &SystemClock).unwrap();
-    let outcome = drive(ws, AGENT, &RealGit::new()).unwrap();
+    deposit(
+        ws,
+        AGENT,
+        "user",
+        "late mail",
+        &SystemClock,
+        &crate::template::RealGit::new(),
+    )
+    .unwrap();
+    let outcome = drive(ws, AGENT, &crate::template::RealGit::new()).unwrap();
     assert_eq!(outcome, DriveOutcome::Delivered(1));
     // The file left the inbox (rename semantics, §2.11)…
     assert_eq!(std::fs::read_dir(inbox_dir(ws, AGENT)).unwrap().count(), 0);
@@ -97,8 +105,16 @@ fn a_torn_down_worktree_is_rematerialized_before_delivery() {
         .run(&repo, &["worktree", "remove", wt_str.as_str()])
         .unwrap();
     assert!(!wt.exists());
-    deposit(ws, AGENT, "user", "wake up", &SystemClock).unwrap();
-    let outcome = drive(ws, AGENT, &RealGit::new()).unwrap();
+    deposit(
+        ws,
+        AGENT,
+        "user",
+        "wake up",
+        &SystemClock,
+        &crate::template::RealGit::new(),
+    )
+    .unwrap();
+    let outcome = drive(ws, AGENT, &crate::template::RealGit::new()).unwrap();
     assert_eq!(outcome, DriveOutcome::Delivered(1));
     assert!(wt.join("messages").join("001-user.md").exists());
 }
@@ -114,8 +130,16 @@ fn rematerialize_failure_is_surfaced_as_a_git_error() {
     g.run(&repo, &["worktree", "remove", wt_str.as_str()])
         .unwrap();
     g.run(&repo, &["branch", "-D", &agent_ref(AGENT)]).unwrap();
-    deposit(ws, AGENT, "user", "orphaned", &SystemClock).unwrap();
-    let err = drive(ws, AGENT, &RealGit::new()).unwrap_err();
+    deposit(
+        ws,
+        AGENT,
+        "user",
+        "orphaned",
+        &SystemClock,
+        &crate::template::RealGit::new(),
+    )
+    .unwrap();
+    let err = drive(ws, AGENT, &crate::template::RealGit::new()).unwrap_err();
     assert!(
         matches!(
             err,
@@ -136,7 +160,7 @@ fn a_broken_inbox_surfaces_as_an_executor_lock_error() {
     let ws = ws.as_path();
     std::fs::create_dir_all(ws.join("inbox")).unwrap();
     std::fs::write(inbox_dir(ws, AGENT), b"not a dir").unwrap();
-    let err = drive(ws, AGENT, &RealGit::new()).unwrap_err();
+    let err = drive(ws, AGENT, &crate::template::RealGit::new()).unwrap_err();
     assert!(
         matches!(err, crate::prompt::Error::ExecutorLock { .. }),
         "{err}"

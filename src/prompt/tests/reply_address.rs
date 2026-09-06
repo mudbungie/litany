@@ -11,6 +11,7 @@
 use super::parent_revival::{DescentClock, advance_child, dispatched_child};
 use crate::prompt::dispatch::advance::AdvanceOutcome;
 use crate::prompt::inbox::{self, Launcher, inbox_dir};
+use crate::template::RealGit;
 use std::io;
 use std::path::Path;
 
@@ -55,7 +56,15 @@ fn a_reply_goes_to_the_agent_that_prompted_the_step_not_the_dispatcher() {
     // dispatcher put the question, so the answer is theirs. The
     // dispatcher hears nothing and is not woken — it asked nothing.
     let (_holder, ws, parent, _parent_wt, child) = dispatched_child();
-    inbox::deposit(&ws, &child, SIBLING, "what about X?", &DescentClock).unwrap();
+    inbox::deposit(
+        &ws,
+        &child,
+        SIBLING,
+        "what about X?",
+        &DescentClock,
+        &RealGit::new(),
+    )
+    .unwrap();
 
     let launcher = RecLauncher::default();
     let out = advance_child(&ws, &child, &launcher);

@@ -73,7 +73,15 @@ fn a_deposit_racing_the_holders_last_read_is_launched_at_release() {
         .unwrap()
         .expect("free");
     let seen: Vec<SeenDeposit> = Vec::new();
-    deposit(ws.path(), AGENT, "user", "racing mail", &SystemClock).unwrap();
+    deposit(
+        ws.path(),
+        AGENT,
+        "user",
+        "racing mail",
+        &SystemClock,
+        &crate::template::RealGit::new(),
+    )
+    .unwrap();
     let rec = RecLauncher::default();
     assert_eq!(
         probe_and_launch(ws.path(), AGENT, &rec).unwrap(),
@@ -103,7 +111,15 @@ fn mail_the_holders_last_read_saw_never_relaunches() {
     let holder = try_acquire(&inbox_dir(ws.path(), AGENT))
         .unwrap()
         .expect("free");
-    let held = deposit(ws.path(), AGENT, "user", "held mail", &SystemClock).unwrap();
+    let held = deposit(
+        ws.path(),
+        AGENT,
+        "user",
+        "held mail",
+        &SystemClock,
+        &crate::template::RealGit::new(),
+    )
+    .unwrap();
     let seen = vec![seen_of(&held)];
     let rec = RecLauncher::default();
     release_then_reprobe(holder, ws.path(), AGENT, &seen, &rec);
@@ -121,7 +137,15 @@ fn a_reused_name_is_a_new_deposit_and_fires_the_release() {
     let holder = try_acquire(&inbox_dir(ws.path(), AGENT))
         .unwrap()
         .expect("free");
-    let racing = deposit(ws.path(), AGENT, "user", "racing mail", &SystemClock).unwrap();
+    let racing = deposit(
+        ws.path(),
+        AGENT,
+        "user",
+        "racing mail",
+        &SystemClock,
+        &crate::template::RealGit::new(),
+    )
+    .unwrap();
     // A seen-set naming the same file name at a different instant — the
     // consumed predecessor whose name the racing deposit reused.
     let seen = vec![SeenDeposit::new(
@@ -143,7 +167,15 @@ fn a_rival_holding_the_freed_lease_defers_the_reprobe() {
     let _rival = try_acquire(&inbox_dir(ws.path(), AGENT))
         .unwrap()
         .expect("free");
-    deposit(ws.path(), AGENT, "user", "new mail", &SystemClock).unwrap();
+    deposit(
+        ws.path(),
+        AGENT,
+        "user",
+        "new mail",
+        &SystemClock,
+        &crate::template::RealGit::new(),
+    )
+    .unwrap();
     let rec = RecLauncher::default();
     reprobe_after_release(ws.path(), AGENT, &[], &rec);
     assert!(rec.launches.borrow().is_empty());
@@ -221,6 +253,14 @@ fn a_failed_post_release_launch_is_swallowed() {
     // Fire-and-forget (§2.11): unseen mail over a free lease warrants a
     // launch, and a spawn refusal is logged and swallowed, never raised.
     let ws = TempDir::new().unwrap();
-    deposit(ws.path(), AGENT, "user", "mail", &SystemClock).unwrap();
+    deposit(
+        ws.path(),
+        AGENT,
+        "user",
+        "mail",
+        &SystemClock,
+        &crate::template::RealGit::new(),
+    )
+    .unwrap();
     reprobe_after_release(ws.path(), AGENT, &[], &FailLauncher);
 }

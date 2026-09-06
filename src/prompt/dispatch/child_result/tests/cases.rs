@@ -3,7 +3,7 @@
 //! parent [`super`] module.
 
 use super::super::{has_pending_result, interpret_pending, run_flush};
-use super::{Fx, returned_child, returned_child_ep, workflow};
+use super::{Fx, returned_child, returned_child_ep, steer, workflow};
 use crate::prompt::inbox::Epitaph;
 use crate::prompt::{Error, SystemClock};
 use crate::template::GitRunner;
@@ -185,7 +185,7 @@ fn has_pending_result_is_false_without_a_result_message() {
     let parent = "20260101-p5";
     fixture::spawn_root(&ws, parent);
     // An ordinary steering deposit is not a result message.
-    crate::prompt::inbox::deposit(&ws, parent, "user", "hi", &SystemClock).unwrap();
+    steer(&ws, parent);
     assert!(!has_pending_result(&ws, parent).unwrap());
 }
 
@@ -198,7 +198,7 @@ fn interpret_pending_skips_a_steering_deposit() {
     let (_h, ws) = fixture::workspace();
     let parent = "20260101-p8";
     let wt = fixture::spawn_root(&ws, parent);
-    crate::prompt::inbox::deposit(&ws, parent, "user", "hi", &SystemClock).unwrap();
+    steer(&ws, parent);
     let fx = Fx::new();
     let wf = workflow("events: {}\n");
     interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap();

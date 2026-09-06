@@ -113,6 +113,7 @@ impl AdapterRunner for DepositMidCall<'_> {
                 "user",
                 "late mail",
                 &crate::prompt::SystemClock,
+                &RealGit::new(),
             )
             .map_err(io::Error::other)?;
             stream_of(brazen::FinishReason::Stop, &[Block::Text("done")])

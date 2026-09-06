@@ -155,7 +155,15 @@ fn a_warranted_hop_delivers_then_consults_the_resolver() {
     let (_h, ws) = crate::workspace::fixture::workspace();
     let agent = "20260101-a1";
     let wt = crate::workspace::fixture::spawn_root(&ws, agent);
-    inbox::deposit(&ws, agent, "user", "hi", &SystemClock).unwrap();
+    inbox::deposit(
+        &ws,
+        agent,
+        "user",
+        "hi",
+        &SystemClock,
+        &crate::template::RealGit::new(),
+    )
+    .unwrap();
     let err = cli_run(&ws, agent, td(), None, &AtomicBool::new(false), None).unwrap_err();
     assert!(!err.to_string().is_empty());
     // The delivery commit landed ahead of the failed resolution.

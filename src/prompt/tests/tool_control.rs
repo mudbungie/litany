@@ -11,6 +11,7 @@ use crate::prompt::dispatch::advance::{AdvanceOutcome, run};
 use crate::prompt::inbox::{self, inbox_dir, try_acquire};
 use crate::prompt::resolve::WorkerConfig;
 use crate::prompt::run as prompt_run;
+use crate::template::RealGit;
 use crate::workspace::agent_name::mint::test_rng;
 use brazen::FinishReason;
 use serde_json::json;
@@ -154,7 +155,7 @@ fn a_fresh_hold_in_a_hop_exits_held_with_the_lease_released() {
     // under StubGit, which records the ref write without a real store.
     std::fs::create_dir(ws.path().join(crate::workspace::REPO_DIR)).unwrap();
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "run it", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "run it", &clock, &RealGit::new()).unwrap();
     let tool_stream = stream_of(
         FinishReason::ToolUse,
         &[Block::ToolUse {

@@ -161,7 +161,7 @@ fn a_conversation_past_a_compaction_still_has_its_opening_prompt_goal_soul_and_n
         &git,
     )
     .unwrap();
-    inbox::deposit(&ws, parent, "user", "carry on", &clock).unwrap();
+    inbox::deposit(&ws, parent, "user", "carry on", &clock, &RealGit::new()).unwrap();
 
     let adapter = StubAdapter::scripted([StubAdapter::reply_ok(&happy_response_bytes())]);
     let (sleeper, tools_stub, stub_git) = (

@@ -12,6 +12,7 @@ use crate::config::Workflow;
 use crate::prompt::dispatch::advance::{AdvanceOutcome, run};
 use crate::prompt::inbox::{self, Epitaph, inbox_dir};
 use crate::prompt::resolve::WorkerConfig;
+use crate::template::RealGit;
 use std::sync::atomic::AtomicBool;
 
 /// A child of [`AGENT`] (its id plus one descent segment, §2.3).
@@ -53,7 +54,15 @@ fn no_op_hop_with_held_result(race: bool) -> (tempfile::TempDir, RecLauncher, Ad
     deps.launcher = &rec;
     let out = run(ws.path(), AGENT, None, &deps, &mut || {
         if race {
-            inbox::deposit(ws.path(), AGENT, "user", "racing mail", &clock).unwrap();
+            inbox::deposit(
+                ws.path(),
+                AGENT,
+                "user",
+                "racing mail",
+                &clock,
+                &RealGit::new(),
+            )
+            .unwrap();
         }
         Ok(gate_config())
     })
@@ -91,7 +100,7 @@ fn a_deposit_racing_a_stopped_terminal_release_is_launched_whatever_the_epitaph(
     let (clock, id) = (FixedClock::default(), FixedIdGen);
     // Delivered pre-mail turns the tail user-side, so the hop reaches
     // the step whose entry stop-check goes Terminal(Stopped).
-    inbox::deposit(ws.path(), AGENT, "user", "work", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "work", &clock, &RealGit::new()).unwrap();
     let (adapter, sleeper, git) = (unreachable_adapter(), StubSleeper::default(), StubGit::ok());
     let tools = StubToolExecutor::ok();
     let rec = RecLauncher::default();
@@ -101,7 +110,15 @@ fn a_deposit_racing_a_stopped_terminal_release_is_launched_whatever_the_epitaph(
     deps.stop = &stopped;
     let out = run(ws.path(), AGENT, None, &deps, &mut || {
         // The race seat: after the hop's last inbox read, before release.
-        inbox::deposit(ws.path(), AGENT, "user", "racing mail", &clock).unwrap();
+        inbox::deposit(
+            ws.path(),
+            AGENT,
+            "user",
+            "racing mail",
+            &clock,
+            &RealGit::new(),
+        )
+        .unwrap();
         Ok(worker_config())
     })
     .unwrap();

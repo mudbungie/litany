@@ -12,6 +12,7 @@ use super::{
     launch::{AdvanceLauncher, Launcher, ProbeOutcome, probe_and_launch},
 };
 use crate::prompt::{Clock, SystemClock};
+use crate::template::GitRunner;
 use std::ffi::OsStr;
 use std::io;
 use std::path::Path;
@@ -46,8 +47,9 @@ pub fn cli_message(
     sender: &str,
     clock: &dyn Clock,
     launcher: &dyn Launcher,
+    git: &dyn GitRunner,
 ) -> Result<ProbeOutcome, MessageError> {
-    deposit(workspace, agent_id, sender, content, clock)?;
+    deposit(workspace, agent_id, sender, content, clock, git)?;
     probe_and_launch(workspace, agent_id, launcher).map_err(MessageError::Probe)
 }
 
@@ -73,16 +75,25 @@ pub fn cli_run(
     conv_branch: Option<&OsStr>,
     driver_target: &Path,
 ) -> Result<ProbeOutcome, MessageError> {
+    let git = crate::template::RealGit::new();
     crate::workspace::require(workspace)?;
     crate::workspace::require_agent(
         workspace,
         agent,
         "a message is addressed to an existing agent, by id or unique name (ARCH §2.11)",
-        &crate::template::RealGit::new(),
+        &git,
     )?;
     let sender = resolve_cli_sender(conv_branch);
     let launcher = AdvanceLauncher::with_exe(driver_target.to_path_buf());
-    cli_message(workspace, agent, content, &sender, &SystemClock, &launcher)
+    cli_message(
+        workspace,
+        agent,
+        content,
+        &sender,
+        &SystemClock,
+        &launcher,
+        &git,
+    )
 }
 
 /// Resolve the deposit sender for a direct `litany message` invocation

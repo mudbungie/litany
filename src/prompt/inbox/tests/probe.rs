@@ -7,6 +7,7 @@ use super::super::{
     cli_run, inbox_dir, probe_and_launch, try_acquire,
 };
 use crate::prompt::Clock;
+use crate::template::RealGit;
 use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::io;
@@ -87,7 +88,16 @@ fn probe_propagates_launcher_error() {
 fn cli_message_deposits_then_launches() {
     let ws = TempDir::new().unwrap();
     let launcher = StubLauncher::default();
-    let out = cli_message(ws.path(), "a1", "hello", "user", &FixedClock, &launcher).unwrap();
+    let out = cli_message(
+        ws.path(),
+        "a1",
+        "hello",
+        "user",
+        &FixedClock,
+        &launcher,
+        &RealGit::new(),
+    )
+    .unwrap();
     assert_eq!(out, ProbeOutcome::Launched);
     assert!(inbox_dir(ws.path(), "a1").join("user-001.md").exists());
     assert_eq!(*launcher.invocations.borrow(), vec!["a1".to_string()]);
@@ -104,6 +114,7 @@ fn cli_message_surfaces_deposit_error() {
         "user",
         &FixedClock,
         &StubLauncher::default(),
+        &RealGit::new(),
     )
     .unwrap_err();
     assert!(matches!(err, MessageError::Deposit(_)), "{err}");
@@ -113,7 +124,16 @@ fn cli_message_surfaces_deposit_error() {
 fn cli_message_surfaces_probe_error() {
     // Deposit succeeds; the launcher fails → MessageError::Probe.
     let ws = TempDir::new().unwrap();
-    let err = cli_message(ws.path(), "a1", "hi", "user", &FixedClock, &FailLauncher).unwrap_err();
+    let err = cli_message(
+        ws.path(),
+        "a1",
+        "hi",
+        "user",
+        &FixedClock,
+        &FailLauncher,
+        &RealGit::new(),
+    )
+    .unwrap_err();
     assert!(matches!(err, MessageError::Probe(_)), "{err}");
     // The deposit still landed — undelivered, not lost (§2.11).
     assert!(inbox_dir(ws.path(), "a1").join("user-001.md").exists());

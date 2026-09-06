@@ -11,6 +11,7 @@ use crate::prompt::dispatch::advance::{AdvanceOutcome, run};
 use crate::prompt::inbox::{self, inbox_dir};
 use crate::prompt::tool::ToolOutcome;
 use crate::prompt::{AdapterRunner, Deps, Error};
+use crate::template::RealGit;
 use crate::workspace::agent_name::mint::test_rng;
 use brazen::{Content, FinishReason};
 use std::ffi::OsString;
@@ -60,7 +61,7 @@ impl crate::prompt::tool::ToolExecutor for StopMidToolExecutor<'_> {
 fn a_stop_flag_at_entry_terminates_stopped_without_launching() {
     let (ws, _wt) = workspace_with_tail(&terminal_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "again", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "again", &clock, &RealGit::new()).unwrap();
     let (adapter, sleeper, git) = (unreachable_adapter(), StubSleeper::default(), StubGit::ok());
     let tools = StubToolExecutor::ok();
     let rec = RecLauncher::default();
@@ -82,7 +83,7 @@ fn a_stop_flag_at_entry_terminates_stopped_without_launching() {
 fn a_stop_during_the_model_call_is_a_stop_not_a_failure() {
     let (ws, wt) = workspace_with_tail(&terminal_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "again", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "again", &clock, &RealGit::new()).unwrap();
     let stopped = AtomicBool::new(false);
     let adapter = StopMidCallAdapter { flag: &stopped };
     let (sleeper, git) = (StubSleeper::default(), StubGit::ok());
@@ -116,7 +117,7 @@ fn a_stop_during_the_model_call_is_a_stop_not_a_failure() {
 fn a_stop_during_the_tool_window_never_rides_the_baton() {
     let (ws, wt) = workspace_with_tail(&terminal_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "run it", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "run it", &clock, &RealGit::new()).unwrap();
     let tool_stream = stream_of(
         FinishReason::ToolUse,
         &[Block::ToolUse {
@@ -158,7 +159,7 @@ fn a_stop_during_the_tool_window_never_rides_the_baton() {
 fn budget_exhaustion_at_the_boundary_terminates_without_a_model_call() {
     let (ws, _wt) = workspace_with_tail(&terminal_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "again", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "again", &clock, &RealGit::new()).unwrap();
     let (adapter, sleeper, git) = (unreachable_adapter(), StubSleeper::default(), StubGit::ok());
     let tools = StubToolExecutor::ok();
     let rec = RecLauncher::default();
@@ -188,7 +189,7 @@ fn budget_exhaustion_at_the_boundary_terminates_without_a_model_call() {
 fn a_resolve_failure_propagates() {
     let (ws, _wt) = workspace_with_tail(&terminal_tail());
     let clock = FixedClock::default();
-    inbox::deposit(ws.path(), AGENT, "user", "again", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "again", &clock, &RealGit::new()).unwrap();
     let (adapter, sleeper, git) = (unreachable_adapter(), StubSleeper::default(), StubGit::ok());
     let id = FixedIdGen;
     let tools = StubToolExecutor::ok();
@@ -205,7 +206,7 @@ fn a_missing_pinned_goal_surfaces_as_io() {
     let (ws, wt) = workspace_with_tail(&terminal_tail());
     std::fs::remove_file(wt.join("goal.md")).unwrap();
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "again", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "again", &clock, &RealGit::new()).unwrap();
     let (adapter, sleeper, git) = (unreachable_adapter(), StubSleeper::default(), StubGit::ok());
     let tools = StubToolExecutor::ok();
     let deps = valid_deps(&adapter, &sleeper, &git, &clock, &id, &tools, ws.path());
@@ -270,7 +271,7 @@ fn a_deposit_onto_a_buried_unpaired_window_is_still_declined_after_delivery() {
     // declines loudly without ever reaching the model.
     let (ws, wt) = workspace_with_tail(&buried_unpaired_tail());
     let clock = FixedClock::default();
-    inbox::deposit(ws.path(), AGENT, "user", "again", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "again", &clock, &RealGit::new()).unwrap();
     let (adapter, sleeper, git) = (unreachable_adapter(), StubSleeper::default(), StubGit::ok());
     let id = FixedIdGen;
     let tools = StubToolExecutor::ok();

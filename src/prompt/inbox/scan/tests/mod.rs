@@ -164,6 +164,11 @@ impl GitRunner for StubGit {
                     .cloned()
                     .unwrap_or_else(|| "deadbeef".into()))
             }
+            // `git show agents/<id>:name` — the sender's display name, read
+            // by every deposit for its `from_name:` frontmatter (§2.11,
+            // bl-a457). These agents are unnamed, which is what an empty
+            // blob means (`workspace::agent_name`).
+            Some("show") => Ok(String::new()),
             other => unreachable!("unexpected git op {other:?}"),
         }
     }

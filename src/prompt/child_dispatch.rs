@@ -218,7 +218,8 @@ pub fn run(
     // then probe-and-launch. The fresh child is quiescent, so the probe
     // launches `litany advance` — its ordinary driver. This is the whole
     // of "starting" a child: a deposit and the deposit's own launch.
-    inbox::deposit(req.repo, &sub_branch, req.parent_branch, req.goal, clock)?;
+    let parent = req.parent_branch;
+    inbox::deposit(req.repo, &sub_branch, parent, req.goal, clock, git)?;
     inbox::probe_and_launch(req.repo, &sub_branch, launcher).map_err(|source| {
         Error::ExecutorLock {
             path: inbox::inbox_dir(req.repo, &sub_branch),

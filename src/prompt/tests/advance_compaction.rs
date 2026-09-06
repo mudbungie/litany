@@ -12,6 +12,7 @@ use crate::prompt::Clock;
 use crate::prompt::dispatch::advance::{AdvanceOutcome, run};
 use crate::prompt::inbox;
 use crate::prompt::resolve::WorkerConfig;
+use crate::template::RealGit;
 use crate::workspace::agent_name::mint::test_rng;
 
 /// A hyphen-free compact stamp (§2.3 — "both the compact timestamp and
@@ -200,7 +201,7 @@ fn a_compaction_landing_lands_the_product_and_the_next_step_assembles_clean() {
     )
     .unwrap();
     // A steering deposit warrants the parent's next step (§2.3).
-    inbox::deposit(&ws, parent, "user", "carry on", &clock).unwrap();
+    inbox::deposit(&ws, parent, "user", "carry on", &clock, &RealGit::new()).unwrap();
 
     let adapter = StubAdapter::scripted([StubAdapter::reply_ok(&happy_response_bytes())]);
     let (sleeper, tools, stub_git) = (
@@ -265,7 +266,7 @@ fn a_compactor_hop_injects_the_builtin_toolset_into_the_request() {
     // them. Asserted on the step's request.json (written before the call).
     let (ws, _wt) = workspace_with_tail(&terminal_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "compact", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "compact", &clock, &RealGit::new()).unwrap();
     let adapter = StubAdapter::scripted([StubAdapter::reply_ok(&happy_response_bytes())]);
     let (sleeper, git) = (StubSleeper::default(), StubGit::ok());
     let tools = StubToolExecutor::ok();

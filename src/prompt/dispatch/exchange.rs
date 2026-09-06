@@ -79,7 +79,8 @@ pub(in crate::prompt) fn run_exchange(
     // The initial user message enters through the front door (§2.4,
     // §2.11): deposited into this agent's own inbox, delivered by the
     // step-1 drain — the same path any reprompt takes.
-    inbox::deposit(repo, &conv_id, inbox::USER_SENDER, user_message, deps.clock)?;
+    let sender = inbox::USER_SENDER;
+    inbox::deposit(repo, &conv_id, sender, user_message, deps.clock, deps.git)?;
 
     let mut step_seq: u32 = 1;
     // What the latest drain deliberately left pending — the §2.11

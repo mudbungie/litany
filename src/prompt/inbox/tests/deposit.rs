@@ -4,6 +4,7 @@
 use super::super::deposit::{DepositError, atomic_create, deposit, next_sequence};
 use super::super::inbox_dir;
 use crate::prompt::Clock;
+use crate::template::RealGit;
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -25,7 +26,15 @@ fn read(path: &Path) -> String {
 #[test]
 fn deposit_writes_named_file_with_frontmatter_and_body() {
     let ws = TempDir::new().unwrap();
-    let path = deposit(ws.path(), "p1-child", "user", "steer left\n", &FixedClock).unwrap();
+    let path = deposit(
+        ws.path(),
+        "p1-child",
+        "user",
+        "steer left\n",
+        &FixedClock,
+        &RealGit::new(),
+    )
+    .unwrap();
 
     assert_eq!(path, inbox_dir(ws.path(), "p1-child").join("user-001.md"));
     assert_eq!(
@@ -38,16 +47,24 @@ fn deposit_writes_named_file_with_frontmatter_and_body() {
 fn deposit_creates_inbox_directory_on_demand() {
     let ws = TempDir::new().unwrap();
     assert!(!inbox_dir(ws.path(), "a1").exists());
-    deposit(ws.path(), "a1", "user", "hi", &FixedClock).unwrap();
+    deposit(ws.path(), "a1", "user", "hi", &FixedClock, &RealGit::new()).unwrap();
     assert!(inbox_dir(ws.path(), "a1").is_dir());
 }
 
 #[test]
 fn same_sender_sequence_increments() {
     let ws = TempDir::new().unwrap();
-    let p1 = deposit(ws.path(), "a1", "user", "one", &FixedClock).unwrap();
-    let p2 = deposit(ws.path(), "a1", "user", "two", &FixedClock).unwrap();
-    let p3 = deposit(ws.path(), "a1", "user", "three", &FixedClock).unwrap();
+    let p1 = deposit(ws.path(), "a1", "user", "one", &FixedClock, &RealGit::new()).unwrap();
+    let p2 = deposit(ws.path(), "a1", "user", "two", &FixedClock, &RealGit::new()).unwrap();
+    let p3 = deposit(
+        ws.path(),
+        "a1",
+        "user",
+        "three",
+        &FixedClock,
+        &RealGit::new(),
+    )
+    .unwrap();
     assert!(p1.ends_with("user-001.md"));
     assert!(p2.ends_with("user-002.md"));
     assert!(p3.ends_with("user-003.md"));
@@ -62,9 +79,17 @@ fn distinct_senders_keep_independent_sequences() {
     let ws = TempDir::new().unwrap();
     // Two senders into one inbox: each numbers from 001, no collision
     // (sender-namespacing, §2.11).
-    let a = deposit(ws.path(), "a1", "user", "u", &FixedClock).unwrap();
-    let b = deposit(ws.path(), "a1", "p2-agent", "g", &FixedClock).unwrap();
-    let a2 = deposit(ws.path(), "a1", "user", "u2", &FixedClock).unwrap();
+    let a = deposit(ws.path(), "a1", "user", "u", &FixedClock, &RealGit::new()).unwrap();
+    let b = deposit(
+        ws.path(),
+        "a1",
+        "p2-agent",
+        "g",
+        &FixedClock,
+        &RealGit::new(),
+    )
+    .unwrap();
+    let a2 = deposit(ws.path(), "a1", "user", "u2", &FixedClock, &RealGit::new()).unwrap();
     assert!(a.ends_with("user-001.md"));
     assert!(b.ends_with("p2-agent-001.md"));
     assert!(a2.ends_with("user-002.md"));
@@ -73,7 +98,7 @@ fn distinct_senders_keep_independent_sequences() {
 #[test]
 fn no_tmp_file_survives_a_deposit() {
     let ws = TempDir::new().unwrap();
-    deposit(ws.path(), "a1", "user", "hi", &FixedClock).unwrap();
+    deposit(ws.path(), "a1", "user", "hi", &FixedClock, &RealGit::new()).unwrap();
     let dir = inbox_dir(ws.path(), "a1");
     let names: Vec<String> = std::fs::read_dir(&dir)
         .unwrap()
@@ -118,7 +143,7 @@ fn next_sequence_surfaces_read_dir_error() {
 fn deposit_surfaces_io_error_when_inbox_home_blocked() {
     let ws = TempDir::new().unwrap();
     std::fs::write(ws.path().join("inbox"), b"not a dir").unwrap();
-    let err = deposit(ws.path(), "a1", "user", "hi", &FixedClock).unwrap_err();
+    let err = deposit(ws.path(), "a1", "user", "hi", &FixedClock, &RealGit::new()).unwrap_err();
     assert!(matches!(err, DepositError::Io { .. }), "{err}");
 }
 

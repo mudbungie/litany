@@ -16,6 +16,7 @@ use super::fixtures::*;
 use crate::prompt::dispatch::advance::run;
 use crate::prompt::inbox;
 use crate::prompt::resolve::WorkerConfig;
+use crate::template::RealGit;
 use brazen::{Content, FinishReason};
 use serde_json::json;
 use std::path::Path;
@@ -93,7 +94,7 @@ fn a_compactor_declares_the_inherited_transcripts_tools_alongside_its_own() {
     let (ws, wt) = workspace_with_tail(&tail_that_used_bash());
     inherit_bash_schema(&wt);
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "compact", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "compact", &clock, &RealGit::new()).unwrap();
     let adapter = StubAdapter::scripted([StubAdapter::reply_ok(&happy_response_bytes())]);
     let (sleeper, git, tools) = (
         StubSleeper::default(),
@@ -157,7 +158,15 @@ fn a_worker_hop_declares_only_its_own_tools_when_the_history_used_none() {
     // built-in injection, so nothing is appended and the array stays empty.
     let (ws, _wt) = workspace_with_tail(&super::advance::terminal_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "carry on", &clock).unwrap();
+    inbox::deposit(
+        ws.path(),
+        AGENT,
+        "user",
+        "carry on",
+        &clock,
+        &RealGit::new(),
+    )
+    .unwrap();
     let adapter = StubAdapter::scripted([StubAdapter::reply_ok(&happy_response_bytes())]);
     let (sleeper, git, tools) = (
         StubSleeper::default(),
@@ -181,7 +190,7 @@ fn a_compactor_calling_an_inherited_tool_is_declined_not_executed() {
     let (ws, wt) = workspace_with_tail(&tail_that_used_bash());
     inherit_bash_schema(&wt);
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "compact", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "compact", &clock, &RealGit::new()).unwrap();
     let reaches_for_bash = stream_of(
         FinishReason::ToolUse,
         &[Block::ToolUse {

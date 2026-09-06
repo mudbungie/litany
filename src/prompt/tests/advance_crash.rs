@@ -7,6 +7,7 @@ use super::advance::{AGENT, RecLauncher, model_entry, worker_config, workspace_w
 use super::fixtures::*;
 use crate::prompt::dispatch::advance::{AdvanceOutcome, run};
 use crate::prompt::inbox;
+use crate::template::RealGit;
 use brazen::Content;
 
 /// A crash corpse: the assistant entry committed, its `tool_use` never
@@ -34,7 +35,7 @@ fn crashed_tail() -> Vec<(&'static str, String)> {
 fn a_deposit_revives_a_crashed_window_through_settlement() {
     let (ws, wt) = workspace_with_tail(&crashed_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "hello?", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "hello?", &clock, &RealGit::new()).unwrap();
     let adapter = StubAdapter::scripted([StubAdapter::reply_ok(&happy_response_bytes())]);
     let (sleeper, git) = (StubSleeper::default(), StubGit::ok());
     let tools = StubToolExecutor::ok();
@@ -93,7 +94,7 @@ fn a_partially_answered_crash_settles_only_the_unanswered_ids() {
     ];
     let (ws, wt) = workspace_with_tail(&entries);
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "and?", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "and?", &clock, &RealGit::new()).unwrap();
     let adapter = StubAdapter::scripted([StubAdapter::reply_ok(&happy_response_bytes())]);
     let (sleeper, git) = (StubSleeper::default(), StubGit::ok());
     let tools = StubToolExecutor::ok();

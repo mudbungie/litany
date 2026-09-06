@@ -10,6 +10,7 @@ use crate::prompt::Error;
 use crate::prompt::dispatch::advance::{AdvanceOutcome, run};
 use crate::prompt::inbox::{self, Launcher, inbox_dir, try_acquire};
 use crate::prompt::resolve::WorkerConfig;
+use crate::template::RealGit;
 use brazen::{Content, FinishReason};
 use std::cell::RefCell;
 use std::io;
@@ -181,7 +182,7 @@ fn a_deposit_steps_the_branch_to_a_new_final_response() {
     // final-response exit launch).
     let (ws, wt) = workspace_with_tail(&terminal_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "again", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "again", &clock, &RealGit::new()).unwrap();
     let adapter = StubAdapter::scripted([StubAdapter::reply_ok(&happy_response_bytes())]);
     let (sleeper, git) = (StubSleeper::default(), StubGit::ok());
     let tools = StubToolExecutor::ok();
@@ -216,7 +217,7 @@ fn a_stop_felling_a_tool_mid_window_is_the_stopped_terminal() {
     // hop concludes the stopped terminal, never a fault.
     let (ws, _wt) = workspace_with_tail(&terminal_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "run it", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "run it", &clock, &RealGit::new()).unwrap();
     let tool_stream = stream_of(
         FinishReason::ToolUse,
         &[Block::ToolUse {
@@ -240,7 +241,7 @@ fn a_stop_felling_a_tool_mid_window_is_the_stopped_terminal() {
 fn a_tool_use_step_hands_off_as_tools_pending_with_the_lease_held() {
     let (ws, wt) = workspace_with_tail(&terminal_tail());
     let (clock, id) = (FixedClock::default(), FixedIdGen);
-    inbox::deposit(ws.path(), AGENT, "user", "run it", &clock).unwrap();
+    inbox::deposit(ws.path(), AGENT, "user", "run it", &clock, &RealGit::new()).unwrap();
     let tool_stream = stream_of(
         FinishReason::ToolUse,
         &[Block::ToolUse {

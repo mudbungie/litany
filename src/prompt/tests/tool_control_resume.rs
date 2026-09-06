@@ -104,7 +104,7 @@ fn a_parked_branch_queues_mail_and_resumes_on_release() {
     let git = RealGit::new();
     mark_t2(ws, &git);
     let clock = FixedClock::default();
-    inbox::deposit(ws, AGENT, "user", "status?", &clock).unwrap();
+    inbox::deposit(ws, AGENT, "user", "status?", &clock, &RealGit::new()).unwrap();
 
     let adapter = unreachable_adapter();
     let (sleeper, id) = (StubSleeper::default(), FixedIdGen);

@@ -22,6 +22,7 @@ use crate::config::Workflow;
 use crate::prompt::dispatch::advance::{AdvanceOutcome, run};
 use crate::prompt::inbox::{self, inbox_dir, try_acquire};
 use crate::prompt::resolve::WorkerConfig;
+use crate::template::RealGit;
 use std::path::Path;
 use tempfile::TempDir;
 
@@ -105,7 +106,15 @@ pub(super) fn child_with_mail() -> TempDir {
     std::fs::create_dir_all(wt.join("messages")).unwrap();
     std::fs::write(wt.join("goal.md"), "the goal").unwrap();
     std::fs::write(wt.join("messages/001-user.md"), "hi").unwrap();
-    inbox::deposit(ws.path(), CHILD, PARENT, "go on", &DescentClock).unwrap();
+    inbox::deposit(
+        ws.path(),
+        CHILD,
+        PARENT,
+        "go on",
+        &DescentClock,
+        &RealGit::new(),
+    )
+    .unwrap();
     ws
 }
 
