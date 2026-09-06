@@ -21,14 +21,14 @@ fn read(root: &Path, rel: &str) -> String {
 }
 
 #[test]
-fn add_creates_nested_and_empty_files() {
+fn add_creates_nested_files() {
     let tmp = TempDir::new().unwrap();
     let report = ok(
-        "*** Add File: d/e/new.txt\n+hello\n+world\n*** Add File: empty.txt",
+        "*** Add File: d/e/new.txt\n+hello\n+world\n*** Add File: top.txt\n+solo",
         tmp.path(),
     );
     assert_eq!(read(tmp.path(), "d/e/new.txt"), "hello\nworld\n");
-    assert_eq!(read(tmp.path(), "empty.txt"), "");
+    assert_eq!(read(tmp.path(), "top.txt"), "solo\n");
     assert_eq!(report.status, "applied");
     assert_eq!(report.files[0].op, "add");
     assert_eq!(report.files[0].path, "d/e/new.txt");

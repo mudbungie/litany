@@ -242,13 +242,40 @@ fn a_rename_target_colliding_with_another_operation_is_declined() {
 }
 
 #[test]
-fn an_add_section_may_close_the_envelope_and_may_be_empty() {
-    let patch = parsed("*** Add File: empty.txt");
+fn an_add_section_may_close_the_envelope() {
+    let patch = parsed("*** Add File: one.txt\n+hello");
     assert_eq!(
         patch.ops[0],
         FileOp::Add {
-            path: "empty.txt".into(),
-            lines: vec![],
+            path: "one.txt".into(),
+            lines: vec!["hello".into()],
         }
     );
+}
+
+// bl-c4a2: an add with no `+` lines used to parse, write a 0-byte file
+// and answer `applied` — a receipt that stops the model retrying, on a
+// name now locked against the retry that would have written it.
+#[test]
+fn an_add_section_with_no_body_lines_is_declined() {
+    for body in [
+        "*** Add File: empty.txt",
+        "*** Add File: empty.txt\n*** Delete File: gone.txt",
+    ] {
+        let err = parse(&envelope(body)).unwrap_err();
+        assert_eq!(
+            err,
+            Error::EmptyAdd {
+                path: "empty.txt".into()
+            }
+        );
+        assert!(
+            err.to_string()
+                .contains("add of empty.txt has no content lines"),
+            "{err}"
+        );
+        // The message names the repair, which is the whole point of the
+        // refusal: the model reads this text and re-authors the section.
+        assert!(err.to_string().contains("with a leading '+'"), "{err}");
+    }
 }

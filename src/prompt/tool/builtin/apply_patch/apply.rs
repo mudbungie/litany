@@ -143,15 +143,14 @@ fn stage(op: &FileOp, root: &Path) -> Result<Staged, Error> {
             if abs.exists() {
                 return Err(Error::AddExists { path: path.clone() });
             }
-            let content = if lines.is_empty() {
-                String::new()
-            } else {
-                lines.join("\n") + "\n"
-            };
+            // The parser guarantees at least one content line
+            // ([`super::parse::Error::EmptyAdd`], bl-c4a2), so the added
+            // file always ends in a newline and the empty-content arm
+            // that used to sit here is gone with the state it served.
             Ok(Staged::Add {
                 abs,
                 report: entry(path, "add", None, Vec::new()),
-                content,
+                content: lines.join("\n") + "\n",
             })
         }
         FileOp::Delete { path } => {
