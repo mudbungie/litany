@@ -1,7 +1,8 @@
 +++
 title = "apply_patch accepts an Add with no body lines: a 0-byte file, an 'applied' receipt, and the name locked against the retry that would have written it"
 created = 1788673661
-updated = 1788673661
+updated = 1788674141
+claimant = "Cantaloups-L4"
 priority = 3
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["usability-r1"]
