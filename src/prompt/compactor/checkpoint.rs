@@ -41,12 +41,17 @@
 //! its last compaction base}, and the root commit only when neither
 //! exists ([`reference::origin`]).
 //!
-//! **A compactor is never compaction-eligible.** A compactor *is* the
-//! compaction, not a subject of one (§2.7): compacting it would fork a
-//! compactor off a compactor, whose own transcript is the compaction it
-//! was dispatched to perform. The role is derived from the same founding
-//! commit ([`crate::prompt::role::derive`] — the single authoritative
-//! home for an agent's role), so the exclusion costs no new state.
+//! **A checkpoint child is never a checkpoint subject** — machinery is
+//! never the subject of machinery (§2.7). A compactor *is* the
+//! compaction, not a subject of one: compacting it would fork a compactor
+//! off a compactor, whose own transcript is the compaction it was
+//! dispatched to perform. Stated of the compactor alone, that recurred
+//! one role later at the reviewer (bl-08b4), so it is stated at the class
+//! instead: the excluded set is exactly the roles the harness mints at a
+//! checkpoint, whose one home is [`crate::prompt::procedure`]. The role
+//! is derived from the same founding commit
+//! ([`crate::prompt::role::derive`] — the single authoritative home for
+//! an agent's role), so the exclusion costs no new state.
 //!
 //! **A compaction already in flight is a checkpoint that has fired.**
 //! The two above bound *which branches* may be compacted; this one
@@ -92,12 +97,13 @@ pub struct CheckpointState {
     /// the agent may call"). Drives `on_flush`; the flush is the
     /// agent-elected trigger, distinct from the config-clock triggers.
     pub flush_requested: bool,
-    /// This branch is itself a compactor — its role, derived from its own
-    /// dispatch commit ([`crate::prompt::role::derive`]), is
-    /// [`super::COMPACTOR_ROLE`]. A compactor is not a member of the
-    /// compaction-eligible set at any commit count, elapsed time, or
-    /// elected flush (module docs, §2.7).
-    pub is_compactor: bool,
+    /// This branch is itself a **checkpoint child** — its role, derived
+    /// from its own dispatch commit ([`crate::prompt::role::derive`]), is
+    /// one the harness mints at a checkpoint
+    /// ([`crate::prompt::procedure::is_checkpoint_child`]). Machinery is
+    /// not a member of the compaction-eligible set at any commit count,
+    /// elapsed time, or elected flush (module docs, §2.7).
+    pub is_checkpoint_child: bool,
     /// A compaction this branch dispatched has not come back — a
     /// compactor child of it carries no returned mark ([`inflight`]).
     /// The checkpoint it answers has already fired, so firing again
@@ -115,10 +121,10 @@ pub struct CheckpointState {
 /// of compaction eligibility. `None` config — no configured trigger —
 /// never compacts (§2.7). Two facts about the branch answer ahead of the
 /// config and under **every** trigger, the agent-elected flush included:
-/// **a compactor is never eligible** (module docs: it is the compaction,
-/// not a subject of one), and **a branch with a compaction in flight is
-/// not due** (its checkpoint has already fired; a second pass over the
-/// same span cannot land). Otherwise the trigger kind selects the
+/// **a checkpoint child is never eligible** (module docs: machinery is
+/// never the subject of machinery), and **a branch with a compaction in
+/// flight is not due** (its checkpoint has already fired; a second pass
+/// over the same span cannot land). Otherwise the trigger kind selects the
 /// predicate; a `None`/`0` `n` (guarded out at config load, §6) is never
 /// due, so a malformed config fails closed rather than compacting every
 /// step.
@@ -131,7 +137,7 @@ pub struct CheckpointState {
 /// Every other trigger's answer is total, and the two suppressors above
 /// answer ahead of all of them.
 pub fn due(cfg: Option<&CompactionConfig>, state: &CheckpointState) -> Result<bool, Error> {
-    if state.is_compactor || state.compaction_in_flight {
+    if state.is_checkpoint_child || state.compaction_in_flight {
         return Ok(false);
     }
     let Some(cfg) = cfg else {
@@ -172,8 +178,8 @@ pub fn state(
         commits_since_checkpoint: commits_since(worktree, last.as_deref(), git)?,
         seconds_since_checkpoint: now_unix.saturating_sub(checkpoint_time(worktree, &last, git)?),
         flush_requested,
-        is_compactor: role::derive(worktree, "HEAD", agent_id, git)?.as_deref()
-            == Some(super::COMPACTOR_ROLE),
+        is_checkpoint_child: role::derive(worktree, "HEAD", agent_id, git)?
+            .is_some_and(|role| crate::prompt::procedure::is_checkpoint_child(&role)),
         compaction_in_flight: inflight::compaction_in_flight(worktree, agent_id, git)?,
         last_usage: usage::last(worktree)?,
     })

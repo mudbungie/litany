@@ -166,16 +166,19 @@ fn state_reads_the_branch_role_from_its_own_dispatch_commit() {
     commit(wt, "root", "a.txt", "1");
     commit(wt, "dispatch: compactor [p1-c1]", "goal.md", "g");
     let s = state(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
-    assert!(s.is_compactor, "role derived from the dispatch subject");
+    assert!(
+        s.is_checkpoint_child,
+        "role derived from the dispatch subject"
+    );
 
-    // A worker dispatch off the same shape is not a compactor, and a
+    // A worker dispatch off the same shape is not machinery, and a
     // descendant's dispatch commit never claims this branch's role: the
     // pattern is anchored on the exact `[<agent-id>]` tail.
     commit(wt, "dispatch: worker [p1-c1-w9]", "x.md", "x");
     let child = state(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
-    assert!(child.is_compactor);
+    assert!(child.is_checkpoint_child);
     let worker = state(wt, "p1-c1-w9", now_of(wt), false, &RealGit::new()).unwrap();
-    assert!(!worker.is_compactor);
+    assert!(!worker.is_checkpoint_child);
 }
 
 #[test]
@@ -190,7 +193,7 @@ fn state_falls_back_to_the_root_when_a_branch_has_no_dispatch_commit() {
     commit(wt, "step", "b.txt", "2");
     let s = state(wt, "nobody", now_of(wt), false, &RealGit::new()).unwrap();
     assert_eq!(s.commits_since_checkpoint, 2);
-    assert!(!s.is_compactor);
+    assert!(!s.is_checkpoint_child);
 }
 
 // ---- per-op git failures, via a stub -----------------------------------

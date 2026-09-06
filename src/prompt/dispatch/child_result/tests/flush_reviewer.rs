@@ -241,3 +241,52 @@ fn a_checkpoint_dispatch_of_a_role_with_no_goal_is_declined() {
     );
     assert!(fx.launcher.launched.borrow().is_empty());
 }
+
+#[test]
+fn a_reviewer_branch_dispatches_nothing_at_its_own_boundary() {
+    // THE PIN (§2.7, bl-08b4): a reviewer is a checkpoint child, so it is
+    // machinery and never a subject of machinery. It forks with the
+    // inherited transcript exactly as its compactor sibling does, so
+    // before the exclusion was stated of the CLASS it crossed its own
+    // `every_n_commits` boundary, fired its own `worker_flush`, and
+    // minted a compactor AND a reviewer — each doing the same, with no
+    // depth term and no base case: 15 conversation branches five levels
+    // deep and 4.53M tokens from one question. bl-a9eb had fixed exactly
+    // this for the compactor; one role later it recurred.
+    let (_h, ws) = fixture::workspace();
+    let parent = "20260101-r7";
+    let wt = branch_with_a_span(&ws, parent);
+    fixture::amend_config(
+        &ws,
+        &[("souls/compactor.md", "c"), ("souls/reviewer.md", "r")],
+    );
+    let fx = Fx::new();
+    let wf = workflow(BOTH);
+    run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+    let minted = fx.launcher.launched.borrow().clone();
+    assert_eq!(
+        minted.len(),
+        2,
+        "one compactor and one reviewer: {minted:?}"
+    );
+
+    // Each child then takes steps of its own, so its clock — which
+    // starts at its own dispatch commit — genuinely crosses `n: 1`. That
+    // is the state the cascade grew from: being due is not what the
+    // exclusion denies, membership in the eligible set is.
+    for child in &minted {
+        let child_wt = agent_worktree(&ws, child);
+        std::fs::write(child_wt.join("goal.md"), format!("step for {child}")).unwrap();
+        RealGit::new().run(&child_wt, &["add", "-A"]).unwrap();
+        RealGit::new()
+            .run(&child_wt, &["commit", "-m", "step"])
+            .unwrap();
+        run_flush(&ws, child, &child_wt, &wf, &fx.deps()).unwrap();
+    }
+    assert_eq!(
+        fx.launcher.launched.borrow().len(),
+        2,
+        "machinery mints no machinery: {:?}",
+        fx.launcher.launched.borrow()
+    );
+}

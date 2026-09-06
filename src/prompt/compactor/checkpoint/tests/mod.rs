@@ -27,7 +27,7 @@ fn st(commits: u32, seconds: u64, flush: bool) -> CheckpointState {
         commits_since_checkpoint: commits,
         seconds_since_checkpoint: seconds,
         flush_requested: flush,
-        is_compactor: false,
+        is_checkpoint_child: false,
         compaction_in_flight: false,
         last_usage: None,
     }
@@ -81,13 +81,15 @@ fn a_malformed_threshold_fails_closed() {
 }
 
 #[test]
-fn a_compactor_is_never_compaction_eligible() {
-    // The invariant: a compactor *is* the compaction, not a subject of
-    // one (§2.7). No trigger, at any count/elapsed/elected flush, admits
-    // it to the eligible set — this is what stops a compactor from
-    // dispatching a compactor (bl-a9eb / yog bl-ebbd).
+fn a_checkpoint_child_is_never_compaction_eligible() {
+    // The invariant: machinery is never the subject of machinery (§2.7).
+    // No trigger, at any count/elapsed/elected flush, admits a
+    // harness-minted branch to the eligible set — this is what stops a
+    // compactor from dispatching a compactor (bl-a9eb / yog bl-ebbd) and,
+    // once the exclusion was stated of the class rather than of the one
+    // role, a reviewer from dispatching both (bl-08b4).
     let compactor = CheckpointState {
-        is_compactor: true,
+        is_checkpoint_child: true,
         ..st(9999, 9999, true)
     };
     for c in [
@@ -170,7 +172,7 @@ fn the_two_suppressors_answer_ahead_of_the_windows_decline() {
     };
     for excluded in [
         CheckpointState {
-            is_compactor: true,
+            is_checkpoint_child: true,
             last_usage: Some(blind.clone()),
             ..st(0, 0, false)
         },

@@ -23,7 +23,7 @@
 //! reset.
 
 use crate::config::{Action, Event, Workflow};
-use crate::prompt::{ChildDispatchRequest, Deps, Error, child_dispatch, compactor, reviewer};
+use crate::prompt::{ChildDispatchRequest, Deps, Error, child_dispatch, compactor, procedure};
 use std::path::Path;
 
 /// Run the `worker_flush` checkpoint at a step boundary (§2.7, §6): if the
@@ -123,11 +123,14 @@ fn flush_actions(workflow: &Workflow) -> Vec<Action> {
 }
 
 /// Execute one `worker_flush` action. A dispatch of a role the harness
-/// has a checkpoint goal for runs; any other closed-set action here is
-/// declined (`Error::ActionUnsupported`), as is a dispatch of any other
-/// role — a checkpoint fork the harness cannot instruct is a config
-/// fault, and declining it loudly beats forking a child with nothing to
-/// do (`docs/PRINCIPLES.md` "Decline illegal operations").
+/// has a checkpoint goal for runs ([`procedure::checkpoint_goal`], the
+/// one home of that set); any other closed-set action here is declined
+/// (`Error::ActionUnsupported`), as is a dispatch of any other role — a
+/// checkpoint fork the harness cannot instruct is a config fault, and
+/// declining it loudly beats forking a child with nothing to do
+/// (`docs/PRINCIPLES.md` "Decline illegal operations"). The same `match`
+/// answers which branches are excluded from being compaction subjects
+/// (§2.7, bl-08b4): what the harness mints, it never compacts.
 fn execute_flush(
     action: &Action,
     workspace: &Path,
@@ -146,11 +149,10 @@ fn execute_flush(
     // The boilerplate goal quotes the dispatching branch's own goal
     // (§2.7), read from the worktree we are forking off — `goal.md` is
     // pinned at dispatch (§2.8), so the tip's copy is the point's too.
-    let goal = match role.as_str() {
-        compactor::COMPACTOR_ROLE => compactor::compactor_goal(worktree, agent_id)?,
-        reviewer::REVIEWER_ROLE => reviewer::reviewer_goal(worktree, agent_id)?,
-        _ => return Err(unsupported()),
+    let Some(build) = procedure::checkpoint_goal(role) else {
+        return Err(unsupported());
     };
+    let goal = build(worktree, agent_id)?;
     dispatch_at_point(role, &goal, workspace, agent_id, worktree, point, deps)
 }
 
@@ -205,7 +207,7 @@ mod tests {
             commits_since_checkpoint: commits,
             seconds_since_checkpoint: 0,
             flush_requested: false,
-            is_compactor: false,
+            is_checkpoint_child: false,
             compaction_in_flight: false,
             last_usage: None,
         }

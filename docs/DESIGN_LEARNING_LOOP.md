@@ -431,6 +431,21 @@ config. A `worker_flush` dispatch of any *other* role is **declined**
 with `ActionUnsupported`: the harness has no goal to instruct it with,
 and a fork with nothing to do is worse than a refusal.
 
+**That decline and the compaction-eligible set read one list** (bl-08b4,
+ARCH §2.7). "The harness has a checkpoint goal for this role" is also the
+answer to "is this branch machinery" — and machinery is never the subject
+of machinery — so both live in `src/prompt/procedure.rs` as one `match`
+handing back goal builders as function values. Adopting this loop without
+it is what bl-08b4 measured: a reviewer was not in the excluded set, so it
+crossed its own `every_n_commits` boundary and its own `worker_flush`
+minted a compactor **and** a reviewer, generation after generation — 15
+conversation branches five levels deep and 4.53M tokens from one
+question, on `n: 6`. Nothing about the loop's own configuration bounds
+that: `n: 20` is slower, not finite, and `budgets.max_depth` is the only
+other term — which yog strips at every start. So a role this document
+adds later joins the excluded set in the same edit that makes it
+dispatchable, or it recurs the same defect a third time.
+
 And its **dispatch commit**. The reviewer joins the compactor in
 `step_commit::inherited::DIALOG_KEEPERS` — ARCH §2.2's third principled
 keeper, the fork-back-in root being a path rather than a role — and

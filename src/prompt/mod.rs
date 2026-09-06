@@ -41,6 +41,7 @@ pub mod inbox;
 pub(crate) mod notice;
 mod pin;
 pub mod pinned_doc;
+pub(crate) mod procedure;
 pub(crate) mod rebase_forward;
 pub(crate) mod resolve;
 pub mod retarget;
