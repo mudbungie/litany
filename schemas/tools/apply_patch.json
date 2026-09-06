@@ -6,7 +6,7 @@
   "properties": {
     "input": {
       "type": "string",
-      "description": "One patch envelope: starts with '*** Begin Patch', ends with '*** End Patch', and carries any number of '*** Add File: <path>', '*** Delete File: <path>', and '*** Update File: <path>' sections (an update may be followed by '*** Move to: <path>'). An add section's content is its '+' lines, one per line of the new file, and it must carry at least one \u2014 an add with no '+' lines is refused. Update hunks use ' ' context, '-' removal, '+' addition lines; '@@' separates hunks, '@@ <enclosing symbol>' anchors a hunk inside a repeated block, '*** End of File' pins a hunk to the end of the file. Paths resolve against the current working directory."
+      "description": "One patch envelope: starts with '*** Begin Patch', ends with '*** End Patch', and carries any number of '*** Add File: <path>', '*** Delete File: <path>', and '*** Update File: <path>' sections (an update may be followed by '*** Move to: <path>'). An add section's content is its '+' lines, one per line of the new file, and it must carry at least one \u2014 an add with no '+' lines is refused. A file gets ONE '*** Update File:' header however many hunks it has \u2014 a second header for the same file is refused. Update hunks use ' ' context, '-' removal, '+' addition lines; '@@' separates hunks, '@@ <enclosing symbol>' anchors a hunk inside a repeated block, '*** End of File' pins a hunk to the end of the file. Paths resolve against the current working directory."
     }
   },
   "required": ["input"],

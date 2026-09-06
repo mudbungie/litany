@@ -7,6 +7,7 @@ use super::parse::parse;
 
 mod applier;
 mod applier_io;
+mod declines;
 mod grammar;
 mod ladder;
 mod stdio;

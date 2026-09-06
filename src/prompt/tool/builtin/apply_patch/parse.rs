@@ -10,7 +10,9 @@
 //!   the payload *is* the `+` lines, so zero of them is a malformed
 //!   section, not a request for an empty file.
 //! - `*** Delete File: <path>` — one line, no body.
-//! - `*** Update File: <path>` — optionally `*** Move to: <path>` on the
+//! - `*** Update File: <path>` — **one header per file**, a repeat for a
+//!   path the envelope already opened being declined (bl-517e);
+//!   optionally `*** Move to: <path>` on the
 //!   next line, then one or more hunks: `@@` separates hunks, `@@ <text>`
 //!   names an anchor line to locate first (the "@@ enclosing symbol"
 //!   disambiguation), ` `-prefixed lines are context, `-` removals, `+`
@@ -106,6 +108,12 @@ pub enum Error {
     #[error("update of {path} has no hunks")]
     EmptyUpdate { path: String },
     #[error(
+        "line {line}: a second {UPDATE:?} for {path} — that file is already \
+         open in this envelope. One header per file; separate its hunks with \
+         '@@'"
+    )]
+    RepeatedUpdate { line: usize, path: String },
+    #[error(
         "add of {path} has no content lines; an add section's whole payload \
          is its '+' lines — write every line of the new file with a leading \
          '+' (a blank content line is a lone '+')"
@@ -132,6 +140,7 @@ pub fn parse(text: &str) -> Result<Patch, Error> {
     if lines[last] != END {
         return Err(Error::MissingEnd);
     }
+    check_repeated_update(&lines, first + 1, last)?;
     let mut ops = Vec::new();
     let mut i = first + 1;
     while i < last {
@@ -167,6 +176,38 @@ pub fn parse(text: &str) -> Result<Patch, Error> {
     }
     check_duplicates(&ops)?;
     Ok(Patch { ops })
+}
+
+/// Decline a **second `*** Update File:` header for a path this envelope
+/// has already opened** ([`Error::RepeatedUpdate`], bl-517e).
+///
+/// It is read off the header lines before the section walk, because both
+/// orderings of the mistake otherwise decline in a voice that describes a
+/// section the model does not believe it wrote. One header per hunk is a
+/// reasonable misreading of a format whose hunks are separated by `@@`,
+/// and it was 2 of 3 first-patch attempts by the shipped worker model: a
+/// second header directly under the first closes an empty section, so the
+/// refusal was `update of <path> has no hunks` — true, and about the
+/// wrong line — while a second header *after* real hunks parsed twice and
+/// refused as [`Error::DuplicatePath`], which names the collision and not
+/// the cause. Naming the cause costs one sentence and no second attempt.
+///
+/// A header is unambiguous at column 0: every line inside an add or an
+/// update body carries a `+`, `-`, ` ` or `@@` prefix, which is the same
+/// fact [`section::is_section`] already reads.
+fn check_repeated_update(lines: &[&str], from: usize, until: usize) -> Result<(), Error> {
+    let mut seen = std::collections::BTreeSet::new();
+    for (i, line) in lines.iter().enumerate().take(until).skip(from) {
+        if let Some(path) = line.strip_prefix(UPDATE)
+            && !seen.insert(path)
+        {
+            return Err(Error::RepeatedUpdate {
+                line: i + 1,
+                path: path.to_string(),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// One envelope, one author per path (§2.5 discipline in miniature): a
