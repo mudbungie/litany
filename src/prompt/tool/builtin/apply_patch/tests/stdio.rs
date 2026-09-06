@@ -62,14 +62,43 @@ fn an_unparseable_envelope_is_a_parse_decline() {
     assert!(matches!(err, Error::Parse(_)), "{err}");
 }
 
+// bl-13e2: an apply decline names a path as the patch authored it, and
+// the root that path resolved against — the half whose absence let a
+// model read "file already exists" about a file it had just watched `rm`
+// remove as a broken tool rather than as two different directories.
 #[test]
-fn a_refused_patch_is_an_apply_decline() {
+fn a_refused_patch_is_an_apply_decline_naming_the_working_directory() {
     let tmp = TempDir::new().unwrap();
     let body = format!("*** Delete File: {}", tmp.path().join("absent").display());
     let input = serde_json::json!({ "input": envelope(&body) }).to_string();
     let (got, _) = run_json(&input);
     let err = got.unwrap_err();
-    assert!(matches!(err, Error::Apply(_)), "{err}");
+    assert!(matches!(err, Error::Apply { .. }), "{err}");
+    let cwd = std::env::current_dir().unwrap();
+    assert!(
+        err.to_string()
+            .ends_with(&format!("(working directory: {})", cwd.display())),
+        "{err}"
+    );
+}
+
+// bl-13e2: the success report states it too, beside paths that are as
+// authored and therefore say nothing about where they landed.
+#[test]
+fn the_report_names_the_directory_the_patch_acted_in() {
+    let tmp = TempDir::new().unwrap();
+    let body = format!(
+        "*** Add File: {}\n+hi",
+        tmp.path().join("new.txt").display()
+    );
+    let input = serde_json::json!({ "input": envelope(&body) }).to_string();
+    let (got, stdout) = run_json(&input);
+    got.expect("patch applies");
+    let report: serde_json::Value = serde_json::from_slice(&stdout).unwrap();
+    assert_eq!(
+        report["root"],
+        std::env::current_dir().unwrap().display().to_string()
+    );
 }
 
 /// A reader whose first read fails: the harness stdin-pipe fault.

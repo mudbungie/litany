@@ -14,6 +14,21 @@ use serde::Serialize;
 #[derive(Debug, Serialize)]
 pub struct Report {
     pub status: &'static str,
+    /// **The directory the patch acted in** — the calling agent's current
+    /// working directory, absolute, which every relative `path` below
+    /// resolves against (bl-13e2).
+    ///
+    /// It is here because the report's paths are as authored, and a model
+    /// that has been reading absolute paths — out of its goal, out of
+    /// `bash` output — reads `{"path":"REPORT.md","op":"add"}` as a
+    /// statement about the directory it has in mind. It is not: the
+    /// agent's cwd is the one root every file-touching tool of this agent
+    /// stands in, and a `cd` *inside* a `bash` command moves that command
+    /// alone. One conversation spent 4M tokens and three compactors
+    /// reconciling an add that landed in the worktree with an `rm` that
+    /// ran somewhere else; the root printed beside the path ends that in
+    /// one step.
+    pub root: String,
     pub files: Vec<FileReport>,
 }
 

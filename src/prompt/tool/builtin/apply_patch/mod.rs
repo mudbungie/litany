@@ -24,6 +24,13 @@
 //! directory — the tool subprocess runs there (§3.3 *Working
 //! directory*) — and the worktree side effects ride the ordinary
 //! per-invocation `git add -A` tool commit, exactly as for `bash`.
+//!
+//! **Every answer names that directory** (bl-13e2): the report carries
+//! `root`, and an apply decline states it after the reason. The paths a
+//! report echoes are as authored, so a relative one says nothing about
+//! where it landed — and the agent's cwd is the one root its
+//! file-touching tools share, moved only by the `cd` tool (a `cd` inside
+//! a `bash` command moves that one command's shell and dies with it).
 
 pub mod apply;
 pub mod parse;
@@ -67,8 +74,22 @@ pub enum Error {
     /// The patch parsed but was refused or failed at application
     /// ([`apply::Error`]) — nothing was written unless the message says
     /// a write itself failed.
-    #[error(transparent)]
-    Apply(#[from] apply::Error),
+    ///
+    /// **The working directory travels with it** (bl-13e2). Every arm of
+    /// [`apply::Error`] names a path as the patch authored it, which is
+    /// usually relative; the model reading the refusal has usually just
+    /// been reading absolute paths, and `add REPORT.md: file already
+    /// exists` about a file it has watched `rm` remove reads as a broken
+    /// tool rather than as two different directories. The root is the
+    /// half that was missing, and it is stated once around the whole
+    /// decline rather than threaded through nine variants — the failure
+    /// is never about *which* path, it is about which root.
+    #[error("{source} (working directory: {root})")]
+    Apply {
+        root: String,
+        #[source]
+        source: apply::Error,
+    },
     /// Writing the report to stdout failed — a harness-side pipe
     /// fault, not a patch failure.
     #[error("write to stdout: {0}")]
@@ -85,7 +106,10 @@ pub fn run<R: Read, W: Write>(stdin: &mut R, stdout: &mut W) -> Result<(), Error
     stdin.read_to_end(&mut buf).map_err(Error::StdinRead)?;
     let input: Input = serde_json::from_slice(&buf).map_err(Error::InvalidJson)?;
     let patch = parse::parse(&input.input)?;
-    let report = apply::apply(&patch, &root)?;
+    let report = apply::apply(&patch, &root).map_err(|source| Error::Apply {
+        root: root.display().to_string(),
+        source,
+    })?;
     let rendered = serde_json::to_string(&report).expect("report serializes");
     stdout.write_all(rendered.as_bytes()).map_err(Error::Stdout)
 }

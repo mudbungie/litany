@@ -130,6 +130,7 @@ pub fn apply(patch: &Patch, root: &Path) -> Result<Report, Error> {
     let files = staged.into_iter().map(write).collect::<Result<_, _>>()?;
     Ok(Report {
         status: "applied",
+        root: root.display().to_string(),
         files,
     })
 }
