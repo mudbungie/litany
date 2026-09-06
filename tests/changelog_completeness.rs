@@ -37,6 +37,9 @@
 //! run under the pre-commit gate inherits `GIT_DIR`/`GIT_INDEX_FILE` from the
 //! hook that spawned it, and this must read the repo's own ref.
 
+#[path = "changelog_completeness/promotion.rs"]
+mod promotion;
+
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -63,18 +66,14 @@ fn git(root: &Path, args: &[&str]) -> Option<String> {
 }
 
 /// The `[bl-xxxx]` id a delivery subject ends with, or `None` for a subject
-/// that carries none (a merge, a release bump) or that is **process rather
-/// than product** — the wording `CHANGELOG.md`'s own header uses, and the one
-/// rule behind both exemptions:
+/// that carries none (a merge, a release bump) or that is a **gate close**,
+/// the `tests`/`docs`/`alignment` subtask every ball carries — process rather
+/// than product, in `CHANGELOG.md`'s own words, and living in git and in the
+/// balls store. A gate close is exempt *by its subject* because a gate close
+/// is a subject convention: `bl` writes those words, nobody types them.
 ///
-/// - a **gate close**, the `tests`/`docs`/`alignment` subtask every ball
-///   carries, which lives in git and in the balls store;
-/// - a **release prep** commit, the `make promote-changelog` landing that
-///   stamps `[Unreleased]` as the new version. It carries a ball id but lists
-///   no delivery, and a bullet saying "the changelog was promoted" is noise in
-///   the very release notes it is promoting. `0ff056a` — *"0.0.6 release prep:
-///   promote the changelog [Unreleased] section to [0.0.6] [bl-7cff]"* — is
-///   the shape, and it is already on `main` with no bullet.
+/// The other exemption is not here, because it cannot be read off a subject
+/// at all: see [`is_changelog_promotion`].
 fn delivery_id(subject: &str) -> Option<String> {
     let subject = subject.trim();
     let id = subject
@@ -82,10 +81,40 @@ fn delivery_id(subject: &str) -> Option<String> {
         .1
         .strip_suffix(']')
         .map(|rest| format!("bl-{rest}"))?;
-    let process = subject.starts_with("gate:")
-        || subject.contains(" gate: ")
-        || subject.contains("release prep:");
+    let process = subject.starts_with("gate:") || subject.contains(" gate: ");
     (!process).then_some(id)
+}
+
+/// Is `sha` the `make promote-changelog` landing — the commit that stamps
+/// `[Unreleased]` as the new version? It carries a ball id but lists no
+/// delivery, and a bullet saying "the changelog was promoted" is noise in the
+/// very release notes it is promoting, so it is exempt.
+///
+/// **Derived from what the commit did, never from how its subject was worded**
+/// (bl-47b4). This used to test `subject.contains("release prep:")`, and a
+/// delivery subject is the ball's TITLE squashed by `bl close` — nobody types
+/// it to a convention. bl-0644 performed exactly this act under the title
+/// *"promote the accumulated [Unreleased] section to 0.0.10, …"*, the
+/// exemption missed, and the guard then demanded a bullet the changelog header
+/// says must not be written — failing every close in the repository, with no
+/// remedy that was not itself the noise.
+///
+/// The act is recognizable without a phrase: it touches `CHANGELOG.md` and
+/// nothing else, and it ADDS a version heading. `git` answers both.
+fn is_changelog_promotion(root: &Path, sha: &str) -> bool {
+    let Some(paths) = git(root, &["show", "--pretty=format:", "--name-only", sha]) else {
+        return false;
+    };
+    if paths.split_whitespace().ne(["CHANGELOG.md"]) {
+        return false;
+    }
+    let Some(diff) = git(root, &["show", "--pretty=format:", "-U0", sha]) else {
+        return false;
+    };
+    diff.lines().any(|l| {
+        l.strip_prefix("+## [")
+            .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
+    })
 }
 
 #[test]
@@ -96,7 +125,7 @@ fn every_delivery_since_the_last_release_has_a_changelog_bullet() {
         return;
     };
     let range = format!("{tag}..refs/heads/main");
-    let Some(log) = git(&root, &["log", "--format=%s", &range]) else {
+    let Some(log) = git(&root, &["log", "--format=%H %s", &range]) else {
         eprintln!("changelog guard skipped: no readable refs/heads/main under {root:?}");
         return;
     };
@@ -105,8 +134,11 @@ fn every_delivery_since_the_last_release_has_a_changelog_bullet() {
 
     let missing: BTreeSet<String> = log
         .lines()
-        .filter_map(delivery_id)
-        .filter(|id| !changelog.contains(id.as_str()))
+        .filter_map(|line| line.split_once(' '))
+        .filter_map(|(sha, subject)| Some((sha, delivery_id(subject)?)))
+        .filter(|(_, id)| !changelog.contains(id.as_str()))
+        .filter(|(sha, _)| !is_changelog_promotion(&root, sha))
+        .map(|(_, id)| id)
         .collect();
     assert!(
         missing.is_empty(),
@@ -211,15 +243,18 @@ fn delivery_ids_come_from_subjects_that_are_deliveries() {
         delivery_id("multi_tool: let the envelope assert parallel execution [bl-ec74]").as_deref(),
         Some("bl-ec74"),
     );
-    // Process, not product (CHANGELOG.md's header): gate closes in both
-    // spellings, and the release-prep landing.
+    // Process, not product (CHANGELOG.md's header): gate closes, in both
+    // spellings. The promotion landing is NOT read here — a subject cannot
+    // say what it was, and the old phrase test missed the one that mattered
+    // (bl-47b4); `is_changelog_promotion` reads its diff instead.
     assert_eq!(delivery_id("gate: alignment [bl-b03d]"), None);
     assert_eq!(delivery_id("docs gate: bl-19d5 README fix [bl-c6ee]"), None);
     assert_eq!(
         delivery_id(
             "0.0.6 release prep: promote the changelog [Unreleased] section to [0.0.6] [bl-7cff]"
-        ),
-        None,
+        )
+        .as_deref(),
+        Some("bl-7cff"),
     );
     // No id: a merge commit, release-plz's bump, an unrelated subject.
     assert_eq!(delivery_id("Merge pull request #6 from mudbungie/rp"), None);

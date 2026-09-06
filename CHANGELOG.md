@@ -21,12 +21,15 @@ proposes.
 
 That "every delivery" is **enforced, not merely asked for**:
 `tests/changelog_completeness.rs` asserts that every `[bl-xxxx]` id on `main`
-since the last `v*` tag appears in this file, with gate closes and
-id-less subjects (merges, the release bump) the only exemptions. It runs
-under `make check`, so a missing bullet fails the next close rather than
-reaching a release.
+since the last `v*` tag appears in this file. Three exemptions and no more:
+gate closes, id-less subjects (merges, the release bump), and the
+`make promote-changelog` landing — which is recognized by its diff, never by
+its wording (bl-47b4). It runs under `make check`, so a missing bullet fails
+the next close rather than reaching a release.
 
 ## [Unreleased]
+
+- **the changelog guard stops exempting the promotion landing by a phrase in its subject.** `tests/changelog_completeness.rs` let `make promote-changelog`'s commit through on `subject.contains("release prep:")`, and a delivery subject is the ball's TITLE squashed by `bl close` — nobody types it to a convention. bl-0644 performed exactly that act under the title *"promote the accumulated [Unreleased] section to 0.0.10, the version the open release PR proposes"*, the exemption missed, and the guard then demanded a bullet the changelog header says must not be written ("noise in the very release notes it is promoting") — failing `make check`, and so every close in the repository, with no remedy that was not itself the noise. The exemption is now derived from what the commit DID: its diff touches `CHANGELOG.md` and nothing else, and it adds a `## [x.y.z](…)` version heading, both of which git answers. A gate close stays a subject test, because a gate close IS a subject convention — `bl` writes those words. `delivery_id` therefore no longer reads the promotion at all, and returns the id for a "release prep:" subject like any other [bl-47b4]
 
 ## [0.0.10](https://github.com/mudbungie/litany/compare/litany-v0.0.9...litany-v0.0.10) - 2026-09-04
 
