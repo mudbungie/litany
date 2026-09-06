@@ -234,3 +234,35 @@ fn preflight_validates_a_supplied_name_and_mints_on_omission() {
         Err(Unavailable::Scan(_))
     ));
 }
+
+/// **The hazard the purity contract exists for** (bl-8fe8): two
+/// generators seeded from the same *wall-clock second* mint the same
+/// name, and the occupied-set check cannot tell them apart because
+/// concurrent creators scan before any of them has committed a `name`.
+///
+/// Written as the failure rather than as the property, because the
+/// property — "same seed, same name", pinned above — reads as a
+/// guarantee, and a consumer reading it as one shipped exactly this: yog
+/// seeded from a hash of its unix-**seconds** ops-log stamp, and three
+/// conversations started in one second were all minted one name, which
+/// every seat verb then refused as ambiguous. The occupied set is empty
+/// in both draws here for the same reason it is empty in the wild: none
+/// of the racing creators has landed a dispatch commit yet.
+#[test]
+fn two_generators_seeded_from_one_wall_clock_second_mint_one_name() {
+    // Whatever a caller derives a seed from, two creations inside one
+    // grain of it hand the mint the same number.
+    let seed_of_this_second = 0x5eed_0000_0000_0001;
+    let first = mint(&SplitMix64::from_seed(seed_of_this_second), &HashSet::new()).unwrap();
+    let second = mint(&SplitMix64::from_seed(seed_of_this_second), &HashSet::new()).unwrap();
+    assert_eq!(
+        first, second,
+        "a seed shared by two creations mints one name — the consumer owes per-creation entropy"
+    );
+    // And the finer grain is what dissolves it: the engine's own path.
+    assert_ne!(
+        mint(&SplitMix64::from_entropy(), &HashSet::new()).unwrap_or_default(),
+        String::new(),
+        "the entropy path mints"
+    );
+}

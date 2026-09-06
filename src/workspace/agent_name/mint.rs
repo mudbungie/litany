@@ -21,7 +21,25 @@
 //! [`mint`] is a **pure function over an injected RNG and an occupied
 //! set**: one RNG draw picks a start index into the *pair* space, then
 //! the scan walks forward with wraparound, discarding each occupied name
-//! for the next, to the first unoccupied one. Collision retry is that
+//! for the next, to the first unoccupied one.
+//!
+//! **Purity is a contract on the caller, and it has been broken once**
+//! (bl-8fe8). Same draw plus same occupied set means same name, so a
+//! consumer supplying its own [`Rng`] owes it **per-creation** entropy —
+//! not per second, not per anything coarser than a creation. Nothing
+//! downstream can recover from a coarser one: two creators racing inside
+//! that grain both scan the living names *before* either has committed a
+//! `name` blob, so their occupied sets are equal too, and
+//! [`super::require_available`] — the check this mint is documented as
+//! racing — sees the name free for both. Measured: yog seeded
+//! `SplitMix64` from a hash of its ops-log timestamp, which is unix
+//! **seconds**, so three conversations started in one second on one
+//! workspace were all minted `ScarfPeach`, and every seat verb that
+//! takes a name then refused all three as ambiguous. The engine's own
+//! creation paths draw from [`SplitMix64::from_entropy`] and are not
+//! affected; the contract is stated here because this is where a
+//! consumer reads it, and pinned by
+//! [`tests::two_generators_seeded_from_one_wall_clock_second_mint_one_name`]. Collision retry is that
 //! scan; its bound is the pair space — exhaustion is the scan running the
 //! whole pool out ([`MintError::Exhausted`], loud, never a loop). The
 //! occupied set is the caller's; at the creation pre-flights it is the
@@ -110,6 +128,13 @@ impl SplitMix64 {
     /// device, not a security one, and the occupied-set check plus the
     /// creation-time [`super::require_available`] gate are what actually
     /// guarantee uniqueness.
+    ///
+    /// **Nanoseconds, and the pid beside them, are the load-bearing
+    /// part** (bl-8fe8): the grain has to be finer than a creation, or
+    /// two creations inside one grain draw the same start index against
+    /// the same occupied set and mint one name — see the module docs for
+    /// the measured case. The pid covers two processes that read the
+    /// clock in the same nanosecond.
     pub fn from_entropy() -> Self {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
