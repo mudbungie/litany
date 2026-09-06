@@ -429,6 +429,63 @@ That ref is what §4 searches. Stated here so the property is named and
 tested rather than incidental: a test pins that a pre-compaction entry is
 findable by `search_history` after the landing.
 
+### 5.5 The span leaves context by construction (bl-2071)
+
+**Decision.** The landing removes from the base **every** `messages/**`
+entry in the tree at the compaction point except the branch's dispatch
+entry, whenever the pass wrote a summary. The compactor nominates none of
+them and cannot keep any. `mark_for_deletion` stays, for the two things
+a reader is needed to judge: a work product the branch superseded, and an
+earlier pass's summary whose signal this one carried forward.
+
+**Why it is not a soul edit.** §5.3 already says the extract is derived
+"from the transcript entries the compaction removes from context", and
+§5.4 that the removed span stays whole on the compactor's ref. Both
+sentences assumed a removal that nothing performed. Shipped, the only
+mechanism that could remove a transcript entry was a model calling
+`mark_for_deletion` on it, and `template/souls/compactor.md` named
+exactly one deletion — the superseded summary. Measured: four landed
+compactions over 94 transcript commits made **two** `mark_for_deletion`
+calls, both naming a prior summary, and the branch's own prompt went
+8,021 → 90,940 prompt tokens across them, monotone, never dropping at a
+checkpoint. The feature was inert *and* expensive: a compactor dispatch
+per checkpoint carrying the whole inherited transcript, for zero bytes
+freed. A stronger paragraph in the soul would have moved the failure
+rate, not removed it — the property "a landed compaction shrinks the
+prompt" is not one a prompt can promise.
+
+**It is the missing reframe, not a new mechanism.** Which entries a
+summary replaces was being asked as a judgement. It is not one: it is the
+span, and the span is already derived from git (ARCH §2.6 — the
+compaction point, the lower bound). The retained tail needs no rule of
+its own either, because `keep_recent` / `keep_recent_tokens` move the
+compaction point back and the sweep reads only the point's tree. And the
+one entry that must survive is the one §2.7's not-eligible predicate
+already names — the dispatch entry, the operator's only copy of the
+opening prompt — so the sweep and the nomination gate share that fact
+rather than each spelling it (`compactor::tools::eligibility::is_dispatch_entry`).
+
+**Conditional on the summary, and on nothing else.** A pass that wrote no
+summary sweeps nothing: the summary is what stands in for the span, so
+with none there is nothing to stand in for the entries. That is the same
+rule the extract already runs on (§5.3 "no summary for it to sit
+beside"), not a second one.
+
+**"Compaction, never compression" is unchanged.** The principle bounds
+what the *model* may write — a deletion-only toolset whose worst case is
+lost, never corrupted, information. The sweep widens no toolset and is
+performed by the landing, exactly as the base commit and the extract are:
+a pure function of git, replayable, correct by construction. What it
+removes stays whole on the soft archive (§5.4), which `search_history`
+(§4) reads.
+
+**Shipped (bl-2071).** `compactor::land::product` classifies the span's
+transcript entries beside the nominations, and the base drops both. The
+test that pins it measures the assembled wire history through
+`dispatch::assembler` before and after a landing whose compactor
+nominated nothing at all, and requires the second to be smaller — the
+arm the shipped mechanism could not have passed.
+
 ## 6. D — Context files on the tool result
 
 **Decision.** A tool result carries, appended after its envelope, every
@@ -555,6 +612,9 @@ Filed under bl-8175, each gated on this document (`--needs bl-e8ec`):
   denominator; the variant and its decline land first).
 - **bl-bc20** — §5.2 `keep_recent_tokens`.
 - **bl-e655** — §5.3 the extract at the landing.
+- **bl-2071** — §5.5 the span sweep at the landing (filed after the
+  above shipped, against the measurement that they had reclaimed
+  nothing).
 - **bl-b66b** — §6 context files on tool results.
 
 Amended by this ball: ARCH §2.7 (eligibility class, compaction product),

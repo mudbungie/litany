@@ -78,7 +78,10 @@ impl Side {
 /// commit (§2.2); a role the manifest does not list assembles
 /// transcript-only — the general path with empty inputs, not a special
 /// case.
-pub(super) fn assemble(worktree: &Path, rules: Option<&RoleRules>) -> Result<Vec<Message>, Error> {
+pub(in crate::prompt) fn assemble(
+    worktree: &Path,
+    rules: Option<&RoleRules>,
+) -> Result<Vec<Message>, Error> {
     let mut messages: Vec<Message> = Vec::new();
     for text in body::compose(worktree, rules)? {
         push_grouped(&mut messages, Side::User, vec![Content::Text(text)]);

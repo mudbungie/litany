@@ -4,7 +4,8 @@
 //! At the landing, code derives `summary/<NNN>.refs.md` from **what the
 //! compaction removes from context**: the transcript entries present at
 //! the compaction point and absent from the base — the `messages/` paths
-//! the pass nominated for deletion ([`super::base::Product`]). It lands in
+//! the landing takes out ([`super::product::Product`]: the span's entries it
+//! sweeps itself, plus any the pass nominated). It lands in
 //! the base beside the compactor's own `summary/<NNN>.md`, and the name
 //! sorts after it (`003.md` < `003.refs.md`), so the model reads the prose
 //! first and the list second and the assembler's `drop_oldest_summaries`

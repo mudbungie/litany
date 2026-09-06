@@ -28,7 +28,7 @@
 //! — is [`eligibility`]'s, the one predicate `mark_for_deletion`
 //! consults before it stages anything.
 //!
-mod eligibility;
+pub(super) mod eligibility;
 
 use super::Error;
 use crate::template::GitRunner;

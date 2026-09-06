@@ -190,4 +190,5 @@ fn assert_op(err: Error, want: &str) {
 
 mod edges;
 mod extract;
+mod reclaim;
 mod stub;

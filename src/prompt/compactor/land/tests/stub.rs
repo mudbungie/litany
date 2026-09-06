@@ -125,6 +125,18 @@ fn a_span_rev_list_failure_surfaces() {
 }
 
 #[test]
+fn a_span_transcript_ls_tree_failure_surfaces() {
+    // The sweep reads the compaction point's `messages/` tree
+    // (bl-2071); a git that cannot answer is a loud landing failure,
+    // never a silently empty span.
+    let s = Script {
+        fail_capture: Some("ls-tree"),
+        ..Script::ok()
+    };
+    assert_op(s.land().unwrap_err(), "compaction land span transcript");
+}
+
+#[test]
 fn a_merges_rev_list_failure_surfaces() {
     let s = Script {
         fail_capture: Some("--merges"),

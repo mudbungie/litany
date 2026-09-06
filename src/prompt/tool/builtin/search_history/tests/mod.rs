@@ -117,13 +117,7 @@ fn a_pre_compaction_entry_is_found_through_the_compactors_ref() {
         &[("messages/001-user.md", "needle in the old span\n")],
         &[],
     );
-    commit(
-        &repo,
-        "step 003",
-        &[("messages/002-user.md", "needle in the live tail\n")],
-        &[],
-    );
-    let added = g().run_capture(&repo, &["rev-parse", "HEAD~1"]).unwrap();
+    let added = g().run_capture(&repo, &["rev-parse", "HEAD"]).unwrap();
 
     // A real compactor: forked at the compaction point, writing a
     // summary and nominating the old entry for deletion.
@@ -142,6 +136,14 @@ fn a_pre_compaction_entry_is_found_through_the_compactors_ref() {
         &["messages/001-user.md"],
     );
     g().run(&repo, &["checkout", "-q", "agents/p1"]).unwrap();
+    // The live tail: appended while the compactor ran, so it is past the
+    // compaction point and outside the span the landing sweeps (§2.6).
+    commit(
+        &repo,
+        "step 003",
+        &[("messages/002-user.md", "needle in the live tail\n")],
+        &[],
+    );
     assert_eq!(
         land(&repo, "p1", "p1-cmp", None, &g()).unwrap(),
         LandOutcome::Landed

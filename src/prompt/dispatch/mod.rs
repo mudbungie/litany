@@ -17,7 +17,7 @@
 //! result [`result_deposit`] (§2.6) and the [`terminal`] tail (§2.11).
 
 pub mod advance;
-mod assembler;
+pub(in crate::prompt) mod assembler;
 mod canonical;
 mod child_result;
 pub(crate) mod door;

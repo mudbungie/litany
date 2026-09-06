@@ -2,15 +2,8 @@
 //! compaction point's with the product applied, parented on the span's
 //! lower bound — the squash the landing rebases the live tail onto.
 //!
-//! The product is classified from the compactor's branch **after its own
-//! dispatch commit**: a path *deleted* in `dispatch..tip` is a
-//! `mark_for_deletion` nomination (the fork-time prunes — the empty-grant
-//! `descriptions/**` derivation, the unsettled-tool-step removal — all
-//! land *on* the dispatch commit and are thereby excluded, structurally);
-//! a path *added under `summary/`* is the `write_summary` product.
-//! Nothing else exists to a landing: the compactor's dialog, goal, and
-//! soul are additions outside `summary/` and rewrites, which this module
-//! never reads.
+//! What reaches it — nominations, the summary, and the transcript
+//! entries of the span itself — is classified apart, in [`super::product`].
 //!
 //! The base is minted without disturbing the live checkout: a throwaway
 //! `--no-checkout` worktree gives us a private index (no `GIT_INDEX_FILE`
@@ -21,107 +14,11 @@
 //! [`crate::prompt::rebase_forward`]).
 
 use super::super::{Error, checkpoint};
-use super::extract::{self, Extract};
+use super::product::Product;
 use super::span::Span;
 use crate::template::GitRunner;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-
-/// The compaction product: what the compactor's two tools committed after
-/// its dispatch commit (module docs), plus the one product no model
-/// authors — the **extract** the landing itself derives (docs/TAXONOMY.md
-/// §3, [`extract`]) — and nothing else.
-pub(super) struct Product {
-    /// Paths nominated by `mark_for_deletion` — deleted in
-    /// `dispatch..tip` on the compactor's branch.
-    pub(super) deletions: Vec<String>,
-    /// `summary/**` paths added by `write_summary`.
-    pub(super) summaries: Vec<String>,
-    /// `summary/<NNN>.refs.md`, derived here from what the deletions take
-    /// out of context; `None` when the workflow declares no
-    /// `extract_bytes`, when no summary was written for it to sit beside,
-    /// or when nothing referable was removed ([`extract::of`]).
-    pub(super) extract: Option<Extract>,
-}
-
-impl Product {
-    /// No deletions and no summary: nothing to land ([`super::LandOutcome::NoOp`]).
-    pub(super) fn is_empty(&self) -> bool {
-        self.deletions.is_empty() && self.summaries.is_empty()
-    }
-}
-
-/// Classify the compaction product from the compactor's branch (module
-/// docs): deletions and `summary/**` additions in `dispatch..tip`, then
-/// the extract derived from the first of those two.
-pub(super) fn product(
-    parent_worktree: &Path,
-    span: &Span,
-    compactor_ref: &str,
-    extract_bytes: Option<usize>,
-    git: &dyn GitRunner,
-) -> Result<Product, Error> {
-    let dispatch = span.dispatch.as_str();
-    let deletions = diff_class(parent_worktree, dispatch, compactor_ref, "D", None, git)?;
-    let summaries = diff_class(
-        parent_worktree,
-        dispatch,
-        compactor_ref,
-        "A",
-        Some("summary"),
-        git,
-    )?;
-    let extract = extract::of(
-        parent_worktree,
-        span,
-        &deletions,
-        &summaries,
-        extract_bytes,
-        git,
-    )?;
-    Ok(Product {
-        deletions,
-        summaries,
-        extract,
-    })
-}
-
-/// Paths of one `--diff-filter` class between two trees, optionally
-/// limited to a pathspec. `--no-renames` keeps the classes exhaustive: an
-/// add/delete pair must not collapse into an `R` that escapes both.
-fn diff_class(
-    parent_worktree: &Path,
-    from: &str,
-    to: &str,
-    class: &str,
-    pathspec: Option<&str>,
-    git: &dyn GitRunner,
-) -> Result<Vec<String>, Error> {
-    let filter = format!("--diff-filter={class}");
-    let mut args = vec![
-        "diff",
-        "--name-only",
-        "--no-renames",
-        filter.as_str(),
-        from,
-        to,
-    ];
-    if let Some(spec) = pathspec {
-        args.extend(["--", spec]);
-    }
-    let out = git
-        .run_capture(parent_worktree, &args)
-        .map_err(|source| Error::Git {
-            op: "compaction land product diff",
-            source,
-        })?;
-    Ok(out
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty())
-        .map(str::to_owned)
-        .collect())
-}
 
 /// Mint the compaction base commit (module docs) and return its sha.
 pub(super) fn commit(

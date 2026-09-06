@@ -72,6 +72,7 @@
 
 mod base;
 mod extract;
+mod product;
 mod span;
 
 use super::Error;
@@ -128,7 +129,7 @@ pub fn land(
     else {
         return Ok(LandOutcome::Superseded);
     };
-    let product = base::product(parent_worktree, &span, &compactor_ref, extract_bytes, git)?;
+    let product = product::product(parent_worktree, &span, &compactor_ref, extract_bytes, git)?;
     if product.is_empty() {
         return Ok(LandOutcome::NoOp);
     }

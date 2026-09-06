@@ -154,13 +154,7 @@ fn carries(member: &str, what: &str) -> String {
 /// alone, or `None` when the path is neither. Read once against the
 /// nomination and once against every path the nomination removes.
 fn dispatch_written(rel: &str) -> Option<&'static str> {
-    if rel
-        .strip_prefix(MESSAGES_DIR)
-        .and_then(|r| r.strip_prefix('/'))
-        .and_then(|name| name.split('-').next())
-        .and_then(|nnn| nnn.parse::<u32>().ok())
-        == Some(DISPATCH_SEQ)
-    {
+    if is_dispatch_entry(rel) {
         return Some(
             "the branch's dispatch entry, its opening prompt in transcript form, \
              written at dispatch and never rewritten",
@@ -176,6 +170,20 @@ fn dispatch_written(rel: &str) -> Option<&'static str> {
         );
     }
     None
+}
+
+/// Whether the branch-relative `rel` is the **dispatch entry** — the
+/// `messages/001-…` the branch's opening prompt landed as (module docs).
+/// One home for the fact, read twice: here, where a nomination of it is
+/// declined, and at the landing, where the span's transcript entries are
+/// swept out of the base and this one is the entry that stays
+/// ([`super::super::land`], bl-2071).
+pub(in crate::prompt::compactor) fn is_dispatch_entry(rel: &str) -> bool {
+    rel.strip_prefix(MESSAGES_DIR)
+        .and_then(|r| r.strip_prefix('/'))
+        .and_then(|name| name.split('-').next())
+        .and_then(|nnn| nnn.parse::<u32>().ok())
+        == Some(DISPATCH_SEQ)
 }
 
 /// Every tracked path `git rm -r -- <rel>` would remove — the index
