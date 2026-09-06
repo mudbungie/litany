@@ -25,7 +25,6 @@ fn run_returns_branch_missing_when_inspector_says_no() {
     let err = run(
         dir.path(),
         "br",
-        false,
         &inspector,
         &StubFinder::default(),
         &cascade::RecordingSignaler::new(0),
@@ -45,7 +44,6 @@ fn run_idempotent_when_no_holder_found() {
     run(
         dir.path(),
         "br",
-        false,
         &inspector,
         &StubFinder::default(),
         &signaler,
@@ -67,7 +65,6 @@ fn run_idempotent_when_no_inbox_dir_at_all() {
     run(
         dir.path(),
         "br",
-        false,
         &inspector,
         &StubFinder::default(),
         &signaler,
@@ -88,7 +85,6 @@ fn run_signals_the_inbox_dir_holder() {
     run(
         dir.path(),
         "br",
-        false,
         &inspector,
         &finder,
         &signaler,
@@ -101,21 +97,22 @@ fn run_signals_the_inbox_dir_holder() {
 }
 
 #[test]
-fn run_default_leaves_live_child_untouched() {
-    // Child-outlives-parent (§2.9): a bare stop signals only the one
-    // agent. The descended `br-sub` executor (its own pgid) is never
-    // discovered, so it keeps running and can later revive the parent
-    // by depositing into its inbox (§2.11).
+fn run_reaches_a_live_child_with_no_flag_asked_for() {
+    // The regression bl-3114 filed, from the collector's other end: the
+    // same on-disk tree that used to leave `br-sub` running now probes
+    // its inbox too, so the descendant executor is in the sweep. A stop
+    // that left it alive left the conversation spending, because the
+    // child's `final-response` return revives its dispatcher (§2.11
+    // pin 2).
     let dir = TempDir::new().unwrap();
     let self_inbox = touch_inbox_dir(dir.path(), "br");
-    touch_inbox_dir(dir.path(), "br-sub");
+    let child_inbox = touch_inbox_dir(dir.path(), "br-sub");
     let inspector = StubInspector { exists: true };
-    let finder = StubFinder::with_returns(vec![Some(11)]);
+    let finder = StubFinder::with_returns(vec![Some(11), Some(12)]);
     let signaler = cascade::RecordingSignaler::new(0);
     run(
         dir.path(),
         "br",
-        false,
         &inspector,
         &finder,
         &signaler,
@@ -123,15 +120,18 @@ fn run_default_leaves_live_child_untouched() {
         &NoopGit,
     )
     .unwrap();
-    // Only the agent's own inbox was probed; the child's was skipped.
-    assert_eq!(finder.seen.lock().unwrap().as_slice(), &[self_inbox]);
-    assert_eq!(term_targets(&signaler), vec![11]);
+    let mut probed = finder.seen.lock().unwrap().clone();
+    probed.sort();
+    let mut expected = vec![self_inbox, child_inbox];
+    expected.sort();
+    assert_eq!(probed, expected, "both inboxes probed");
+    assert_eq!(term_targets(&signaler), vec![11, 12]);
 }
 
 #[test]
-fn run_stop_children_covers_descended_subagent_ids_via_hyphen_prefix() {
-    // `--stop-children` walks the id namespace: `br` plus every
-    // `br-*` descendant, each its own executor pgid, folded into one
+fn run_covers_descended_subagent_ids_via_hyphen_prefix() {
+    // The walk over the id namespace: `br` plus every `br-*`
+    // descendant, each its own executor pgid, folded into one
     // sweep (§2.9).
     let dir = TempDir::new().unwrap();
     touch_inbox_dir(dir.path(), "br");
@@ -142,7 +142,6 @@ fn run_stop_children_covers_descended_subagent_ids_via_hyphen_prefix() {
     run(
         dir.path(),
         "br",
-        true,
         &inspector,
         &finder,
         &signaler,
@@ -154,7 +153,7 @@ fn run_stop_children_covers_descended_subagent_ids_via_hyphen_prefix() {
 }
 
 #[test]
-fn run_stop_children_covers_deep_descendants_in_one_prefix_scan() {
+fn run_covers_deep_descendants_in_one_prefix_scan() {
     // The flat id namespace *is* the tree: a grandchild `br-a-b` is
     // prefixed `br-` too, so one scan reaches every depth — no
     // recursion (§2.9).
@@ -168,7 +167,6 @@ fn run_stop_children_covers_deep_descendants_in_one_prefix_scan() {
     run(
         dir.path(),
         "br",
-        true,
         &inspector,
         &finder,
         &signaler,
@@ -190,7 +188,6 @@ fn run_dedupes_pgid_when_multiple_holders_share_one() {
     run(
         dir.path(),
         "br",
-        true,
         &inspector,
         &finder,
         &signaler,
@@ -213,7 +210,6 @@ fn run_skips_unrelated_agent_id_dirs() {
     run(
         dir.path(),
         "br",
-        true,
         &inspector,
         &finder,
         &signaler,

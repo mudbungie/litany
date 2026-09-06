@@ -111,9 +111,9 @@ pub enum Command {
     /// — nearest mark on the agent's descent wins. `--clear` removes it,
     /// returning the agent to its followed config's workflow.
     Workflow(workflow::Args),
-    /// Stop a conversation branch (ARCH §2.9 SIGTERM). Default stops the
-    /// one agent; `--stop-children` also stops every descendant
-    /// (`<branch>-*`, §2.3) — the opt-in agent→agent cascade.
+    /// Stop a conversation branch and every descendant (`<branch>-*`,
+    /// §2.3) — one SIGTERM sweep over the id namespace. The cascade is
+    /// the stop, not an option on it (ARCH §2.9, bl-3114).
     Stop(stop::Args),
     /// Deposit a message into an agent's inbox and probe the executor
     /// lock (ARCH §2.11, §3.4). Sender from `LITANY_CONV_BRANCH`. `agent`

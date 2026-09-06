@@ -18,7 +18,6 @@ fn run_propagates_inspector_exists_error_as_git() {
     let err = run(
         dir.path(),
         "br",
-        false,
         &ErrInspector,
         &StubFinder::default(),
         &cascade::RecordingSignaler::new(0),
@@ -43,7 +42,6 @@ fn run_propagates_finder_io_error_as_proc() {
     let err = run(
         dir.path(),
         "br",
-        false,
         &inspector,
         &ErrFinder,
         &cascade::RecordingSignaler::new(0),
@@ -57,7 +55,7 @@ fn run_propagates_finder_io_error_as_proc() {
 #[test]
 fn collect_inbox_dirs_returns_empty_when_inbox_root_missing() {
     let dir = TempDir::new().unwrap();
-    let v = super::super::collect_inbox_dirs(dir.path(), "br", false).unwrap();
+    let v = super::super::collect_inbox_dirs(dir.path(), "br").unwrap();
     assert!(v.is_empty());
 }
 
@@ -73,38 +71,26 @@ fn collect_inbox_dirs_skips_a_non_utf8_entry() {
         .join(super::fixtures::INBOX_DIR)
         .join(std::ffi::OsStr::from_bytes(b"\xFF\xFE"));
     std::fs::create_dir_all(&stray).unwrap();
-    let v = super::super::collect_inbox_dirs(dir.path(), "br", true).unwrap();
+    let v = super::super::collect_inbox_dirs(dir.path(), "br").unwrap();
     assert_eq!(v.len(), 1, "only the named branch: {v:?}");
     assert!(v[0].ends_with("inbox/br"));
 }
 
 #[test]
-fn collect_inbox_dirs_gates_descendants_on_stop_children() {
-    // Same on-disk tree, both flag values: default is self-only; the
-    // flag folds in the `br-*` descendant. Pins the opt-in boundary
-    // directly at the collector (§2.9).
+fn collect_inbox_dirs_takes_the_descendants_unconditionally() {
+    // The walk is the stop (§2.9, bl-3114): there is no arm that
+    // returns the agent alone, so a `br-*` descendant is in the sweep
+    // whatever the caller wanted. Pinned at the collector, which is the
+    // only place the reach was ever decided.
     let dir = TempDir::new().unwrap();
     touch_inbox_dir(dir.path(), "br");
     touch_inbox_dir(dir.path(), "br-sub");
 
-    let mut default_only = super::super::collect_inbox_dirs(dir.path(), "br", false).unwrap();
-    default_only.sort();
-    assert_eq!(
-        default_only.len(),
-        1,
-        "default is self-only: {default_only:?}"
-    );
-    assert!(default_only[0].ends_with("inbox/br"));
-
-    let mut with_children = super::super::collect_inbox_dirs(dir.path(), "br", true).unwrap();
-    with_children.sort();
-    assert_eq!(
-        with_children.len(),
-        2,
-        "flag includes the child: {with_children:?}"
-    );
-    assert!(with_children[0].ends_with("inbox/br"));
-    assert!(with_children[1].ends_with("inbox/br-sub"));
+    let mut dirs = super::super::collect_inbox_dirs(dir.path(), "br").unwrap();
+    dirs.sort();
+    assert_eq!(dirs.len(), 2, "self and descendant: {dirs:?}");
+    assert!(dirs[0].ends_with("inbox/br"));
+    assert!(dirs[1].ends_with("inbox/br-sub"));
 }
 
 #[test]
@@ -137,7 +123,7 @@ fn cli_run_guards_the_layout_before_anything_else() {
     // a workspace, the §2.2 layout guard refuses first (pre-v1 clean
     // break) — before any git or /proc work.
     let dir = TempDir::new().unwrap();
-    let err = super::super::cli_run(dir.path(), "no-such-branch", false).unwrap_err();
+    let err = super::super::cli_run(dir.path(), "no-such-branch").unwrap_err();
     assert!(matches!(err, Error::Layout(_)), "{err}");
 }
 
@@ -145,14 +131,9 @@ fn cli_run_guards_the_layout_before_anything_else() {
 fn cli_run_returns_branch_missing_against_a_real_workspace() {
     // Against a real workspace (bare repo.git + config/default), a
     // nonexistent agent id fails branch validation — the canonical
-    // pre-cascade error path — for both flag arms.
+    // pre-cascade error path.
     let (_h, ws) = crate::workspace::fixture::workspace();
-    let err = super::super::cli_run(&ws, "no-such-branch", false).unwrap_err();
-    assert!(
-        matches!(err, Error::BranchMissing(ref b) if b == "no-such-branch"),
-        "{err}"
-    );
-    let err = super::super::cli_run(&ws, "no-such-branch", true).unwrap_err();
+    let err = super::super::cli_run(&ws, "no-such-branch").unwrap_err();
     assert!(
         matches!(err, Error::BranchMissing(ref b) if b == "no-such-branch"),
         "{err}"
@@ -183,7 +164,6 @@ fn run_refuses_to_signal_the_stop_process_own_group() {
     let err = run(
         dir.path(),
         "br",
-        false,
         &StubInspector { exists: true },
         &OwnGroupFinder,
         &signaler,

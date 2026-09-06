@@ -70,9 +70,11 @@ fn stop_on_branch_with_no_live_writer_is_idempotent_success() {
 
 #[test]
 fn stop_stop_children_flag_parses_and_is_idempotent() {
-    // The `--stop-children` id-namespace walk (§2.9) reaches the same
-    // no-holder short-circuit as a bare stop when nothing is driving —
-    // proving the flag parses and plumbs through `cli_run` end-to-end.
+    // `--stop-children` is retired (§2.9, bl-3114) — every stop walks
+    // the id namespace — but the CLI still accepts the word, because the
+    // boundary above litany spells it. This is what "still accepts"
+    // means end-to-end: the flag parses and reaches the same no-holder
+    // short-circuit a bare stop reaches when nothing is driving.
     let holder = TempDir::new().unwrap();
     let harness = holder.path().join("harness");
     fs::create_dir_all(&harness).unwrap();

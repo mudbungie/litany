@@ -23,7 +23,9 @@
 //!
 //! **Two refusals, both fail-closed.** A bare delete of an agent with
 //! descendants is declined naming them (`--children` is the explicit
-//! subtree request, mirroring `stop --stop-children`, §2.9), and a
+//! subtree request, over the same id-namespace walk `litany stop`
+//! performs unconditionally — deletion keeps the opt-in a stop dropped,
+//! because a stop is recoverable and a delete is not, §2.9), and a
 //! delete of an agent whose executor holds the §2.11 lock is declined
 //! naming the lock — reaping the substrate beneath a running driver is a
 //! race with a live process. Both are checked over the whole target set

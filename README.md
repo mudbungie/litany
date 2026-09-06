@@ -1113,24 +1113,29 @@ listings, with no sidecar file.
 ## Stopping a conversation
 
 ```
-litany stop /path/to/my-conversation <conv-id> [--stop-children]
+litany stop /path/to/my-conversation <conv-id>
 ```
 
-Sends `SIGTERM` to the process group of the **one executor** driving
-`<conv-id>`, with a 5-second flush deadline before `SIGKILL`. This is the
-same cascade pattern adapter (§4.4) and tool (§3.3) cancellation use,
-applied to the harness itself
-([ARCH §2.9](docs/ARCHITECTURE.md#29-stopped-branches)). The group signal
-reaches that executor's own `bz` and tool subprocesses — its limbs — and
-**stops at the agent boundary**: a dispatched child harness has taken its
-own process group, so a bare stop does not fell it. A running child
-outlives the stopped parent and revives it later by depositing its result
-(§2.11) — stopping a parent strands nothing.
+Sends `SIGTERM` to the process group of the executor driving `<conv-id>`
+**and of every descendant executor**, with a 5-second flush deadline
+before `SIGKILL`. This is the same cascade pattern adapter (§4.4) and
+tool (§3.3) cancellation use, applied to the harness itself
+([ARCH §2.9](docs/ARCHITECTURE.md#29-stopped-branches)). Each group
+signal reaches that one executor's own `bz` and tool subprocesses — its
+limbs — and **stops at the agent boundary**: a dispatched child harness
+has taken its own process group, so no kernel signal leaks across. The
+reach across that boundary is instead a walk of the id namespace: the
+descendants of `<conv-id>` are exactly the inbox directories prefixed
+`<conv-id>-` (§2.3), one prefix scan reaching every depth, and each
+descendant executor's own group folds into the same sweep.
 
-`--stop-children` opts into the agent→agent cascade: it walks the id
-namespace — the descendants of `<conv-id>` are exactly the inbox
-directories prefixed `<conv-id>-` (§2.3), one prefix scan reaching every
-depth — and folds each descendant executor's group into the same sweep.
+**The cascade is the stop, not an option on it.** The walk used to be
+opt-in, and the default left a running child alive on the argument that
+it would revive its parent later — which is exactly what made a bare stop
+useless: a child's return revives its dispatcher (§2.11), so a stop on
+any conversation with children reported success and the conversation kept
+spending. `--stop-children` is still accepted and now changes nothing.
+
 The pid is discovered by scanning `/proc/<pid>/fd/*` for the process
 holding the agent's inbox-directory lock fd open — the executor lock
 (§2.11), held for the whole step loop, so a stop lands even during tool
@@ -1919,8 +1924,10 @@ removed:
 
 - **A subtree is never implied.** Bare, an agent with `<id>-*`
   hyphen-descendants (§2.3) is declined, naming them; `--children` is the
-  explicit request for the whole subtree (the shape of `stop --stop-children`,
-  §2.9).
+  explicit request for the whole subtree. It reuses the same id-namespace
+  walk `litany stop` performs (§2.9) and keeps the opt-in that stop
+  dropped, because the acts differ in kind: a stop is recoverable — the
+  branches stay, a message revives them — and a delete is not.
 - **A live driver is never reaped.** An agent whose executor holds the §2.11
   lock is declined, naming the lock; `litany stop` it first and delete once it
   is quiescent.

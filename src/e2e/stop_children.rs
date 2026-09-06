@@ -1,5 +1,5 @@
-//! Integration test: the opt-in agent→agent cascade, over two *live*
-//! executors (ARCH §2.9, README "Stopping a conversation").
+//! Integration test: the agent→agent cascade, over two *live* executors
+//! (ARCH §2.9, README "Stopping a conversation").
 //!
 //! A parent root and one dispatched child, each blocked in its own model
 //! call against a stalling mock, each holding its own inbox-directory
@@ -7,22 +7,21 @@
 //! `setpgid`s, a launched `litany advance` is `setsid`-detached). Two
 //! executors, two groups, one prefix in the id namespace.
 //!
-//! - `litany stop --stop-children` walks that namespace — the
-//!   descendants of `<agent>` are exactly the inbox directories prefixed
-//!   `<agent>-`, one scan reaching every depth — and folds the child's
-//!   group into the same SIGTERM sweep. Both executors take the §2.9
-//!   step-3 terminal sequence landed by bl-5156: the group signal fells
-//!   `bz` mid-model-call, the pending stop flag (not the shape of the
-//!   error `bz`'s death left behind) classifies, and the executor
-//!   deposits its `stopped` result and exits **cleanly**. The child's
-//!   `response.json` is left closed without a terminal `end` — the §2.9
-//!   on-disk stop signature — and, being a child, its deposit is
-//!   observable in the parent's inbox rather than the root no-op the
-//!   sibling `stop_cli.rs` tests see.
-//! - A bare `litany stop` (no flag) does **not** fell the child: the
-//!   agent-boundary promise. Parent and child are separate agents, not a
-//!   process hierarchy, so the kernel group signal cannot leak across
-//!   and no CLI-level walk is performed.
+//! **A bare `litany stop` walks that namespace** (bl-3114): the
+//! descendants of `<agent>` are exactly the inbox directories prefixed
+//! `<agent>-`, one scan reaching every depth, and the child's group folds
+//! into the same SIGTERM sweep. Both executors take the §2.9 step-3
+//! terminal sequence landed by bl-5156: the group signal fells `bz`
+//! mid-model-call, the pending stop flag (not the shape of the error
+//! `bz`'s death left behind) classifies, and the executor deposits its
+//! `stopped` result and exits **cleanly**. The child's `response.json` is
+//! left closed without a terminal `end` — the §2.9 on-disk stop signature
+//! — and, being a child, its deposit is observable in the parent's inbox
+//! rather than the root no-op the sibling `stop_cli.rs` tests see.
+//!
+//! The reach is still a CLI-level walk and not a kernel-group leak: each
+//! executor is signalled at its own discovered pgid. `--stop-children`
+//! names what every stop now does and changes nothing.
 
 use super::poll;
 use super::stop_common::{
@@ -49,7 +48,6 @@ struct Family {
     parent: String,
     child: String,
     prompt: Child,
-    child_pgid: i32,
 }
 
 /// `steps/<agent>/001/response.json` — the step-1 model-call record
@@ -183,12 +181,13 @@ fn live_family() -> Family {
     poll_for_path(&dest, &step_response(&dest, &child));
 
     // Two live executors, two distinct process groups (§2.9) — the
-    // precondition both tests below discriminate on.
+    // precondition that makes the sweep below a walk and not a leak.
     let parent_pgid = holder_pgid(&dest, &parent).expect("parent executor holds its inbox lock");
     let child_pgid = holder_pgid(&dest, &child).expect("child executor holds its inbox lock");
     assert_ne!(
         parent_pgid, child_pgid,
-        "every executor takes its own process group, child alike (§2.9)"
+        "every executor takes its own process group, child alike (§2.9) — \
+         so reaching the child is the id-namespace walk, never a group leak"
     );
 
     Family {
@@ -198,18 +197,20 @@ fn live_family() -> Family {
         parent,
         child,
         prompt,
-        child_pgid,
     }
 }
 
-/// `--stop-children` folds the descendant's group into the sweep: the
-/// child dies with the parent, leaving the §2.9 missing-`end` signature
-/// and the bl-5156 stopped deposit behind.
+/// A **bare** stop folds the descendant's group into the sweep: the child
+/// dies with the parent, leaving the §2.9 missing-`end` signature and the
+/// bl-5156 stopped deposit behind. This is the bl-3114 regression — the
+/// same call that used to leave the child driving, and with it the whole
+/// conversation spending, because a child's `final-response` return
+/// revives its dispatcher (§2.11 pin 2).
 #[test]
-fn stop_children_fells_the_live_child_executor() {
+fn a_bare_stop_fells_the_live_child_executor() {
     let mut fam = live_family();
 
-    run_stop(&fam.dest, &fam.parent, true);
+    run_stop(&fam.dest, &fam.parent, false);
 
     // The parent took the §2.9 step-3 exit: SIGTERM mid-model-call with a
     // stop pending is the stop, deposited (a root no-op) and exited 0.
@@ -238,14 +239,15 @@ fn stop_children_fells_the_live_child_executor() {
     );
 }
 
-/// A bare `litany stop` stops at the agent boundary: the parent dies, the
-/// child keeps running. Without this the cascade could be a kernel-group
-/// side effect rather than the opt-in CLI-level walk §2.9 specifies.
+/// `--stop-children` is a retired spelling and changes nothing (§2.9,
+/// bl-3114): the same live family, stopped through the flag, ends exactly
+/// as the bare stop above ends. Kept because the boundary above litany
+/// still spells the word, so what it does must stay pinned.
 #[test]
-fn bare_stop_leaves_the_live_child_running() {
+fn the_retired_stop_children_flag_changes_nothing() {
     let mut fam = live_family();
 
-    run_stop(&fam.dest, &fam.parent, false);
+    run_stop(&fam.dest, &fam.parent, true);
 
     let status = reap(&fam.dest, &mut fam.prompt);
     assert!(
@@ -253,19 +255,10 @@ fn bare_stop_leaves_the_live_child_running() {
         "the stopped parent must exit cleanly (§2.9 step 3), got {status:?}"
     );
     poll_until_no_holder(&fam.dest, &fam.parent);
-
-    // The sweep is over — `litany stop` returned and the parent has been
-    // reaped — so any signal the child was going to receive has been
-    // delivered. It is still driving its branch.
+    poll_until_no_holder(&fam.dest, &fam.child);
     assert_eq!(
         holder_pgid(&fam.dest, &fam.child),
-        Some(fam.child_pgid),
-        "a bare stop must not cross into the child's group (§2.9)"
+        None,
+        "the flag reaches the child exactly as the bare stop does (§2.9)"
     );
-
-    // Teardown: the child outlives its parent by design, so fell it
-    // explicitly rather than leaving a detached executor pointed at a
-    // temp workspace that is about to be deleted.
-    run_stop(&fam.dest, &fam.child, false);
-    poll_until_no_holder(&fam.dest, &fam.child);
 }
