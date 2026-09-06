@@ -1224,10 +1224,10 @@ too, the same way `load_skill` declines an unknown skill (ARCH §3.3):
 ```
 $ litany tool --help
 Arguments:
-  <NAME>  Built-in tool to run; one of: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, search_history
+  <NAME>  Built-in tool to run; one of: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, remember, search_history
 
 $ echo '{}' | litany tool nosuchtool
-litany tool nosuchtool: unknown built-in tool: "nosuchtool"; available: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, search_history
+litany tool nosuchtool: unknown built-in tool: "nosuchtool"; available: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, remember, search_history
 ```
 
 **A direct run gives you the triple, not the envelope.** `litany tool

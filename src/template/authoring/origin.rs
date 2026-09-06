@@ -42,10 +42,33 @@ pub enum Origin<'a> {
     /// already here.
     Proposal {
         /// The followed config commit the proposal is parented on.
+        /// Ignored when the branch already stands: the standing
+        /// proposal's own parent is kept ([`amends`]).
         parent: &'a str,
         /// The commit message — the reviewer's terminal response.
         message: &'a str,
     },
+}
+
+/// Does this pass **amend a proposal that already stands** rather than
+/// mint a new one (bl-3c11)?
+///
+/// A proposal is *one* commit parented on the followed config commit,
+/// and `litany proposal`'s freshness is that parent against the lineage
+/// head (`docs/DESIGN_LEARNING_LOOP.md` §3 step 4). A second act on the
+/// same branch must therefore replace that commit, not stack a second
+/// one — stacking would re-parent the tip onto the first act and read
+/// stale forever, against a lineage that never moved.
+///
+/// It arrived with the `remember` door: a reviewer stages once per
+/// review and never meets this, but an agent asked to remember a second
+/// thing meets it immediately. One branch per agent, accumulating, is
+/// what the operator wants to read — one proposal, whole.
+pub(super) fn amends(git: &dyn GitRunner, repo: &Path, target: &str, origin: &Origin<'_>) -> bool {
+    matches!(origin, Origin::Proposal { .. })
+        && git
+            .run_capture(repo, &["rev-parse", "--verify", "--quiet", target])
+            .is_ok_and(|sha| !sha.trim().is_empty())
 }
 
 /// The branch an authoring pass lands on: `proposal/<name>` for a
@@ -73,6 +96,7 @@ pub(super) fn materialize<'a>(
     target: &str,
     author: &Path,
     origin: &Origin,
+    amend: bool,
 ) -> Result<Checkout<'a>, Error> {
     // `src` and `author_str` outlive the args they feed; `src` is empty
     // unless this is a fork.
@@ -93,7 +117,12 @@ pub(super) fn materialize<'a>(
             Some(target.to_string()),
         ),
         // A proposal cuts its branch at the commit it is parented on,
-        // the fork's shape with a commit for a source ref.
+        // the fork's shape with a commit for a source ref — unless the
+        // branch already stands, in which case the pass checks it out
+        // and amends it (advance's shape, and advance's teardown: a ref
+        // this pass did not create is one a failed pass must never
+        // delete).
+        Origin::Proposal { .. } if amend => (vec!["worktree", "add", &author_str, target], None),
         Origin::Proposal { .. } => (
             vec!["worktree", "add", "-b", target, &author_str, &src],
             Some(target.to_string()),

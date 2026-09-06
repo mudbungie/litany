@@ -14,27 +14,21 @@
 //! know which two were searched.
 
 use super::super::dispatch::EnvLookup;
-use super::{ENV_HOME, ENV_LITANY_HOME, ENV_XDG_DATA, Error, SKILLS_DIR};
-use crate::harness_root;
+use super::super::harness;
+use super::{Error, SKILLS_DIR};
 use crate::template::{GitRunner, descriptions};
-use crate::workspace;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// The **followed config commit** of the calling agent's branch (ARCH
-/// §2.2, `crate::workspace::current_config`) — the same tip control
-/// resolves from at every step boundary, so an accepted config edit
-/// reaches an election with no act per agent. The held arm (diverged
-/// lineages) answers the fork commit, exactly as resolution does.
+/// The **followed config commit** of the calling agent's branch — the
+/// shared derivation ([`harness::followed_commit`]) in this tool's own
+/// error voice.
 pub(super) fn followed_commit(
     workspace: &Path,
     branch: &str,
     git: &dyn GitRunner,
 ) -> Result<String, Error> {
-    let rev = workspace::agent_ref(branch);
-    let resolution =
-        workspace::current_config::current_config(workspace, &rev, git).map_err(Error::Lineage)?;
-    Ok(resolution.commit().to_owned())
+    harness::followed_commit(workspace, branch, git).map_err(Error::Lineage)
 }
 
 /// The decline for a name neither home holds, naming **both** pools —
@@ -74,16 +68,7 @@ fn committed_skills(worktree: &Path, commit: &str, git: &dyn GitRunner) -> Strin
 /// the same env [`harness_root`] reads, injected via [`EnvLookup`] so the
 /// tool stays pure over its environment for tests.
 pub(super) fn skills_pool(env: &dyn EnvLookup) -> Result<PathBuf, Error> {
-    let override_v = env.get(ENV_LITANY_HOME);
-    let xdg_data = env.get(ENV_XDG_DATA);
-    let home = env.get(ENV_HOME);
-    let roots = harness_root::resolve_from(
-        override_v.as_deref(),
-        None,
-        xdg_data.as_deref(),
-        home.as_deref().map(Path::new),
-    )
-    .map_err(Error::Root)?;
+    let roots = harness::roots(env).map_err(Error::Root)?;
     Ok(roots.data.join(SKILLS_DIR))
 }
 

@@ -91,6 +91,26 @@ do not mutate the prompt prefix mid-conversation" is structural here, not a
 freeze flag. The proposing loop (reviewer → staged patch → approval) is the
 learning-loop design's; its approval *is* a `litany config` commit.
 
+*Amended on the round-1 usability campaign (bl-3c11).* "An agent cannot
+write it" was true and was the whole problem: an agent asked to remember
+something durably could not, and **nothing told it so**. On a measured
+drive the model spent about forty tool calls and four dispatched subagents
+locating this file, then wrote a shell script, exported it as `$EDITOR` and
+drove `litany config` — which worked, and which is a control-plane write
+the learning loop exists to keep out of an agent's hands (yog bl-baed, now
+refused outright: ARCH §3.3, bl-d273). Comparators recorded the same
+sentence in one tool call and under twenty seconds. The mechanism here was
+never the defect — a new conversation answered from `facts.md` with zero
+tool calls, which is a better story than an unversioned per-project file —
+so what was added is a **door, not a second store**: the `remember`
+built-in (ARCH §3.3) appends one paragraph to this file and stages it as a
+proposal on `proposal/<agent-id>`, settled by the `litany proposal
+--accept` the operator already runs. Every fact this section states is
+unchanged — one file, one home, one cap, one writer *of the lineage*, which
+is still the operator. What changed is that the agent can now ask in the
+one shape the design already had, and is told so in the tool's own
+description.
+
 **The cap is a refusal, not a shed.** `template::authoring` declines a commit
 whose `facts.md` exceeds the cap, naming the size and the cap — the review's
 "over-capacity writes fail explicitly rather than silently evicting". The

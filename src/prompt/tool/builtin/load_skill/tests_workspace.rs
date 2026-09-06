@@ -3,6 +3,7 @@
 //! the install pool second. One test per branch of that resolution, so
 //! a coverage regression names the path it broke.
 
+use super::super::harness::ENV_LITANY_HOME;
 use super::*;
 use crate::template::RealGit;
 use crate::workspace::fixture;

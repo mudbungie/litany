@@ -33,7 +33,7 @@
 mod origin;
 
 pub use origin::Origin;
-use origin::{commit_message, materialize};
+use origin::{amends, commit_message, materialize};
 
 use super::checkout;
 use super::{GitRunner, TEMPLATE, descriptions};
@@ -159,8 +159,13 @@ pub fn author(
     let author = checkout::path(workspace);
     let target = origin::target_ref(name, &origin);
 
+    // A standing proposal is amended, not stacked on (bl-3c11): asked
+    // once, `materialize` cuts or checks out by the same answer the
+    // commit later amends or lands by, so the two cannot disagree.
+    let amend = amends(git, &repo, &target, &origin);
+
     checkout::heal(git, &repo, &author).map_err(Error::Io)?;
-    let checkout = materialize(git, &repo, &target, &author, &origin)?;
+    let checkout = materialize(git, &repo, &target, &author, &origin, amend)?;
     // `git worktree add` makes the dir in production; explicit for the
     // stub-git tests (a harmless no-op otherwise) — as in `scaffold`.
     std::fs::create_dir_all(&author).map_err(Error::Io)?;
@@ -170,7 +175,9 @@ pub fn author(
     edit(&author).map_err(Error::Edit)?;
     crate::facts::require_within_cap(&author)?;
     descriptions::snapshot(data_root, &author).map_err(Error::Descriptions)?;
-    if !super::commit_checkout(git, &author, &commit_message(name, &origin)).map_err(Error::Git)? {
+    if !super::commit_checkout(git, &author, &commit_message(name, &origin), amend)
+        .map_err(Error::Git)?
+    {
         // Dropping the guard removes the checkout and, for a fork or an
         // orphan, the ref the pass created — the decline leaves nothing.
         return Ok(Pass::Declined { target });

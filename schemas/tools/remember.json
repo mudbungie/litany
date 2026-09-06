@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "remember",
+  "description": "Input schema for the litany built-in `remember` tool — the one way you can record something durably (docs/DESIGN_CONTEXT_ECONOMY.md §3). The fact is appended to this workspace's durable facts file, `facts.md`, which is pinned into the context of every conversation started on this workspace afterwards, so a brand-new conversation knows it without being told. Your write does NOT take effect on its own: it is staged as a proposal on the branch `proposal/<your agent id>`, which no config lineage points at until the operator accepts it with `litany proposal <workspace> <your agent id> --accept`. Say that in your answer — the fact is recorded when they accept, and not before. Calling it again amends the same proposal rather than opening a second one, so remembering three things leaves the operator one thing to read. The file is capped at 4096 bytes for the whole workspace: it is the small always-present memory, not a place for reference material, and an over-cap write is refused rather than silently trimmed. There is no other write you can make to the config lineage — `litany config` and `litany proposal --accept` refuse from inside a step. The harness sends this schema verbatim as the `input_schema` field of the tool's entry in the model call's `tools: [...]` array.",
+  "type": "object",
+  "properties": {
+    "fact": {
+      "type": "string",
+      "description": "The durable fact, in one or two sentences, written so it still makes sense to a conversation that has none of this one's context — name the thing it is about rather than saying \"it\" or \"the above\". Appended as its own paragraph; re-proposing a fact that is already recorded changes nothing and comes back as `already_recorded`."
+    }
+  },
+  "required": ["fact"],
+  "additionalProperties": false
+}

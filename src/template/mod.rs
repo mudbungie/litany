@@ -16,13 +16,15 @@
 pub mod authoring;
 pub(crate) mod checkout;
 pub mod descriptions;
+mod git;
+
+pub use git::{GitRunner, RealGit};
 
 use crate::harness_root::Roots;
 use include_dir::{Dir, include_dir};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 /// The embedded config-commit template (ARCH §2.2). Holds the control
 /// files a config commit carries — `manifest.yaml`, `workflow.yaml`,
@@ -56,97 +58,6 @@ pub enum ScaffoldError {
     #[error(transparent)]
     Facts(#[from] crate::facts::OverCap),
 }
-
-/// Abstraction over running `git` subcommands inside a target directory.
-/// Implemented for [`RealGit`] by shelling out; tests supply their own
-/// implementations to exercise the error paths in [`scaffold`].
-pub trait GitRunner {
-    /// Run `git <args>` with `-C dest`. Returns `Err` when the process
-    /// cannot start or exits non-zero.
-    fn run(&self, dest: &Path, args: &[&str]) -> io::Result<()>;
-
-    /// Like [`GitRunner::run`], but captures stdout and returns it as a
-    /// trimmed string. Used by commands that need the output (e.g.
-    /// `git rev-parse HEAD` after a commit).
-    fn run_capture(&self, dest: &Path, args: &[&str]) -> io::Result<String>;
-
-    /// [`GitRunner::run_capture`] without the lossy round trip: raw
-    /// stdout bytes, untrimmed. The one caller that needs it is
-    /// `search_history` (ARCH §3.3), which hands stored transcript
-    /// entries back to the model *verbatim* — a trimmed, lossily
-    /// re-encoded blob is not the entry that was committed, and the
-    /// address it advertises would then recover something else.
-    /// Defaulted to the trimmed capture so the many test doubles owe no
-    /// second answer; [`RealGit`] overrides it with the real bytes and
-    /// derives `run_capture` from it, so the scrub below has one home.
-    fn run_capture_bytes(&self, dest: &Path, args: &[&str]) -> io::Result<Vec<u8>> {
-        self.run_capture(dest, args).map(String::into_bytes)
-    }
-}
-
-/// `GitRunner` that invokes a `git` binary on disk.
-///
-/// The binary path is a field so tests can swap in a nonexistent path
-/// to exercise the spawn-failure branch.
-pub struct RealGit {
-    bin: PathBuf,
-}
-
-impl RealGit {
-    /// Use the `git` found on `PATH`.
-    pub fn new() -> Self {
-        Self {
-            bin: PathBuf::from("git"),
-        }
-    }
-}
-
-impl Default for RealGit {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl GitRunner for RealGit {
-    fn run(&self, dest: &Path, args: &[&str]) -> io::Result<()> {
-        self.run_capture_bytes(dest, args).map(|_| ())
-    }
-
-    fn run_capture(&self, dest: &Path, args: &[&str]) -> io::Result<String> {
-        self.run_capture_bytes(dest, args)
-            .map(|out| String::from_utf8_lossy(&out).trim().to_string())
-    }
-
-    fn run_capture_bytes(&self, dest: &Path, args: &[&str]) -> io::Result<Vec<u8>> {
-        // When invoked from a git-hook context, GIT_DIR / GIT_INDEX_FILE
-        // / GIT_WORK_TREE / GIT_OBJECT_DIRECTORY are in the environment
-        // and would cause the child `git` to operate on the outer repo
-        // regardless of `-C`. Scrub them before spawning.
-        let mut cmd = Command::new(&self.bin);
-        for var in INHERITED_GIT_ENV {
-            cmd.env_remove(var);
-        }
-        let out = cmd.arg("-C").arg(dest).args(args).output()?;
-        if !out.status.success() {
-            return Err(io::Error::other(format!(
-                "git {args:?} exited with {}: {}",
-                out.status,
-                String::from_utf8_lossy(&out.stderr).trim()
-            )));
-        }
-        Ok(out.stdout)
-    }
-}
-
-const INHERITED_GIT_ENV: &[&str] = &[
-    "GIT_DIR",
-    "GIT_WORK_TREE",
-    "GIT_INDEX_FILE",
-    "GIT_OBJECT_DIRECTORY",
-    "GIT_PREFIX",
-    "GIT_COMMON_DIR",
-    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-];
 
 /// Create a new workspace at `dest` per ARCH §2.2:
 ///
@@ -198,7 +109,7 @@ pub fn scaffold(dest: &Path, roots: &Roots, git: &dyn GitRunner) -> Result<(), S
     // Always `true` here: the embedded template always writes files, so
     // the first commit's stage is never empty (the decline is
     // [`authoring`]'s case, where the origin's tree already exists).
-    commit_checkout(git, &author, &msg).map_err(ScaffoldError::Git)?;
+    commit_checkout(git, &author, &msg, false).map_err(ScaffoldError::Git)?;
     checkout.landed().map_err(ScaffoldError::Git)?;
     Ok(())
 }
@@ -239,7 +150,12 @@ fn overlay(src: &Path, dst: &Path) -> io::Result<()> {
 /// code makes, not a message it parses. Teardown is not here — it belongs
 /// to the caller's [`checkout::Checkout`] guard, which runs on every exit
 /// path including this one.
-pub(crate) fn commit_checkout(git: &dyn GitRunner, author: &Path, msg: &str) -> io::Result<bool> {
+pub(crate) fn commit_checkout(
+    git: &dyn GitRunner,
+    author: &Path,
+    msg: &str,
+    amend: bool,
+) -> io::Result<bool> {
     git.run(author, &["add", "-A"])?;
     if git
         .run_capture(author, &["status", "--porcelain"])?
@@ -247,7 +163,19 @@ pub(crate) fn commit_checkout(git: &dyn GitRunner, author: &Path, msg: &str) -> 
     {
         return Ok(false);
     }
-    git.run(author, &["commit", "-m", msg])?;
+    let mut args = vec!["commit", "-m", msg];
+    // **Amend REPLACES the one commit on a branch, keeping its parent**
+    // (bl-3c11). Only a proposal that already stands amends: a proposal
+    // is one commit parented on the followed config commit, and
+    // `litany proposal`'s freshness is `<branch>^` against the lineage
+    // head — so a second act on the same branch must replace the commit,
+    // never stack a second one, or the branch is instantly and
+    // permanently stale. The unchanged-tree arm above still decides
+    // first, so an act that adds nothing amends nothing.
+    if amend {
+        args.push("--amend");
+    }
+    git.run(author, &args)?;
     Ok(true)
 }
 

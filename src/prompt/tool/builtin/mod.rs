@@ -31,6 +31,11 @@
 //! Adding a new one is a match arm in [`run`] plus a sibling module.
 
 pub use bindings::Bindings;
+pub(crate) use names::PYTHON;
+use names::{
+    APPLY_PATCH, BASH, CD, DISPATCH, LOAD_SKILL, MESSAGE, READ_FILE, REMEMBER, SEARCH_HISTORY,
+};
+pub use names::{NAMES, pool};
 use std::io::{Read, Write};
 use thiserror::Error;
 
@@ -41,64 +46,14 @@ pub mod cd;
 pub(crate) mod child;
 pub mod compaction;
 pub mod dispatch;
+mod harness;
 pub mod load_skill;
 pub mod message;
+mod names;
 pub mod python;
 pub mod read_file;
+pub mod remember;
 pub mod search_history;
-
-/// Built-in tool name: atomic multi-file structured edit (§3.3 *The
-/// patch tool*).
-const APPLY_PATCH: &str = "apply_patch";
-/// Built-in tool name: run a shell command (§3.3).
-const BASH: &str = "bash";
-/// Built-in tool name: move the calling agent's working directory (§3.3
-/// *Working directory*).
-const CD: &str = "cd";
-/// Built-in tool name: spawn a subagent (§2.5).
-const DISPATCH: &str = "dispatch";
-/// Built-in tool name: copy a pooled skill body into the worktree (§3.3
-/// Body-on-demand).
-const LOAD_SKILL: &str = "load_skill";
-/// Built-in tool name: deposit into an existing agent's inbox (§2.11).
-const MESSAGE: &str = "message";
-/// Built-in tool name: run a model-authored python3 program that
-/// composes this agent's own tools (`docs/DESIGN_CODE_EXECUTION.md`
-/// §2.2). `pub(crate)` and not private: it is also the name the door
-/// refuses at depth 1 ([`crate::prompt::dispatch::door::COMPOSING`]),
-/// and one name has one home.
-pub(crate) const PYTHON: &str = "python";
-/// Built-in tool name: read a file's bytes (§3.3).
-const READ_FILE: &str = "read_file";
-/// Built-in tool name: search the workspace's stored transcript entries
-/// (§3.3, `docs/DESIGN_CONTEXT_ECONOMY.md` §4).
-const SEARCH_HISTORY: &str = "search_history";
-
-/// The closed set of built-in tool names `litany tool <name>` answers to,
-/// sorted — the one list behind both the [`Error::Unknown`] decline and
-/// the `<NAME>` argument's CLI help (PRINCIPLES single source of truth).
-/// The compactor pair (`write_summary` / `mark_for_deletion`) is
-/// deliberately absent: it is injected for the compactor role alone
-/// (§2.7), never a name a general agent or an operator elects, so it is
-/// routed but not advertised.
-pub const NAMES: [&str; 9] = [
-    APPLY_PATCH,
-    BASH,
-    CD,
-    DISPATCH,
-    LOAD_SKILL,
-    MESSAGE,
-    PYTHON,
-    READ_FILE,
-    SEARCH_HISTORY,
-];
-
-/// [`NAMES`] rendered for a human: the pool named in the unknown-tool
-/// decline and in `litany tool --help`, in the same voice `load_skill`
-/// names its own pool with (§3.3 "declined … naming the available pool").
-pub fn pool() -> String {
-    NAMES.join(", ")
-}
 
 /// Reasons [`run`] can fail. Each in-process tool surfaces its own
 /// error variant; an unknown tool name is the dispatcher-level case.
@@ -157,6 +112,15 @@ pub enum Error {
     /// naming the available pool (§3.3). Same stderr-concat contract.
     #[error(transparent)]
     LoadSkill(#[from] load_skill::Error),
+    /// `remember` failed or refused (bad input JSON, missing env, an
+    /// empty fact, an unresolvable root or lineage, or the authoring
+    /// pass — the facts cap included, in the routine's own voice, per
+    /// [`remember::Error`], `docs/DESIGN_CONTEXT_ECONOMY.md` §3). A
+    /// refusal reaches the model as an `is_error` `tool_result` and
+    /// stages nothing; a proposal that already stood is untouched. Same
+    /// stderr-concat contract as the other arms.
+    #[error(transparent)]
+    Remember(#[from] remember::Error),
     /// `search_history` failed (bad input JSON, missing env, neither or
     /// both of the two inputs, a git query that could not run, an
     /// `entry` address naming no blob, per [`search_history::Error`],
@@ -261,6 +225,11 @@ pub fn run_with<R: Read, W: Write, E: Write>(
         return load_skill::run(stdin, stdout, env)
             .map(|()| 0)
             .map_err(Error::LoadSkill);
+    }
+    if name == REMEMBER {
+        return remember::run(stdin, stdout, env)
+            .map(|()| 0)
+            .map_err(Error::Remember);
     }
     if name == SEARCH_HISTORY {
         return search_history::run(stdin, stdout, env)

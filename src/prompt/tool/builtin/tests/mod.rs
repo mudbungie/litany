@@ -33,6 +33,7 @@ mod routing_bash;
 mod routing_cd;
 mod routing_compaction;
 mod routing_python;
+mod routing_remember;
 mod routing_search_history;
 
 #[test]
@@ -107,7 +108,7 @@ impl message::Sender for StubSender {
 /// `None` for anything not seeded. Mirrors the dispatch module's own
 /// test fixture so the dispatcher routing test does not invent a
 /// second pattern.
-struct StubEnv(std::collections::HashMap<&'static str, std::ffi::OsString>);
+struct StubEnv(pub(super) std::collections::HashMap<&'static str, std::ffi::OsString>);
 impl dispatch::EnvLookup for StubEnv {
     fn get(&self, key: &str) -> Option<std::ffi::OsString> {
         self.0.get(key).cloned()

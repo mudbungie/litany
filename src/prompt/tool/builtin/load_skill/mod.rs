@@ -54,7 +54,6 @@ mod homes;
 
 use super::super::{ENV_CONV_BRANCH, ENV_CONV_REPO};
 use super::dispatch::EnvLookup;
-use crate::harness_root;
 use crate::template::{GitRunner, RealGit, descriptions};
 use crate::workspace;
 use homes::{copy_dir, followed_commit, skills_pool, unknown};
@@ -64,10 +63,6 @@ use homes::{copy_dir, followed_commit, skills_pool, unknown};
 /// config lineage's workspace-skill home
 /// (`docs/DESIGN_LEARNING_LOOP.md` §3).
 const SKILLS_DIR: &str = crate::workspace::SKILLS_DIR;
-/// Env keys the data-root resolution reads (mirrors [`harness_root`]).
-const ENV_LITANY_HOME: &str = "LITANY_HOME";
-const ENV_XDG_DATA: &str = "XDG_DATA_HOME";
-const ENV_HOME: &str = "HOME";
 
 /// Wire shape of the input. `deny_unknown_fields` so a malformed
 /// `tool_use.input` surfaces as [`Error::InvalidJson`] rather than a
@@ -102,7 +97,7 @@ pub enum Error {
     #[error("missing env var {0:?} (set by the harness per ARCH §3.3)")]
     MissingEnv(&'static str),
     #[error("resolve data root: {0}")]
-    Root(#[source] harness_root::Error),
+    Root(#[source] crate::harness_root::Error),
     #[error("skill name {0:?} is not a single path component (ARCH §3.3)")]
     BadName(String),
     #[error(

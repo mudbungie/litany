@@ -2,6 +2,7 @@
 //! branch and every error variant lands in its own test so a coverage
 //! regression points at the offending path.
 
+use super::super::harness::ENV_LITANY_HOME;
 use super::*;
 use crate::workspace::fixture;
 use std::collections::HashMap;
