@@ -1,7 +1,8 @@
 +++
 title = "a model response truncated at max_tokens is committed and executed as-is: every reviewer apply_patch arrived as input {} and the learning loop staged nothing"
 created = 1788673890
-updated = 1788673930
+updated = 1788674973
+claimant = "Cantaloups-L2"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["usability-r1"]
