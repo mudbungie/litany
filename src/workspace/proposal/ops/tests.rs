@@ -12,6 +12,12 @@ use tempfile::TempDir;
 /// commit that adds a workspace skill, cut at the lineage head exactly
 /// as `stage_proposal` cuts it. Returns `(holder, ws, parent sha)`.
 fn workspace_with_a_proposal(id: &str) -> (TempDir, PathBuf, String) {
+    staged_proposal(id, "notes: record the lesson")
+}
+
+/// The same, with the reviewer's message spelled by the caller — the axis
+/// the SUBJECT cell is derived from (bl-4c53).
+fn staged_proposal(id: &str, message: &str) -> (TempDir, PathBuf, String) {
     let (h, ws) = fixture::workspace();
     let git = RealGit::new();
     let repo = repo_git(&ws);
@@ -40,11 +46,33 @@ fn workspace_with_a_proposal(id: &str) -> (TempDir, PathBuf, String) {
     )
     .unwrap();
     git.run(&scratch, &["add", "-A"]).unwrap();
-    git.run(&scratch, &["commit", "-m", "notes: record the lesson"])
-        .unwrap();
+    git.run(&scratch, &["commit", "-m", message]).unwrap();
     git.run(&repo, &["worktree", "remove", "--force", &scratch_s])
         .unwrap();
     (h, ws, parent)
+}
+
+// bl-4c53: a reviewer's terminal response opens with whatever it opens
+// with, and two of three proposals on the listing that filed this opened
+// with a markdown heading and a horizontal rule — so the column a person
+// triages by said `## Final Response` and `---`.
+#[test]
+fn a_subject_is_derived_past_the_ornament_a_response_opens_with() {
+    let (_h, ws, _p) = staged_proposal(
+        "a1-r1",
+        "## Final Response\n\nnotes: record the correction\n\nbecause the user said so\n",
+    );
+    let rows = list(&ws, &RealGit::new()).unwrap();
+    assert_eq!(rows[0].subject, "notes: record the correction");
+}
+
+// And when the whole message is ornament, the cell states what changes —
+// the fallback a git tool makes, read off the diff.
+#[test]
+fn a_message_with_no_subject_in_it_lists_the_paths_that_change() {
+    let (_h, ws, _p) = staged_proposal("a1-r2", "---\n\n***\n");
+    let rows = list(&ws, &RealGit::new()).unwrap();
+    assert_eq!(rows[0].subject, "skills/notes/SKILL.md");
 }
 
 fn head(ws: &Path, r: &str) -> Option<String> {

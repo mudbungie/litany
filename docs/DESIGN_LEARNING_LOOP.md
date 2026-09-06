@@ -252,6 +252,20 @@ One verb, modes by argument, the `litany workflow` shape:
 - bare: list every `proposal/*` — id, lineage, parent, **fresh** (parent is the
   lineage's current tip) or **stale** (derived at read time, never stored),
   diffstat, subject.
+
+  The **subject cell is derived, not taken** (bl-4c53). The commit message is
+  the reviewer's terminal response, and a model's response opens with whatever
+  it opens with: on the three-proposal listing that filed this, two opened with
+  a markdown heading (`## Final Response`) and a horizontal rule (`---`), so the
+  one column a person triages by told them nothing about either and both had to
+  be opened. The cell is the first line of the message that **reads as a
+  subject** — skipping blanks, headings, fences and rules — and, when no line
+  does, the paths the proposal changes, which is the fallback a git tool makes
+  and a statement of what changes, which is what a subject in a diff list is
+  for. The soul still asks for a subject and now says what one looks like (a
+  statement of what changes, not a report about the act); asking is what
+  produces a *good* subject, and deriving is what keeps the listing readable
+  when the asking did not take.
 - `<id>`: the proposal's message and full diff.
 - `--accept`: fast-forward the lineage head to the proposal — a compare-and-swap
   `update-ref` whose expected old value is the proposal's parent — then delete

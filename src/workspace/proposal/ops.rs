@@ -79,7 +79,9 @@ pub struct Row {
     pub fresh: bool,
     /// `git diff --shortstat` against the parent.
     pub diffstat: String,
-    /// The commit subject — the reviewer's own first line.
+    /// What the proposal is, for triage: the first line of the reviewer's
+    /// message that reads as a subject, else the paths it changes
+    /// ([`super::subject`]). Derived at read time like every other field.
     pub subject: String,
 }
 
@@ -117,12 +119,7 @@ fn row(ws: &Path, id: &str, git: &dyn GitRunner) -> Result<Row, Error> {
             "diff --shortstat",
             git,
         )?,
-        subject: capture(
-            ws,
-            &["log", "-1", "--format=%s", &target],
-            "log subject",
-            git,
-        )?,
+        subject: super::subject::of(ws, &parent, &target, git)?,
         parent: short(&parent),
     })
 }
@@ -258,7 +255,7 @@ fn rev(ws: &Path, spec: &str, git: &dyn GitRunner) -> Result<String, Error> {
 }
 
 /// A capture in the workspace's bare repo, tagged with its op.
-fn capture(
+pub(super) fn capture(
     ws: &Path,
     args: &[&str],
     op: &'static str,

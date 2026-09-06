@@ -19,6 +19,7 @@
 
 mod ops;
 mod render;
+mod subject;
 
 pub use ops::{Row, accept, list, reject, show};
 pub use render::render;

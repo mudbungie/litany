@@ -62,3 +62,9 @@ End with a final response whose first line is a one-line subject — it becomes
 the proposal commit's subject — followed by the rationale: what you found, where
 you found it, and why it is worth an operator's attention. If you propose
 nothing, say so in one line and stop.
+
+Write that first line the way a commit subject is written: a statement of what
+*changes*, not a report about the act. `notes: record that the user corrected
+the retry rule` — not `## Final Response`, not `---`, and not "Excellent. The
+skill now documents…". The operator triages several proposals by that line
+alone.
