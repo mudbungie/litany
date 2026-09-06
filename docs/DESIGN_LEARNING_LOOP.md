@@ -227,7 +227,22 @@ reviewer_return:
 **One writer per branch holds.** `proposal/<reviewer-id>` is written once, by
 the reviewer's dispatcher's executor at the landing, and advanced by nobody: a
 re-review is a new reviewer id and a new branch. `config/*` still advances
-only by the operator — acceptance is the operator verb below. Governing-lineage
+only by the operator — acceptance is the operator verb below.
+
+*Amended on the round-1 usability campaign (bl-d273, triage ruling 3).* That
+last sentence was a description, not a mechanism, and the veto it states was
+walkable: `litany config` sits on every agent's PATH and opens `$EDITOR`, so a
+step with the shipped `bash` grant wrote a script, exported it, and advanced
+the lineage holding its own soul, grant, model and `facts.md` — observed, not
+theorized (yog bl-baed). **The two verbs that advance a lineage now refuse
+under `LITANY_TOOL_ID`** (ARCH §3.3), the marker every tool invocation already
+carries: `litany config` outright, and `litany proposal --accept`, because
+acceptance is what makes a proposal a lineage's. The refusal names the
+proposal route, because a step that wants to change the lineage has a lawful
+way to ask for it and that is the whole design. Reading is not refused — the
+bare listing, the show and `--reject` stay open to a step; rejecting deletes a
+branch no lineage points at. What is refused is *advancing*, which is the
+sentence above made mechanical. Governing-lineage
 and followed-tip derivations read `config/*` alone, so a proposal branch is
 invisible to resolution until accepted.
 

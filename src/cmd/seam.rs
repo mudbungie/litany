@@ -23,6 +23,10 @@ use std::sync::atomic::AtomicBool;
 /// a variable that gets renamed in one.
 pub use crate::prompt::tool::ENV_CONV_BRANCH;
 
+/// The §3.3 contract variable [`Fx::tool_id`] carries, re-exported for
+/// the same reason and beside the same field.
+pub use crate::prompt::tool::ENV_TOOL_ID;
+
 /// A verb's one product (ARCH §3.4 one-product convention). The binding
 /// performs it: [`Line`](Outcome::Line) is the verb's single stdout
 /// product; [`Quiet`](Outcome::Quiet) is a product-less success;
@@ -76,6 +80,16 @@ pub struct Fx<'a> {
     /// unrelated in-process `message` recorded. Nothing brackets that;
     /// only not reading it does.
     pub conv_branch: Option<std::ffi::OsString>,
+    /// The §3.3 stdio contract's `LITANY_TOOL_ID` as this process was
+    /// started with it — set exactly when this process is a tool
+    /// invocation of a running step, and so the fact the two
+    /// lineage-advancing verbs refuse under ([`crate::lineage`],
+    /// bl-d273): `config` and `proposal --accept` are the operator's,
+    /// and a step that could run either could rewrite the souls, grants,
+    /// models and facts governing its own conversation. A field here for
+    /// the reason [`Self::conv_branch`] is one, and read once, at the
+    /// binding.
+    pub tool_id: Option<std::ffi::OsString>,
     /// The `litany config` `$EDITOR` hand-off (§2.2) — the interactive
     /// spawn the exec binding supplies as `cli::edit_in_editor`.
     pub editor: &'a dyn Fn(&Path) -> std::io::Result<()>,

@@ -19,6 +19,7 @@ mod dispatching;
 mod invoking;
 mod invoking_faults;
 mod invoking_gates;
+mod lineage_refusal;
 mod naming;
 mod pins;
 mod proposing;
@@ -60,11 +61,27 @@ fn with_fx<R>(
     editor: &dyn Fn(&Path) -> std::io::Result<()>,
     f: impl FnOnce(&mut Fx) -> R,
 ) -> (R, Vec<u8>, Vec<u8>) {
+    with_fx_id(driver_target, stdin, editor, None, f)
+}
+
+/// [`with_fx`] with the §3.3 `LITANY_TOOL_ID` marker injected: `None` is
+/// the operator at a terminal, `Some(id)` is a tool invocation of a
+/// running step — the two faces `cmd::lineage`'s guard tells apart
+/// (bl-d273). One [`Fx`] literal, for the coverage reason above.
+#[rustfmt::skip]
+fn with_fx_id<R>(
+    driver_target: &str,
+    stdin: &[u8],
+    editor: &dyn Fn(&Path) -> std::io::Result<()>,
+    tool_id: Option<&str>,
+    f: impl FnOnce(&mut Fx) -> R,
+) -> (R, Vec<u8>, Vec<u8>) {
     let mut stdin_ref = stdin;
     let mut stdout: Vec<u8> = Vec::new();
     let mut stderr: Vec<u8> = Vec::new();
     let stop = AtomicBool::new(false);
-    let mut fx = Fx { driver_target: PathBuf::from(driver_target), adapter_target: None, conv_branch: None, editor, tool_stdin: &mut stdin_ref, tool_stdout: &mut stdout, tool_stderr: &mut stderr, stop: &stop, tool_injection: None };
+    let tool_id = tool_id.map(std::ffi::OsString::from);
+    let mut fx = Fx { driver_target: PathBuf::from(driver_target), adapter_target: None, conv_branch: None, tool_id, editor, tool_stdin: &mut stdin_ref, tool_stdout: &mut stdout, tool_stderr: &mut stderr, stop: &stop, tool_injection: None };
     let r = f(&mut fx);
     drop(fx);
     (r, stdout, stderr)

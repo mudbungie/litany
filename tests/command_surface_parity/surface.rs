@@ -73,6 +73,10 @@ const SEAM_TYPES: &[&str] = &[
     // `prompt::tool` is below the surface (bl-b5b1) — the same reason
     // `BUILTIN_TOOLS` is re-exported above.
     "use ENV_CONV_BRANCH",
+    // The second contract variable, re-exported for the same reason and
+    // read at the same edge: `Fx.tool_id` is what the two
+    // lineage-advancing verbs refuse under (bl-d273).
+    "use ENV_TOOL_ID",
     "enum Outcome",
     "derive Outcome: Debug",
     "variant Outcome::Line",
@@ -83,6 +87,7 @@ const SEAM_TYPES: &[&str] = &[
     "field Fx.driver_target",
     "field Fx.adapter_target",
     "field Fx.conv_branch",
+    "field Fx.tool_id",
     "field Fx.editor",
     "field Fx.tool_stdin",
     "field Fx.tool_stdout",

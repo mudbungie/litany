@@ -35,6 +35,8 @@
 //! - `archive`: bundle/replay of an agent subtree (§9.2).
 //! - `skill`: the skill-pool descriptor surface (§3.3).
 //! - `facts`: the config lineage's durable facts file (§5.5).
+//! - `lineage`: the guard that keeps a lineage-advancing verb out of a
+//!   step's hands (§3.3 `LITANY_TOOL_ID`).
 
 mod archive;
 pub mod cmd;
@@ -42,6 +44,7 @@ mod config;
 mod facts;
 mod harness_root;
 mod install;
+mod lineage;
 pub mod mint;
 mod name;
 mod prompt;

@@ -12,6 +12,13 @@
 //! compare-and-swap live; this module resolves the mode, converts one
 //! error voice and hands back one product (§3.4).
 //!
+//! **`--accept` is the operator's, and is refused from inside a step**
+//! ([`crate::lineage`], bl-d273): acceptance is what makes a proposal a
+//! lineage's, so a step that could accept its own proposal would be the
+//! whole veto walked around. The listing, the show and `--reject` stand:
+//! reading is nobody's risk, and rejecting deletes a branch no lineage
+//! points at rather than advancing one.
+//!
 //! **`--accept` needs an id and says so.** A verb that accepted "the
 //! only one" would do something different the day a second proposal was
 //! staged, which is exactly the class of surprise a destructive act must
@@ -44,8 +51,15 @@ pub struct Args {
 /// Resolve the mode from the arguments and perform it — one product on
 /// stdout in every mode (§3.4): the table, the proposal, or the line
 /// naming what moved.
-pub fn run(args: Args, _fx: &mut Fx) -> Result<Outcome, Error> {
+pub fn run(args: Args, fx: &mut Fx) -> Result<Outcome, Error> {
     let e = |source: &dyn std::fmt::Display| Error::new("proposal", source);
+    if args.accept {
+        crate::lineage::require_operator(
+            "accept a proposal onto its lineage",
+            fx.tool_id.as_deref(),
+        )
+        .map_err(|source| e(&source))?;
+    }
     let git = RealGit::new();
     let ws = &args.workspace;
     let Some(id) = args.id.as_deref() else {

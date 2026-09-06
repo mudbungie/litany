@@ -32,7 +32,15 @@ pub struct Args {
 /// also the machine-readable signal (empty stdout = a commit landed).
 /// Failures — root resolution or the authoring pass — carry the `config`
 /// prefix through one conversion.
+///
+/// **Refused from inside a step** ([`crate::lineage`], bl-d273): this
+/// verb is one of the two that advance a config lineage, and a step that
+/// could run it would rewrite the souls, grants, models and facts
+/// governing its own conversation. The refusal is first — ahead of the
+/// root resolution and the checkout — so a refused call touches nothing.
 pub fn run(args: Args, fx: &mut Fx) -> Result<Outcome, Error> {
+    crate::lineage::require_operator("advance a config lineage", fx.tool_id.as_deref())
+        .map_err(|e| Error::new("config", e))?;
     go(args, fx).map_err(|e| Error::new("config", e))
 }
 

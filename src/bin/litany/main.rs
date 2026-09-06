@@ -64,6 +64,10 @@ fn main() -> ExitCode {
             // — the deposit sender `litany message` resolves. Read here,
             // at the process edge, and nowhere else (§3.4).
             conv_branch: std::env::var_os(litany::cmd::seam::ENV_CONV_BRANCH),
+            // The other contract var, read at the same edge: set means
+            // this process is a tool invocation of a running step, which
+            // `config` and `proposal --accept` refuse under (bl-d273).
+            tool_id: std::env::var_os(litany::cmd::seam::ENV_TOOL_ID),
             editor: &editor,
             tool_stdin: &mut stdin,
             tool_stdout: &mut stdout,
