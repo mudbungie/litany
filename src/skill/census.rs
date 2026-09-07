@@ -29,15 +29,8 @@ use std::path::Path;
 /// `git log`'s answer for one row: the sortable stamp and the rendered
 /// age, taken in one walk so the two can never disagree.
 const FORMAT: &str = "--format=%ct %cr";
-/// Rendered in place of an absent date — a skill nothing has loaded, or
-/// a pool skill no config commit has ever touched (the pool is the
-/// install's, so the lineage patches it never).
-const ABSENT: &str = "-";
 /// The archive container's name, reserved in both homes.
 const ARCHIVED: &str = descriptions::ARCHIVED_SUBDIR;
-/// The census table's column headings, printed even over no rows: a
-/// workspace with no skills is the general path with empty inputs.
-const HEADERS: [&str; 5] = ["SKILL", "OWNER", "STATE", "LAST USE", "LAST PATCH"];
 
 /// Which home holds the body — ownership is the path (ARCH §3.3).
 #[derive(Debug, PartialEq, Eq)]
@@ -48,13 +41,25 @@ pub(crate) enum Owner {
     Workspace,
 }
 
-/// The three states of §5. There is no `stale`: a wall-clock horizon is
+/// The four states of §5. There is no `stale`: a wall-clock horizon is
 /// policy, policy is config, and this verb adds none.
+///
+/// **One derivation of "loaded" for both owners** (bl-4a4a). `active`
+/// says a living branch elected it and nothing else, so the state and
+/// the LAST USE column can never disagree: `active` is exactly the row
+/// that carries a date. What used to hide inside `active` — a tool
+/// claims the name, so the body's description composes on every model
+/// call without any election — is `claimed`, its own word, because it
+/// is its own evidence. Without it a pool built-in and a never-loaded
+/// workspace skill read `active` and `unused` off identical columns.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum State {
-    /// A living `agents/*` branch has loaded it — or a tool claims it, so
-    /// it composes as that tool's description without ever being loaded.
+    /// A living `agents/*` branch has loaded it.
     Active,
+    /// No branch has loaded it, but a tool claims the name, so it
+    /// composes as that tool's `description` on every model call
+    /// (ARCH §3.3) and can never report a use.
+    Claimed,
     /// Neither: no living branch carries it and no tool claims it.
     Unused,
     /// `skills/archived/<name>/` in the followed config commit. Composes
@@ -77,25 +82,6 @@ pub(crate) struct Row {
     pub(crate) state: State,
     last_use: Option<Stamp>,
     last_patch: Option<Stamp>,
-}
-
-impl Owner {
-    fn label(&self) -> &'static str {
-        match self {
-            Owner::Pool => "pool",
-            Owner::Workspace => "workspace",
-        }
-    }
-}
-
-impl State {
-    fn label(&self) -> &'static str {
-        match self {
-            State::Active => "active",
-            State::Unused => "unused",
-            State::Archived => "archived",
-        }
-    }
 }
 
 /// Every skill both homes offer, one row each, oldest-used first.
@@ -173,8 +159,10 @@ fn row(
     );
     let state = if archived.contains(name) {
         State::Archived
-    } else if last_use.is_some() || tool_claimed(ws, commit, name, git) {
+    } else if last_use.is_some() {
         State::Active
+    } else if tool_claimed(ws, commit, name, git) {
+        State::Claimed
     } else {
         State::Unused
     };
@@ -189,7 +177,8 @@ fn row(
 
 /// Is a tool schema committed beside the skill's description? A claimed
 /// skill composes as that tool's `description` on every model call
-/// (ARCH §3.3), so it is never idle and §5 exempts it from `unused`.
+/// (ARCH §3.3), so it is never idle — and never elected either, which is
+/// why §5 gives it a word of its own rather than `unused` or `active`.
 fn tool_claimed(ws: &Path, commit: &str, name: &str, git: &dyn GitRunner) -> bool {
     let path = format!(
         "{}/{}/{name}.json",
@@ -238,49 +227,8 @@ fn pool_names(pool: &Path) -> BTreeSet<String> {
     }
 }
 
-/// The verb's one product: a column-aligned table, headers always.
-pub(crate) fn render(rows: &[Row]) -> String {
-    let cells: Vec<[String; 5]> = rows
-        .iter()
-        .map(|r| {
-            [
-                r.name.clone(),
-                r.owner.label().to_owned(),
-                r.state.label().to_owned(),
-                age(r.last_use.as_ref()),
-                age(r.last_patch.as_ref()),
-            ]
-        })
-        .collect();
-    let mut widths = HEADERS.map(str::len);
-    for row in &cells {
-        for (w, cell) in widths.iter_mut().zip(row) {
-            *w = (*w).max(cell.len());
-        }
-    }
-    let head = HEADERS.map(str::to_owned);
-    std::iter::once(&head)
-        .chain(cells.iter())
-        .map(|row| line(row, &widths))
-        .collect::<Vec<String>>()
-        .join("\n")
-}
-
-/// One padded row, trailing whitespace trimmed off the last column.
-fn line(row: &[String; 5], widths: &[usize; 5]) -> String {
-    row.iter()
-        .zip(widths.iter().copied())
-        .map(|(cell, w)| format!("{cell:<w$}"))
-        .collect::<Vec<String>>()
-        .join("  ")
-        .trim_end()
-        .to_owned()
-}
-
-/// A date's rendering: git's own relative age, or [`ABSENT`].
-fn age(stamp: Option<&Stamp>) -> String {
-    stamp.map_or_else(|| ABSENT.to_owned(), |s| s.age.clone())
-}
+mod render;
+pub(crate) use render::render;
 
 #[cfg(test)]
 mod tests;

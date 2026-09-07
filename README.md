@@ -764,6 +764,7 @@ litany skills <workspace> --config learning  # over another lineage's
 SKILL           OWNER      STATE     LAST USE      LAST PATCH
 note-taking     workspace  unused    -             3 days ago
 legacy-deploy   workspace  archived  -             2 days ago
+read_file       pool       claimed   -             -
 bash            pool       active    5 hours ago   -
 ```
 
@@ -779,14 +780,25 @@ bash            pool       active    5 hours ago   -
   either `skills/<name>/` or the archive container
   `skills/archived/<name>/`. A pool skill is the install's, so no
   lineage commit patches it and the column reads `-`.
-- **state** — `active` (some living branch has loaded it, *or* a tool
-  claims it, in which case it composes as that tool's description on
-  every model call and is never idle), `unused` (neither), or
-  `archived` (the body sits at `skills/archived/<name>/` in the
-  lineage's tip, where it composes nowhere and `load_skill` cannot name
-  it).
+- **state** — `active` (some living branch has loaded it), `claimed`
+  (nothing has loaded it, but a tool claims the name, so it composes as
+  that tool's description on every model call and is never idle),
+  `unused` (neither), or `archived` (the body sits at
+  `skills/archived/<name>/` in the lineage's tip, where it composes
+  nowhere and `load_skill` cannot name it).
 
-Rows come **oldest-used first**, never-used first of all. There is no
+  **`active` is exactly the row that carries a last use**, whichever
+  home owns it. A pool built-in is granted, never elected, so it can
+  never report a use — and reading it `active` beside a never-loaded
+  workspace skill reading `unused` gave two verdicts off one column
+  (`LAST USE -`) with nothing in the table to account for the
+  difference. `claimed` is that account: it is not idle, and it is not
+  evidence of use either.
+
+Rows come **oldest-used first**, never-used first of all — so the
+`claimed` rows, which can never carry a use, sort with the never-used
+and are named as what they are rather than padding the head of the
+table under a word that implies an election. There is no
 usage counter, no store, no curator process and no `stale` state: a
 wall-clock horizon is policy, policy is config, and this verb adds
 none. It prints ages; where to draw the line is yours.

@@ -325,10 +325,27 @@ git already dates it); **last patch** — the newest `config/*` commit touching
 `skills/<name>/`; and **state**:
 
 - **active** — some living branch in the workspace has loaded it;
-- **unused** — no living branch has; tool-claimed pool skills are exempt
-  (they compose as tool descriptions without loading, ARCH §3.3);
+- **claimed** — no branch has, but a tool holds the name, so the body's
+  description composes on every model call (ARCH §3.3) and no election can
+  ever be recorded against it;
+- **unused** — neither;
 - **archived** — the path is `skills/archived/<name>/` in the followed config
   commit.
+
+**One derivation of "loaded" for both owners** (amended on bl-4a4a). `claimed`
+was originally an *exemption* folded into `active`, and the fold made the table
+unreadable: a pool built-in and a never-loaded workspace skill carry identical
+columns — `LAST USE -` — and were rendered `active` and `unused`, so the STATE
+column stated a difference the row's own evidence could not show. Nine of the
+census's ten rows were pool rows, for which both date columns are constants, and
+the ordering the verb exists to give ("oldest-used first, never-used first") was
+meaningless over them without saying why. Naming the exemption fixes it with no
+new mechanism and no new query: `active` is now exactly the row that carries a
+last use, whichever home owns it, and `claimed` says the row is not idle *and*
+is not evidence of use. The alternative — counting a pool tool's calls out of
+the transcript, where each is committed — is a second, more expensive
+derivation of a different fact (invocation, not election) and is refused for the
+same reason the usage counter below is.
 
 **Archival is a move**, proposed the staged way (`skills/<name>/` →
 `skills/archived/<name>/` in a proposal; a reviewer proposes it under look-for
@@ -375,7 +392,7 @@ emits `apply_patch` tool calls, then a final response.
 | checkpoint dispatches both | `advance_compaction.rs`-shaped: one due clock forks a compactor and a reviewer off one point; the reviewer keeps the dialog and carries the config's `skills/**` |
 | `stage_proposal` | a scripted edit lands as `proposal/<id>` with parent == tip and the reviewer's text as message; a pool-copy edit refuses whole; an empty diff writes nothing; a `litany config` advance between fork and landing refuses stale; a non-final epitaph delivers an obituary |
 | `litany proposal` | list marks fresh/stale from refs alone; accept fast-forwards and the next step's `load_skill` sees the patch; accept on stale refuses; reject deletes; command-surface parity |
-| `litany skills` | a fixture workspace with a loaded, an unloaded and an archived skill yields three states and the loading commit's date |
+| `litany skills` | a fixture workspace with a loaded, an unloaded and an archived skill yields three states and the loading commit's date, the install pool supplying the fourth; and over every row `active` holds exactly where a last use does |
 
 ## 7. Attacks considered
 
@@ -506,8 +523,11 @@ one-home name is `crate::facts::FILE`. The proposal filter's admitted
 path class is unchanged.
 
 **bl-ae06 — the curator is a query.** `litany skills <workspace>
-[--config <name>]` ships: `src/skill/census.rs` derives the rows and
-renders the table, `src/cmd/skills.rs` is the verb (ARCH §3.3, §3.4).
+[--config <name>]` ships: `src/skill/census.rs` derives the rows,
+`src/skill/census/render.rs` renders the table (split on that seam at
+the per-file cap, bl-4a4a — the two answer different questions and
+neither reads the other's internals), `src/cmd/skills.rs` is the verb
+(ARCH §3.3, §3.4).
 It reads only git and the install pool — three `git` invocations per
 row and no state of its own — and the table always carries its headers,
 so a workspace with no skills in either home prints the headers and
@@ -515,8 +535,10 @@ nothing else rather than taking an empty-case arm. Proven over a real
 workspace by `src/skill/census/tests.rs`: a loaded pool skill (active,
 dated by the electing commit), an unloaded workspace skill (unused,
 dated by the config commit that authored it), an archived one, a
-tool-claimed pool skill that is active with no election at all, the
-oldest-used-first ordering, and the headers-only empty workspace;
+tool-claimed pool skill that reads `claimed` because it can never be
+elected at all, the invariant that `active` holds over exactly the rows
+carrying a last use, the oldest-used-first ordering, and the
+headers-only empty workspace;
 `src/cmd/tests/skilling.rs` pins the argv shape, the product and the two
 declines that precede any derivation.
 

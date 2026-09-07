@@ -5,7 +5,8 @@
 //! that a use is dated by the commit that made it and a patch by the
 //! commit that landed it, never that an age reads a particular way.
 
-use super::{ABSENT, Owner, State, census, render};
+use super::render::{ABSENT, render};
+use super::{Owner, State, census};
 use crate::harness_root::Roots;
 use crate::template::{GitRunner, RealGit, scaffold};
 use crate::workspace::{self, DEFAULT_CONFIG_NAME, fixture};
@@ -56,8 +57,10 @@ fn row<'a>(rows: &'a [super::Row], name: &str) -> &'a super::Row {
 /// The ball's proving fixture: a loaded pool skill, an unloaded
 /// workspace skill and an archived one — three rows, three states, with
 /// the loading commit dating the use and the config commit the patch.
+/// The fourth state is not authored here because it cannot be: a
+/// `claimed` row is one the install's own pool supplies.
 #[test]
-fn three_skills_three_states() {
+fn three_skills_three_states_and_the_pool_supplies_the_fourth() {
     let (holder, ws) = fixture::workspace();
     fixture::amend_config(
         &ws,
@@ -93,14 +96,16 @@ fn three_skills_three_states() {
     assert_eq!(archived.state, State::Archived);
     assert!(archived.last_patch.is_some(), "the move is a config commit");
 
-    // The product carries what the derivation decided: three states,
-    // named, in one table.
+    // The product carries what the derivation decided: four states,
+    // named, in one table — `claimed` among them, since the fixture's
+    // pool ships tool-claimed built-ins nothing has elected.
     let table = render(&rows);
     for want in [
         "bash",
         "note-taking",
         "legacy",
         "active",
+        "claimed",
         "unused",
         "archived",
     ] {
@@ -109,15 +114,46 @@ fn three_skills_three_states() {
 }
 
 /// A pool skill a tool claims composes as that tool's description on
-/// every model call, so it is never idle — §5's exemption, and the one
-/// row that is `active` with no use at all.
+/// every model call, so it is never idle — and it is never elected
+/// either, so it reads `claimed` and not `active`. The beat is written
+/// as the defect (bl-4a4a): before it, this row and the never-loaded
+/// workspace skill above carried identical columns — `LAST USE -` in
+/// both — and were rendered `active` and `unused`, a verdict the table
+/// gave the reader no way to account for.
 #[test]
-fn a_tool_claimed_pool_skill_is_active_with_no_use() {
+fn a_tool_claimed_pool_skill_is_claimed_not_active() {
     let (holder, ws) = fixture::workspace();
     let rows = census(&ws, &tip(&ws), &holder.path().join("data"), &RealGit::new());
     let claimed = row(&rows, "read_file");
     assert!(claimed.last_use.is_none(), "no branch has elected it");
-    assert_eq!(claimed.state, State::Active);
+    assert_eq!(claimed.state, State::Claimed);
+}
+
+/// `active` and a dated use are one fact, over every row the census
+/// yields: a state cannot claim an election the LAST USE column cannot
+/// show, and a dated use cannot read as anything else.
+#[test]
+fn active_is_exactly_the_rows_that_carry_a_use() {
+    let (holder, ws) = fixture::workspace();
+    fixture::amend_config(
+        &ws,
+        &[("skills/note-taking/SKILL.md", &skill_md("note-taking"))],
+    );
+    let wt = fixture::spawn_root(&ws, "20260101-a1");
+    elect(&wt, "bash");
+    let rows = census(&ws, &tip(&ws), &holder.path().join("data"), &RealGit::new());
+    assert!(rows.iter().any(|r| r.state == State::Active), "{rows:?}");
+    assert!(rows.iter().any(|r| r.state == State::Claimed), "{rows:?}");
+    for r in &rows {
+        assert_eq!(
+            r.state == State::Active,
+            r.last_use.is_some(),
+            "{} reads {} with last_use {:?}",
+            r.name,
+            r.state.label(),
+            r.last_use
+        );
+    }
 }
 
 /// A row with a use `secs` seconds into the epoch, or none.
@@ -182,14 +218,14 @@ fn the_table_aligns_its_columns() {
     let mut lines = table.lines();
     assert_eq!(
         lines.next().unwrap(),
-        "SKILL           OWNER      STATE   LAST USE  LAST PATCH"
+        "SKILL           OWNER      STATE    LAST USE  LAST PATCH"
     );
     let unused = lines
         .find(|l| l.starts_with("note-taking"))
         .expect("the workspace skill has a row");
     assert!(
         unused.starts_with(&format!(
-            "note-taking     workspace  unused  {ABSENT}       "
+            "note-taking     workspace  unused   {ABSENT}       "
         )),
         "{unused}"
     );

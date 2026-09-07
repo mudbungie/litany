@@ -36,7 +36,7 @@ fn the_argv_shape_is_a_workspace_and_an_optional_lineage() {
 
 /// The product is the table: headers, then a row per skill both homes
 /// offer — here the shipped pool, every entry of it tool-claimed and so
-/// active with no election (§5's exemption).
+/// `claimed`, the state §5 gives a row that can never report a use.
 #[test]
 fn the_product_is_the_census_table() {
     let (holder, ws) = fixture::workspace();
@@ -56,7 +56,7 @@ fn the_product_is_the_census_table() {
         .find(|l| l.starts_with("bash "))
         .expect("the shipped pool's bash skill has a row");
     assert!(bash.contains("pool"), "{bash}");
-    assert!(bash.contains("active"), "{bash}");
+    assert!(bash.contains("claimed"), "{bash}");
 }
 
 #[test]
