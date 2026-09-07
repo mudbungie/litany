@@ -29,6 +29,8 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.12](https://github.com/mudbungie/litany/compare/litany-v0.0.11...litany-v0.0.12) - 2026-09-06
+
 - Pin brazen `=0.0.18` and hand every model call the agent id as its canonical
   `cache_key`, the prompt-cache routing key the OpenAI dialects project to
   `prompt_cache_key` — a byte-identical append-only resend read back zero cached
