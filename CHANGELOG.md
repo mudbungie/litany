@@ -29,6 +29,11 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+- Pin brazen `=0.0.18` and hand every model call the agent id as its canonical
+  `cache_key`, the prompt-cache routing key the OpenAI dialects project to
+  `prompt_cache_key` — a byte-identical append-only resend read back zero cached
+  tokens without one. [bl-6961]
+
 - Make a cut tool result recoverable: the §3.3 bounded projection's marker now
   mints a continuation address into the calling agent's own diagnostic capture
   (`steps/<agent-id>/<NNN>/tools/<tool-id>/output.json#<stream>@<offset>`) and

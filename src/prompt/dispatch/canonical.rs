@@ -40,9 +40,17 @@ pub(in crate::prompt) const DEFAULT_MAX_TOKENS: u32 = 4096;
 /// intent from having no preference, and no config key expresses it.
 /// `max_output_tokens` is the role's own ceiling (§4.3); `None` takes
 /// [`DEFAULT_MAX_TOKENS`], so the default has one home and no caller
-/// carries a number.
+/// carries a number. `agent_id` rides the `cache_key` knob — brazen's
+/// prompt-cache ROUTING key, projected to `prompt_cache_key` by the
+/// OpenAI dialects and narrowed away by the others (§4.4). It is not an
+/// assignment knob and no config states it: the agent id is one per
+/// branch and stable for the branch's life, which is exactly the span
+/// over which §5.5 keeps the prefix byte-identical, so the value is
+/// derived and never chosen.
+#[allow(clippy::too_many_arguments)] // one request, every fact the wire carries
 pub(super) fn build_request(
     model_id: &str,
+    agent_id: &str,
     system: &str,
     messages: Vec<Message>,
     tools: Vec<Tool>,
@@ -52,6 +60,7 @@ pub(super) fn build_request(
 ) -> CanonicalRequest {
     CanonicalRequest {
         model: model_id.to_string(),
+        cache_key: Some(agent_id.to_string()),
         system: Some(vec![Content::Text(system.to_string())]),
         messages,
         tools,
@@ -80,6 +89,7 @@ mod tests {
         };
         let req = build_request(
             "claude-sonnet-5",
+            "agent-1",
             "sys",
             vec![],
             vec![tool.clone()],
@@ -102,10 +112,32 @@ mod tests {
     }
 
     #[test]
+    fn the_agent_id_rides_the_cache_key_knob() {
+        // §4.4: the prompt-cache routing key is the agent id, verbatim
+        // — one per branch, stable for the branch's life, so a stateless
+        // resend of a §5.5 byte-identical prefix lands on the replica
+        // that already holds it. Two agents never share a key.
+        let a = build_request("m", "agent-a", "sys", vec![], vec![], None, None, None);
+        let b = build_request("m", "agent-b", "sys", vec![], vec![], None, None, None);
+        assert_eq!(a.cache_key, Some("agent-a".to_string()));
+        assert_eq!(b.cache_key, Some("agent-b".to_string()));
+        assert_ne!(a.cache_key, b.cache_key);
+    }
+
+    #[test]
     fn the_role_effort_rides_the_reasoning_knob() {
         // §4.3: the assignment's `effort:` is the whole source of the
         // request's `reasoning`; the level crosses unchanged.
-        let req = build_request("m", "sys", vec![], vec![], None, Some(Effort::High), None);
+        let req = build_request(
+            "m",
+            "a1",
+            "sys",
+            vec![],
+            vec![],
+            None,
+            Some(Effort::High),
+            None,
+        );
         assert_eq!(req.reasoning, Some(brazen::ReasoningEffort::High));
     }
 
@@ -115,7 +147,7 @@ mod tests {
         // the canonical processing-lane intent — brazen projects it per
         // dialect (OpenAI `"priority"`, Anthropic's asymmetric `"auto"`,
         // which is org-provisioned capacity with a standard fallback).
-        let req = build_request("m", "sys", vec![], vec![], None, None, Some(true));
+        let req = build_request("m", "a1", "sys", vec![], vec![], None, None, Some(true));
         assert_eq!(req.service_tier, Some(brazen::ServiceTier::Priority));
     }
 
@@ -124,8 +156,8 @@ mod tests {
         // The checkbox has two states, not three (§4.3): unchecked is
         // "no lane preference", byte-for-byte the omitted case — so no
         // config can make litany demand the standard lane by accident.
-        let unchecked = build_request("m", "sys", vec![], vec![], None, None, Some(false));
-        let absent = build_request("m", "sys", vec![], vec![], None, None, None);
+        let unchecked = build_request("m", "a1", "sys", vec![], vec![], None, None, Some(false));
+        let absent = build_request("m", "a1", "sys", vec![], vec![], None, None, None);
         assert_eq!(unchecked.service_tier, None);
         assert_eq!(unchecked, absent);
     }
@@ -135,9 +167,9 @@ mod tests {
         // §4.3 `max_output_tokens:` (bl-a928): the role's own ceiling
         // crosses unchanged, and stating none is the general path with
         // empty inputs — the harness default, whose one home is here.
-        let stated = build_request("m", "sys", vec![], vec![], Some(32000), None, None);
+        let stated = build_request("m", "a1", "sys", vec![], vec![], Some(32000), None, None);
         assert_eq!(stated.max_tokens, Some(32000));
-        let absent = build_request("m", "sys", vec![], vec![], None, None, None);
+        let absent = build_request("m", "a1", "sys", vec![], vec![], None, None, None);
         assert_eq!(absent.max_tokens, Some(DEFAULT_MAX_TOKENS));
     }
 }

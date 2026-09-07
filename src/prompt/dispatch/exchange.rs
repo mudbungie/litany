@@ -183,6 +183,7 @@ pub(in crate::prompt) fn run_exchange(
         )?;
         let request = canonical::build_request(
             resolved.model_id,
+            &conv_id,
             &system_with_goal,
             messages,
             tools,

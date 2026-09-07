@@ -110,6 +110,7 @@ pub(super) fn step(
     )?;
     let request = canonical::build_request(
         resolved.model_id,
+        agent_id,
         &system_with_goal,
         messages,
         tools,
