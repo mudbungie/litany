@@ -123,6 +123,13 @@ name: Release-plz
 # reports mergeStateStatus UNSTABLE for exactly that reason, and this job
 # prints that field without ever gating on it.
 #
+# **And a run that gates nothing must not be left standing red** (bl-4c65,
+# swept from thrall bl-f3f2). Those `failure` rows are a permanent red per
+# release beside the real ones, which is how a real one goes unnoticed, so the
+# merge step below collects the pull request's own runs on its way past —
+# guarded on ZERO JOBS and nothing else, which makes it self-retiring the day a
+# `RELEASE_PLZ_TOKEN` makes those runs execute for real.
+#
 # NEITHER SIBLING MECHANISM TRANSPLANTS.
 #   * yog merges from a SEPARATE workflow woken by `workflow_run` on its CI,
 #     using a fine-grained PAT whose own push re-triggers everything, so it
@@ -589,6 +596,32 @@ jobs:
 
             printf 'PR %s  merging: %s bump on the gated %s, changelog stamped  [merge state %s]\n' \
               "$number" "$version" "${GATED_SHA:0:8}" "$state"
+            # The pull request's OWN CI run, collected before the merge takes
+            # away the ref it would have needed (bl-4c65, swept from thrall
+            # bl-f3f2). It was created when the PR opened and has never been
+            # approved to start a single job — the PR is `GITHUB_TOKEN`'s, and
+            # GitHub does not run workflows for events that token triggers — so
+            # it sits at `action_required` until the merged head is deleted, at
+            # which point it concludes FAILURE with zero jobs about a second
+            # later. A permanent red per release stands beside the real ones,
+            # which is how a real one goes unnoticed.
+            #
+            # Nothing is lost by collecting them: the tree those runs would have
+            # judged is judged by `ci` in THIS run, which is the gate this job
+            # already hangs on. **The guard is ZERO JOBS and nothing else**, so
+            # the step is self-retiring — set `RELEASE_PLZ_TOKEN` and these runs
+            # begin to execute for real, and it stops matching anything.
+            for run in $(gh api "repos/$GH_REPO/actions/runs?head_sha=$sha&event=pull_request" \
+                            -q '.workflow_runs[].id'); do
+              ran="$(gh api "repos/$GH_REPO/actions/runs/$run/jobs" -q '.total_count')"
+              if [ "${ran:-1}" -eq 0 ]; then
+                printf 'PR %s  deleting run %s: zero jobs, and its head ref is about to go\n' \
+                  "$number" "$run"
+                gh api -X DELETE "repos/$GH_REPO/actions/runs/$run"
+              else
+                printf 'PR %s  keeping run %s: it ran %s job(s)\n' "$number" "$run" "$ran"
+              fi
+            done
             # No --delete-branch: `delete_branch_on_merge` is enabled on this
             # repository, so GitHub deletes the merged head itself.
             gh pr merge "$number" --merge
