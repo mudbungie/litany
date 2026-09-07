@@ -29,6 +29,8 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.13](https://github.com/mudbungie/litany/compare/litany-v0.0.12...litany-v0.0.13) - 2026-09-06
+
 - Make a tool call and its result one unit for every cut, and refuse to send an
   orphan. A compaction point is an arbitrary commit while a tool window spans
   several — the model entry commits before any tool runs, each result as its
