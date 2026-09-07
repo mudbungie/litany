@@ -1,7 +1,8 @@
 +++
 title = "the step record names the provider row it ran through: meta.json gains provider beside config_commit and workflow_commit"
 created = 1788745724
-updated = 1788745724
+updated = 1788745845
+claimant = "Cantaloups-L6"
 priority = 3
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["usability-r2"]
