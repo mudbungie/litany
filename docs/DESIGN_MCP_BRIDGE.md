@@ -358,3 +358,50 @@ No litany implementation ball is filed, because the design concludes none is
 warranted: the seam shipped with ARCHITECTURE §3.3, and this document is the
 record that
 it was checked, end to end, against a bridge-shaped consumer.
+
+## 10. Where the deployment's bridge lives: the foot (bl-795c; yog bl-df52, thrall bl-3b03)
+
+§1 ruled the bridge deployment-owned and located it nowhere. The
+four-component suite (yog `docs/VISION.md` §2, `docs/REMOTE.md` §12) has since
+said where a deployment executes anything: on a **foot** — thrall, the
+tool-execution client that dials in to a yog server, advertises what its box
+offers and runs what it is handed. The bridge is thrall's, designed in thrall's
+`docs/DESIGN.md` §6. Nothing here changes; three things sharpen.
+
+- **The `litany-tool-<name>` slot §0 verified is not where the bridge runs
+  under yog.** yog's router is total and its driver keeps no local executor
+  (REMOTE §5): every tool call is adjudicated, queued to a foot's mailbox and
+  executed on that foot's box, and a pool name that no foot advertises and the
+  engine does not implement is refused in band. An engine-side
+  `litany-tool-mcp` — §1's second refused option, and bl-0f26's framing —
+  would be a binary nothing forks. Under a bare litany deployment the slot
+  still resolves and §1 still stands; this section is about where the same
+  ruling lands when the deployment is the suite.
+- **The mechanism carries over verbatim, one layer down.** §2's pin (`thrall
+  mcp pin`, printing entries the operator pastes into the foot's tool
+  document — the allowlist is the paste), §3's per-invocation server lifetime,
+  §4's stdio-only transport, §5's credentials-in-the-bridge (in the server's
+  own argv on the box; the document's local half never crosses the wire) and
+  §6's one-name-per-tool (a document entry per tool; the far end's load act
+  names one) are thrall DESIGN §6.2–§6.8. §8's refusals are restated there as
+  thrall's.
+- **Adjudication gained the answer §6 deferred to yog bl-0cea.** A pinned
+  tool's input carries no command line, so yog's control classifies it
+  *opaque* and holds it (yog bl-72bd) until the operator writes a policy row
+  keyed on the host-qualified name (yog bl-b65d) — per-tool effect metadata
+  authored by the human who vouched, as §6 said it would be, and in the
+  workspace's policy rather than at pin time, because the class is the engine
+  operator's call and the pin is the box operator's.
+
+**§7's acceptance story is replaced.** The Slack swap needed a chosen server
+and a workspace credential and never ran (§9). The first pinned server is the
+reference `mcp-server-fetch`, which needs neither: it is the web tool bl-4409
+asked for, shipped as an entry of thrall's example document (thrall bl-b6ab),
+and the round trip through a yog engine is thrall's acceptance child (thrall
+bl-3b03 lists it). The pass criterion keeps its shape — `git -C ~/dev/litany
+diff` is empty — and yog's diff is empty too, except for the policy row.
+
+bl-0f26 and bl-4409 closed superseded by thrall bl-e104 and bl-b6ab and yog
+bl-b65d. This document remains the ruling for a bare litany deployment, and
+§9's last paragraph — no bridge has been built — stays true of litany's tree
+by design.
