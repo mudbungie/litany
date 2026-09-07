@@ -1,7 +1,8 @@
 +++
 title = "no plan mode, while the mechanism for one ships unbound: gate_return_on plus the declared-but-unbound reviewer role is a better answer nobody will configure"
 created = 1788673627
-updated = 1788673627
+updated = 1788745926
+claimant = "Cantaloups-M2"
 priority = 4
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["usability-r1"]
