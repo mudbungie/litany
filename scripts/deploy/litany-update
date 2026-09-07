@@ -1,0 +1,171 @@
+#!/bin/sh
+# Reconcile a box's standalone `litany` and `bz` against the registry (bl-8cfd)
+# — the CD half of `make deploy-local`. Run by `litany-update.timer`; safe to
+# run by hand. `scripts/deploy/update-selftest.sh` drives THIS file under fake
+# `curl`/`cargo` shims and is what `make deploy-selftest` runs.
+#
+# **Why a CLI needs this at all.** yog links litany, balls and brazen
+# in-process, so the code that runs agents upgrades when yog does and nothing
+# SERVES from the binaries here. What goes stale is the tool an operator or an
+# agent reaches for at a prompt — and one measured on a live box was six
+# releases behind the library doing the same work in the same process, which is
+# a debugging surface that lies.
+#
+# **Nothing to restart, so there is no second half.** The engine defers a
+# restart to its §8.5 boundary and the foot to an executing invocation; a CLI is
+# a program somebody runs to completion. `cargo install` replaces the file by
+# rename, so a command already running keeps its own inode and the NEXT
+# invocation is the new one. No unit, no quiescence to read, no deferral to
+# decide.
+#
+# **Nothing here is stored.** "Which version is installed" is each binary's own
+# `--version`, "which litany is newest" is the registry's answer, and "which bz
+# goes with that litany" is the litany binary's answer (below). There is no
+# state file to drift and nothing to reconcile if somebody installs by hand.
+#
+# ---------------------------------------------------------------------------
+# TWO BINARIES, ONE PIN, AND THE PIN'S HOME IS THE BINARY.
+#
+# `bz` is not tracked to its own newest release: litany's load-time guard
+# (ARCH §4.4) demands the EXACT version the litany crate links, so a newer `bz`
+# is as broken as an older one. The pin's one home is the `brazen = "=<x.y.z>"`
+# line in litany's `Cargo.toml` — the Makefile's `BRAZEN_PIN` reads it with
+# `sed`, the code-side guard reads it with `include_str!`, and `litany
+# --version` prints it: `litany 0.0.11 (brazen 0.0.17)`. That last one is the
+# only reading available on a box with no checkout, and it is the same line, so
+# this file derives the pin from the litany it just installed rather than
+# carrying a number of its own. A version typed here would be a second home for
+# a fact that already has one, and it would go stale on the first bump.
+#
+# The consequence is the order below: litany first, then `bz` against what that
+# litany asks for. A box whose litany did not move can still need a `bz` move —
+# the live sighting this is written from had litany 0.0.4 (brazen 0.0.6) on the
+# path beside a hand-installed `bz` 0.0.17, a pair in which every prompt is
+# refused by the guard — so the `bz` arm runs on every tick, not only after an
+# upgrade.
+# ---------------------------------------------------------------------------
+#
+# ---------------------------------------------------------------------------
+# TWO WRITERS OF ONE INSTALL PATH, AND WHICH ONE WINS.
+#
+# A dev box also builds from a checkout, so `make install` writes these same
+# two paths. This file therefore writes EXACTLY the paths `make install` writes
+# — `$HOME/.local/bin/litany` (the Makefile's `INSTALL_PREFIX` default) and
+# cargo's own root for `bz` (what `make install-bz` uses) — so the box never
+# holds two of either binary and no PATH order decides which one an operator
+# gets. The rule is last-writer-wins, and it is observable in one gesture:
+# `litany --version` names both halves of the pair on the box.
+#
+# So a checkout build survives until the next tick and is then replaced by the
+# release, which is the right way round for a CLI: a working tree's binary is
+# for the moment you are testing it, and a box that is not being worked on
+# should be running what shipped. A box that must hold a checkout build is one
+# `systemctl --user disable litany-update.timer` away from doing so.
+# ---------------------------------------------------------------------------
+set -eu
+
+CRATE=litany
+ADAPTER=brazen
+# The sparse index — the same source `cargo install` resolves from, so the two
+# can never disagree about what exists. Names of four characters or more live
+# under `<first two>/<next two>/<name>`.
+INDEX_URL="https://index.crates.io/li/ta/$CRATE"
+
+# The litany install root: the Makefile's `INSTALL_PREFIX` default, above.
+ROOT="$HOME/.local"
+BIN="$ROOT/bin/$CRATE"
+# `bz` takes no `--root`, which is not an omission: `make install-bz` passes
+# none either, and matching it is the whole of the one-path rule above.
+ADAPTER_BIN=bz
+
+say() { printf '%s: %s\n' "$CRATE-update" "$*"; }
+die() { say "$*" >&2; exit 1; }
+
+# The newest version the registry will serve. **Yanked releases are filtered
+# HERE rather than left to cargo, and that is what makes a yank the rollback
+# lever**: yank a bad release and the next tick resolves the previous one, sees
+# it differ from what is installed, and puts it back — with nobody logging in.
+# `cargo install` alone cannot do this, because it refuses to go backwards;
+# that is why every install below passes an explicit `--version` and `--force`
+# rather than a bare crate name.
+#
+# **The fetch is a separate statement from the parse, deliberately.** As one
+# pipeline the exit status would be `tail`'s, so a registry that answered 503
+# would parse to an empty string and look like an empty index — two different
+# failures reported as one, and the wrong one. Read it, then judge it.
+#
+# There is no era fence here and that is not an omission either: `litany` is
+# one program under one name for its whole published life, so "the newest live
+# version" is the answer with no second question attached.
+latest_live() {
+    _index=$(curl -fsS --max-time 60 "$INDEX_URL") \
+        || die 'cannot reach the registry index'
+    printf '%s\n' "$_index" | while IFS= read -r _line; do
+        # One JSON object per line. Read it with parameter expansion rather
+        # than a regex: `"vers"` occurs exactly once per line (a dependency
+        # entry carries `"req"`, never `"vers"`), so there is nothing for a
+        # greedy match to run past.
+        case $_line in
+            *'"yanked":false'*) ;;
+            *) continue ;;
+        esac
+        _v=${_line#*'"vers":"'}
+        _v=${_v%%'"'*}
+        [ -n "$_v" ] && printf '%s\n' "$_v"
+    done | sort -V | tail -1
+}
+
+# What is on disk, for either binary. Asking the binary is the one authority:
+# cargo's bookkeeping can disagree with the file after a hand install, and the
+# file is what an operator will run. Absent is the empty string, which is a
+# lawful answer — a box being seated for the first time has no binary yet.
+version_of() { # <path-or-name>
+    command -v "$1" >/dev/null 2>&1 || return 0
+    "$1" --version 2>/dev/null | awk 'NR==1 {print $2}'
+}
+
+# The brazen version THIS litany links, off its own `--version` line:
+#   litany 0.0.11 (brazen 0.0.17)
+# The parenthesised half is the pin, and an output without it is a litany too
+# old to state one — which is a lawful answer meaning "do not touch bz".
+pin_of() { # <litany-path>
+    "$1" --version 2>/dev/null | awk 'NR==1 && $3 == "(brazen" {print substr($4, 1, length($4) - 1)}'
+}
+
+# One `cargo install` at an exact version, reported the same way for both
+# crates. `--locked` builds against the lockfile the crate publishes, which is
+# the parity check that it resolves as released; `--force` is set because the
+# move may be a DOWNGRADE — the yank lever above, and for `bz` an ordinary
+# consequence of installing an older litany.
+install_at() { # <crate> <version> [--root <root>]
+    _crate=$1 _vers=$2
+    shift 2
+    cargo install "$_crate" --locked --version "$_vers" --force "$@"
+}
+
+want=$(latest_live)
+[ -n "$want" ] || die 'the registry index named no live version'
+have=$(version_of "$BIN")
+
+if [ "$want" = "$have" ]; then
+    say "installed $have is current"
+else
+    say "installing $want (was ${have:-absent})"
+    install_at "$CRATE" "$want" --root "$ROOT"
+    say "installed $(version_of "$BIN"); the next invocation runs it"
+fi
+
+# The adapter arm, every tick and not only after a move: an unchanged litany
+# beside a mismatched `bz` is exactly the state the guard refuses.
+pin=$(pin_of "$BIN")
+[ -n "$pin" ] || die "the installed $CRATE does not state its $ADAPTER pin"
+adapter_have=$(version_of "$ADAPTER_BIN")
+
+if [ "$pin" = "$adapter_have" ]; then
+    say "installed $ADAPTER_BIN $adapter_have matches the pin"
+    exit 0
+fi
+
+say "installing $ADAPTER $pin (was ${adapter_have:-absent}); the pin is $CRATE's"
+install_at "$ADAPTER" "$pin"
+say "installed $ADAPTER_BIN $(version_of "$ADAPTER_BIN")"

@@ -164,6 +164,57 @@ own config (`~/.config/brazen/config.toml`; inspect with
 litany references a provider *row* by name and never sees credential
 material (ARCH §4.1).
 
+### Keeping both current: `make deploy-local`
+
+All four routes above install once. A box that installs once drifts: a
+`litany` measured on a live workstation was **six releases behind** the
+same code running in-process inside the desktop server that links this
+crate, and the `bz` beside it was at a version that litany's own guard
+refuses — so every prompt from the command line was declined by a box
+whose server was healthy.
+
+```
+make deploy-local
+```
+
+seats a user timer on **this** box that reconciles both binaries against
+crates.io hourly, unattended, from then on. It installs the newest
+**live** release (yanked versions are filtered out, which is what makes
+a yank the rollback lever — the next tick puts the previous version
+back), then installs the `bz` that release names as its pin.
+
+Three things it deliberately is not:
+
+- **Not a second copy of the pin.** The reconciler runs on a box with no
+  checkout, so it cannot read `Cargo.toml`; it reads the same line
+  through the binary it just installed — `litany --version` prints
+  `litany <version> (brazen <pin>)` — and installs exactly that. A
+  version number typed into the reconciler would be a second home for a
+  fact that already has one.
+- **Not a second install location.** It writes exactly the two paths
+  `make install` and `make install-bz` write, so no box ever holds two
+  `litany`s or two `bz`s and no `PATH` order decides which you get. Two
+  writers, one path each, last writer wins — and `litany --version`
+  names the pair you have. A box that must keep a checkout build stops
+  tracking with `systemctl --user disable litany-update.timer`, with no
+  file in this repository to change.
+- **Not a restart.** A CLI is a program you run to completion.
+  `cargo install` replaces the file by rename, so a command already
+  running finishes on the build it started under and the next invocation
+  is the new one. There is no unit to restart and no work in flight to
+  defer to — which is why this is half the length of the engine's and
+  the foot's reconcilers.
+
+`make deploy-status` answers what this box has right now: both versions,
+the timer's next fire, and the reconciler's last words. `make
+deploy-selftest` is its regression half and runs inside `make lint`,
+driving the shipped reconciler under fake `curl` and `cargo` shims in a
+scratch `HOME` — no network, no registry, no toolchain, no machine
+touched. Half its cases assert an install happened with exactly which
+argument vector; half assert `cargo` was never invoked at all, because a
+reconciler that installs on every tick and one that has quietly stopped
+are both broken and only one of them is loud.
+
 ### Where the state goes
 
 The harness root is the installation-global substrate (ARCH §2.2), split

@@ -1,4 +1,4 @@
-.PHONY: all build release test test-install coverage lint leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan mac-artifact clean
+.PHONY: all build release test test-install coverage lint leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan mac-artifact clean deploy-local deploy-selftest deploy-status
 
 # Install location for `make install`. Defaults to the XDG-ish user-local
 # convention; override for system-wide installs or packaging:
@@ -185,7 +185,7 @@ leak-scan:
 	@scripts/leak-scan.sh --self-test
 	@scripts/leak-scan.sh
 
-lint: leak-scan
+lint: deploy-selftest leak-scan
 	cargo clippy --all-targets -- -D warnings
 
 fmt:
@@ -195,6 +195,53 @@ fmt-check:
 	cargo fmt --check
 
 check: fmt-check lint coverage test-install
+
+# Continuous deployment for the STANDALONE binaries on a workstation (bl-8cfd).
+#
+#   make deploy-local
+#
+# The four SERVICE components reconcile themselves hourly from crates.io; the
+# two CLIs an operator or an agent reaches for at a prompt did not, and one was
+# measured six releases behind the library doing the same work in the same
+# process — a debugging surface that lies. This seats a user timer that installs
+# the newest released `litany` and, beside it, the EXACT `bz` that litany links.
+#
+# **The pin is not restated here and never travels as a number.** `BRAZEN_PIN`
+# above reads `Cargo.toml`'s `brazen = "="` line for this checkout; the shipped
+# reconciler cannot see a checkout at all, so it reads the same line through the
+# binary — `litany --version` prints `litany <v> (brazen <pin>)` — and installs
+# that. One home, two readings, and a bump moves both.
+#
+# **This box and no other.** No address, account or host name is committed in
+# this tree; a CLI's box is the one somebody is sitting at, and that box cannot
+# ssh to itself. The reconciler writes exactly the two paths `make install` and
+# `make install-bz` write, so no box ever holds two of either binary and the
+# rule between the two writers is the observable one: last writer wins, and
+# `litany --version` names the pair you have. A box that must keep a checkout
+# build stops tracking with `systemctl --user disable litany-update.timer` and
+# no file here changes.
+deploy-local:
+	@scripts/deploy/seat.sh
+
+# The reconciler's regression half, and a step of `lint` above rather than a
+# target beside it. It drives the real `litany-update` under fake `curl` and
+# `cargo` shims in a scratch HOME — no network, no registry, no toolchain, no
+# release and no machine touched — so the thing the gate judges is the file that
+# actually ships to the box. Both directions in one table: half its cases assert
+# an install happened with exactly which argument vector, half assert `cargo`
+# was never invoked at all. A reconciler that installs on every tick and one
+# that has quietly stopped are both broken, and only one is loud.
+deploy-selftest:
+	@scripts/deploy/update-selftest.sh
+
+# What this box is running right now, and whether it is still upgrading itself:
+# both binaries' own versions, the timer's next fire, and the reconciler's last
+# words. A refusal only a `journalctl` reader ever sees is a refusal nobody sees.
+deploy-status:
+	@"$(INSTALL_BIN)/litany" --version 2>/dev/null || echo "litany: not installed at $(INSTALL_BIN)"
+	@bz --version 2>/dev/null || echo "bz: not on PATH"
+	@echo; systemctl --user --no-pager list-timers litany-update.timer
+	@echo; journalctl --user -u litany-update.service --no-pager -n 15 -o cat
 
 # `make smoke` — the live-wire smoke test (README "First-run smoke test").
 # The FIRST real model call the project makes: `litany new` + one live

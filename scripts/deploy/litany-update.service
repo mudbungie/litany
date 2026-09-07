@@ -1,0 +1,28 @@
+# The standalone-CLI reconciler, run by `litany-update.timer` (bl-8cfd).
+# Oneshot: it asks the registry what the newest live `litany` is, installs it if
+# that differs from what is on disk, then installs the `bz` that litany's own
+# `--version` names as its pin, and exits. It restarts nothing — a CLI is a
+# program somebody runs to completion, and the next invocation is the adoption.
+[Unit]
+Description=install the newest released litany and its pinned bz
+Documentation=https://github.com/mudbungie/litany
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/litany-update
+# Two `cargo install` builds are the long pole and run on this box's own cores.
+# `systemctl --user start` blocks on a oneshot, so this is also the ceiling on
+# how long `make deploy-local`'s own verification can sit — long enough for a
+# cold build of both crates, short enough that a wedged one does not hold out
+# the next tick forever.
+TimeoutStartSec=45min
+# `cargo`, the `cc` a build shells to, and the linker.
+Environment=PATH=%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# **This box is somebody's workstation and they are using it.** A background
+# build that makes the machine unpleasant to type on is worse than a slow one:
+# it gets the timer switched off, and a switched-off timer is no CD at all.
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
