@@ -32,6 +32,12 @@ pub(super) const MESSAGE: &str = "message";
 pub(crate) const PYTHON: &str = "python";
 /// Built-in tool name: read a file's bytes (§3.3).
 pub(super) const READ_FILE: &str = "read_file";
+/// Built-in tool name: page the cut middle of one of this agent's own
+/// tool captures (§3.3 *Paging a cut capture*,
+/// `docs/DESIGN_CONTEXT_ECONOMY.md` §7). `pub(crate)` and not private:
+/// it is also the name the cut marker prints as the recovery
+/// ([`crate::prompt::tool::bound`]), and one name has one home.
+pub(crate) const READ_TOOL_OUTPUT: &str = "read_tool_output";
 /// Built-in tool name: propose one durable fact onto the lineage's
 /// `facts.md` (`docs/DESIGN_CONTEXT_ECONOMY.md` §3).
 pub(super) const REMEMBER: &str = "remember";
@@ -46,7 +52,7 @@ pub(super) const SEARCH_HISTORY: &str = "search_history";
 /// deliberately absent: it is injected for the compactor role alone
 /// (§2.7), never a name a general agent or an operator elects, so it is
 /// routed but not advertised.
-pub const NAMES: [&str; 10] = [
+pub const NAMES: [&str; 11] = [
     APPLY_PATCH,
     BASH,
     CD,
@@ -55,6 +61,7 @@ pub const NAMES: [&str; 10] = [
     MESSAGE,
     PYTHON,
     READ_FILE,
+    READ_TOOL_OUTPUT,
     REMEMBER,
     SEARCH_HISTORY,
 ];

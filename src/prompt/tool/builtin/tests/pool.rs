@@ -19,7 +19,7 @@ fn unknown_tool_name_surfaces_unknown_variant() {
         err.to_string(),
         "unknown built-in tool: \"not_a_tool\"; available: \
          apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, \
-         remember, search_history"
+         read_tool_output, remember, search_history"
     );
 }
 
@@ -31,7 +31,7 @@ fn pool_is_the_sorted_advertised_name_set() {
     assert_eq!(
         pool(),
         "apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, \
-         remember, search_history"
+         read_tool_output, remember, search_history"
     );
     let mut sorted = NAMES;
     sorted.sort_unstable();

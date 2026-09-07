@@ -190,7 +190,11 @@ fn search(repo: &Path, pattern: &str, git: &dyn GitRunner) -> Result<Vec<u8>, Er
     for hit in hits.iter().take(PREVIEW_COUNT) {
         let address = hit.address();
         let content = blob(repo, &address, git)?;
-        let bounded = bound::apply(&content, "entry", Some(PREVIEW_BOUND), Path::new(&address));
+        // `Named`: a preview's full copy is the entry itself, recovered
+        // through this tool's own `{entry}` input at the address the
+        // marker prints — there is no tool capture to page (§3.3).
+        let origin = bound::Origin::Named(Path::new(&address));
+        let bounded = bound::apply(&content, "entry", Some(PREVIEW_BOUND), origin);
         out.extend_from_slice(format!("\n<entry address=\"{address}\">\n").as_bytes());
         out.extend_from_slice(&bounded);
         out.extend_from_slice(b"\n</entry>\n");

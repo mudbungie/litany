@@ -26,6 +26,10 @@
 //!   asserted to be indistinguishable downstream from a spawned one.
 //! - [`injection_scope`]: that seam's scope after bl-a00a — an installed
 //!   host answers every name, an installed binary's included.
+//! - [`paging`]: the §3.3 *Paging a cut capture* loop end to end — the
+//!   address a cut result minted, redeemed against that same call's
+//!   record through the real binary, and the assembly that reads no
+//!   step record at all.
 //! - [`bash_tool`], [`read_file_tool`]: end-to-end through the
 //!   cargo-built `litany` binary (the §3.3 third hop), injected as the
 //!   driver target via [`crate::test_support::litany_binary`].
@@ -41,6 +45,7 @@ mod happy;
 mod injection;
 mod injection_scope;
 mod moved_cwd;
+mod paging;
 mod read_file_tool;
 mod resolve;
 mod types;

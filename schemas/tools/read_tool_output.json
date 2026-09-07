@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "read_tool_output",
+  "description": "Input schema for the litany built-in `read_tool_output` tool (ARCH §3.3 *Paging a cut capture*, docs/DESIGN_CONTEXT_ECONOMY.md §7). The harness sends this verbatim as the `input_schema` field of the tool's entry in the model call's `tools: [...]` array.",
+  "type": "object",
+  "properties": {
+    "address": {
+      "type": "string",
+      "description": "A continuation address, copied verbatim from the `read the cut middle with read_tool_output, address …` clause in a truncated tool result. It looks like `steps/<agent-id>/<NNN>/tools/<tool-id>/output.json#stdout@2048` — the record the full output was captured in, the stream, and the byte to resume at. Returns the next 4096 bytes of that stream and, on stderr, the address to continue with or `end of stream`. Only your own tool captures are readable: an address naming another agent is refused."
+    }
+  },
+  "required": ["address"],
+  "additionalProperties": false
+}

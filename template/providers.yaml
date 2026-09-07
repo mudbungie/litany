@@ -26,7 +26,7 @@ roles:
   worker:
     provider: anthropic
     model: claude-sonnet-5
-    tools: [apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, remember, search_history]
+    tools: [apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, read_tool_output, remember, search_history]
   # The compactor declares none: its pair (`write_summary` /
   # `mark_for_deletion`) is injected by the compaction procedure and is
   # never declarable here (ARCH §2.7, §4.3).

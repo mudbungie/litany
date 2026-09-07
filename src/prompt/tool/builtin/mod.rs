@@ -31,11 +31,11 @@
 //! Adding a new one is a match arm in [`run`] plus a sibling module.
 
 pub use bindings::Bindings;
-pub(crate) use names::PYTHON;
 use names::{
     APPLY_PATCH, BASH, CD, DISPATCH, LOAD_SKILL, MESSAGE, READ_FILE, REMEMBER, SEARCH_HISTORY,
 };
 pub use names::{NAMES, pool};
+pub(crate) use names::{PYTHON, READ_TOOL_OUTPUT};
 use std::io::{Read, Write};
 use thiserror::Error;
 
@@ -52,6 +52,7 @@ pub mod message;
 mod names;
 pub mod python;
 pub mod read_file;
+pub mod read_tool_output;
 pub mod remember;
 pub mod search_history;
 
@@ -112,6 +113,16 @@ pub enum Error {
     /// naming the available pool (§3.3). Same stderr-concat contract.
     #[error(transparent)]
     LoadSkill(#[from] load_skill::Error),
+    /// `read_tool_output` failed or refused (bad input JSON, missing
+    /// env, an address that is not the grammar, an address naming
+    /// another agent's captures, a capture that is not on disk, an
+    /// offset past the end of the stream, per
+    /// [`read_tool_output::Error`], ARCH §3.3 *Paging a cut capture*).
+    /// A refusal reaches the model as an `is_error` `tool_result`
+    /// naming what to correct; nothing is read. Same stderr-concat
+    /// contract as the other arms.
+    #[error(transparent)]
+    ReadToolOutput(#[from] read_tool_output::Error),
     /// `remember` failed or refused (bad input JSON, missing env, an
     /// empty fact, an unresolvable root or lineage, or the authoring
     /// pass — the facts cap included, in the routine's own voice, per
@@ -225,6 +236,11 @@ pub fn run_with<R: Read, W: Write, E: Write>(
         return load_skill::run(stdin, stdout, env)
             .map(|()| 0)
             .map_err(Error::LoadSkill);
+    }
+    if name == READ_TOOL_OUTPUT {
+        return read_tool_output::run(stdin, stdout, stderr, env)
+            .map(|()| 0)
+            .map_err(Error::ReadToolOutput);
     }
     if name == REMEMBER {
         return remember::run(stdin, stdout, env)

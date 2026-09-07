@@ -21,8 +21,10 @@ fn small_bound() -> Option<ToolOutputBound> {
 }
 
 /// An oversized stdout is projected head+tail with the honest marker —
-/// stating bytes, lines, and the workspace-relative record path — while
-/// `output.json` keeps every byte and the envelope header survives.
+/// stating bytes, lines, the workspace-relative record path and the
+/// continuation address that pages the cut middle back (§3.3 *Paging a
+/// cut capture*) — while `output.json` keeps every byte and the
+/// envelope header survives.
 #[test]
 fn oversized_stdout_is_bounded_and_the_record_keeps_it_all() {
     let root = HarnessRoot::new();
@@ -56,7 +58,9 @@ fn oversized_stdout_is_bounded_and_the_record_keeps_it_all() {
     // workspace-relative home (byte counts only — no tokenizer here).
     assert!(content.contains(
         "[... stdout truncated: 32 bytes / 3 lines total; showing the first \
-         8 and last 8 bytes; full record: steps/convid/001/tools/toolu_big/output.json ...]"
+         8 and last 8 bytes; full record: steps/convid/001/tools/toolu_big/output.json; \
+         read the cut middle with read_tool_output, address \
+         steps/convid/001/tools/toolu_big/output.json#stdout@8 ...]"
     ));
     // The diagnostic layer lost nothing.
     let dir = step.path.join(STEP_TOOLS_SUBDIR).join("toolu_big");

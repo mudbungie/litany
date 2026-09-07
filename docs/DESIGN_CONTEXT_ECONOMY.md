@@ -585,11 +585,24 @@ lives, nothing lost. Two gaps, neither this document's to close:
   lines it returned, the file's total, and the offset to continue at when
   lines remain. The 1 MiB refusal is untouched: the cap is on the file, not on
   the window, so a partial read of a *large* file is still a `bash` recipe.
-- The marker's recovery path is `steps/…/output.json`, outside the worktree:
-  reachable by `bash` on the engine's box, unreachable from a foot. §4's
-  address is the model-followable pointer for *transcript* content; the
-  raw capture stays diagnostic (ARCH §2.3), and "re-run with a filter" —
-  the marker's own advice — remains the answer for it.
+- The marker's recovery path was `steps/…/output.json`, outside the
+  worktree: reachable by `bash` on the engine's box, unreachable from a
+  foot. **Closed** (bl-9a6e, ARCH §3.3 *Paging a cut capture*). The cut
+  marker now carries a **continuation address** —
+  `steps/<agent-id>/<NNN>/tools/<tool-id>/output.json#<stream>@<offset>`,
+  at the first byte the model was not shown — and the `read_tool_output`
+  built-in returns that stream from that offset, a page at a time, with
+  its own next address until the end. §4's shape exactly: the address is
+  the model-followable pointer, and the tool is what makes it followable
+  from a foot, where `bash` is on another machine. It adds no store —
+  the address *is* the record path plus an offset, so there is no index
+  and no second file — and it costs the diagnostic-only contract only
+  what ARCH §2.3 now states in full: page bytes of the calling agent's
+  **own** captures, read by a tool call, never by an assembly. The
+  domain bound is the address's own agent-id segment, so an agent
+  cannot name another's captures. "Re-run with a filter" remains the
+  right answer when a *different* command is what you wanted; it is no
+  longer the only answer to bytes you already paid for.
 
 ### 7.1 The shipped numbers, and why they are these numbers (bl-ce09)
 
@@ -625,7 +638,13 @@ head on top.
 cut in the middle. That is the trade and not an oversight: the full
 capture is on disk, the marker names its path and the byte and line counts
 (ARCH §3.3), and re-reading a named range costs one cheap tool call, where
-carrying every whole file forever costs every later step. A workspace whose
+carrying every whole file forever costs every later step. Since bl-9a6e
+that sentence holds for a **tool result** as well as for a file: the
+marker also names a continuation address, and `read_tool_output` pages
+the cut middle back out of the capture — so the cheap tool call is
+available even when the bytes came from a command rather than a file,
+and even when re-running the command is expensive, slow, or would not
+produce the same output. A workspace whose
 work really is reading long files end to end raises both numbers; that is what
 a severable policy block is for.
 

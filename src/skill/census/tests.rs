@@ -218,14 +218,14 @@ fn the_table_aligns_its_columns() {
     let mut lines = table.lines();
     assert_eq!(
         lines.next().unwrap(),
-        "SKILL           OWNER      STATE    LAST USE  LAST PATCH"
+        "SKILL             OWNER      STATE    LAST USE  LAST PATCH"
     );
     let unused = lines
         .find(|l| l.starts_with("note-taking"))
         .expect("the workspace skill has a row");
     assert!(
         unused.starts_with(&format!(
-            "note-taking     workspace  unused   {ABSENT}       "
+            "note-taking       workspace  unused   {ABSENT}       "
         )),
         "{unused}"
     );

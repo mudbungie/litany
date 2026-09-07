@@ -1363,10 +1363,10 @@ too, the same way `load_skill` declines an unknown skill (ARCH §3.3):
 ```
 $ litany tool --help
 Arguments:
-  <NAME>  Built-in tool to run; one of: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, remember, search_history
+  <NAME>  Built-in tool to run; one of: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, read_tool_output, remember, search_history
 
 $ echo '{}' | litany tool nosuchtool
-litany tool nosuchtool: unknown built-in tool: "nosuchtool"; available: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, remember, search_history
+litany tool nosuchtool: unknown built-in tool: "nosuchtool"; available: apply_patch, bash, cd, dispatch, load_skill, message, python, read_file, read_tool_output, remember, search_history
 ```
 
 **A direct run gives you the triple, not the envelope.** `litany tool
@@ -1418,6 +1418,23 @@ Built-ins:
   the magnitude it is up against; v0.4+ adds the oversized-output
   auto-dispatch shim (ARCH §3.3 / §12). Try it directly:
   `echo '{"path":"README.md"}' | litany tool read_file`.
+- **`read_tool_output`** — pages back the middle of one of the calling
+  agent's **own** earlier tool results, after the §3.3 bounded
+  projection cut it out of the transcript. The cut marker mints a
+  **continuation address** —
+  `steps/<agent-id>/<NNN>/tools/<tool-id>/output.json#<stream>@<offset>`
+  — and this returns 4 KiB of that stream from that offset on stdout,
+  with the byte window, the stream's total and the next address (or
+  `end of stream`) on stderr, in `read_file`'s voice. It adds no store:
+  the address *is* the diagnostic record's path plus an offset, so
+  there is no index, no database and no second file — the bytes were
+  always captured, they were just not addressable. The address carries
+  the agent id, and a read is refused by name unless it is the caller's
+  own, so the domain bound is structural rather than a check. Nothing
+  under `steps/` is read on the assembly path; this is a tool call, and
+  it lands in the transcript like any other. Try it directly on an
+  address out of a truncated result:
+  `echo '{"address":"steps/a/001/tools/tu_1/output.json#stdout@2048"}' | litany tool read_tool_output`.
 - **`bash`** — runs a shell command via `sh -c` and hands back the
   shell's own three: its stdout, its stderr, and its exit status
   (`128 + signo` when a signal killed it). The harness renders those

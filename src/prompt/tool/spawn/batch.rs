@@ -165,8 +165,9 @@ impl<'a> SpawnTool<'a> {
     ) -> Result<ToolOutcome, ExecError> {
         let exit_code = captured.exit_code;
         let record = prepared.caller.record_rel(&prepared.dir).join(OUTPUT_FILE);
-        let stdout = bound::apply(&captured.stdout, "stdout", output_bound, &record);
-        let stderr = bound::apply(&captured.stderr, "stderr", output_bound, &record);
+        let origin = bound::Origin::Capture(&record);
+        let stdout = bound::apply(&captured.stdout, "stdout", output_bound, origin);
+        let stderr = bound::apply(&captured.stderr, "stderr", output_bound, origin);
         let content = envelope::render(exit_code, &stdout, &stderr);
         let output_record = ToolOutputRecord {
             stdout: String::from_utf8_lossy(&captured.stdout).into_owned(),

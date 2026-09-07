@@ -66,7 +66,15 @@ pub(in crate::prompt) fn context_file(
     bytes: &[u8],
     bound: Option<ToolOutputBound>,
 ) -> Vec<u8> {
-    let body = super::bound::apply(bytes, CONTEXT_FILE_LABEL, bound, path);
+    // `Named`, not `Capture`: a context file's full copy is the file
+    // itself, at the path the marker already prints, so `read_file` is
+    // the recovery and there is no capture to page (§3.3).
+    let body = super::bound::apply(
+        bytes,
+        CONTEXT_FILE_LABEL,
+        bound,
+        super::bound::Origin::Named(path),
+    );
     let mut out = frame_open(path).into_bytes();
     out.push(b'\n');
     out.extend_from_slice(&body);
