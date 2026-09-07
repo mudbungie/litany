@@ -28,6 +28,11 @@ mod learning_loop;
 /// out for the same reason.
 mod reviewer_role;
 
+/// The shipped `planner` role — soul, grant and manifest entry — split
+/// out for the same reason. It ships declared and unbound like the
+/// reviewer, and is what plan mode is built out of (ARCH §6).
+mod planner_role;
+
 /// `LITANY_HOME`-style collapsed roots: config and data are one directory
 /// (ARCH §2.2) — the shape yog drives via `LITANY_HOME=<dir> litany prime`.
 fn collapsed(dir: &Path) -> Roots {

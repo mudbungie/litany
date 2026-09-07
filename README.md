@@ -745,6 +745,69 @@ What is re-derived is everything config-shaped: the role's soul, the
 agent's own facts — its goal, its name, its whole transcript and its work
 products — are untouched.
 
+## Plan before it acts: the `planner` role and a `plan` lineage
+
+A plan mode — *produce a plan I accept before you act* — is a **lineage**
+here, not a mode, because what holds an agent back from acting is its
+**grant**, and a grant is a fact of the governing config commit (ARCH
+§4.3, §6 *Plan mode is a lineage*). Two forms, and one of them needs no
+configuration at all.
+
+**Delegated, in a stock workspace.** The template ships a `planner` role
+*declared and unbound* — a `providers.yaml` row granting
+`[load_skill, read_file, search_history]`, a soul, and a manifest entry
+— so any agent whose grant carries `dispatch` can hand a task to a
+planner today:
+
+```
+litany dispatch <workspace> planner --goal "how would you add X to Y?"
+```
+
+The child reads, searches this workspace's history, and delivers a plan
+as its terminal response. It cannot patch a file, run a shell, dispatch
+a child or message anyone: the grant *is* the confinement, so the plan is
+all it can produce. No `bash` is the trade worth knowing — a planner
+reads by path rather than by `grep` — and a deployment that wants a
+stronger one adds the word to that row.
+
+**The whole conversation.** A root always resolves the `worker` role, so
+putting your *own* conversation in plan mode means a lineage whose worker
+is the planner. One authoring pass per workspace, both edits copies of
+what the lineage already carries:
+
+```
+litany config <workspace> plan --from default
+#   providers.yaml: set roles.worker.tools to roles.planner.tools
+#   souls/worker.md: replace with the text of souls/planner.md
+```
+
+Then start a conversation in it, or move a running one into it:
+
+```
+litany prompt <workspace> "<task>" --config plan
+litany retarget <workspace> <agent> --config plan
+```
+
+**Accepting the plan is the retarget back**, and there is no other act:
+
+```
+litany retarget <workspace> <agent> --config default
+litany message <workspace> <agent> "looks right — do it"
+```
+
+The agent keeps its branch, its transcript and the plan it wrote; at its
+next step boundary it resolves the default lineage's grant and soul and
+carries out what you just approved. Rejecting is the same act with
+different words — or `litany stop`.
+
+**Not to be confused with `gate_return_on`.** That binding holds a
+*child's* return until a *model verifier* approves it (ARCH §6); it is a
+different subject, a different judge and a different moment, and it is
+not a plan mode. The seeded `workflows/learning-loop.yaml` is the
+answer to a different question — *can it check its own work afterwards*
+— and is adopted the same way, by authoring a lineage and switching onto
+it.
+
 ## Switching a running agent's workflow: `litany workflow`
 
 The workflow — the config's `workflow.yaml`, the named declaration of

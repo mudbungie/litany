@@ -46,3 +46,30 @@ roles:
     provider: anthropic
     model: claude-haiku-4-5
     tools: [apply_patch, read_file]
+  # The planner ships **declared and unbound** too (ARCH §6 *Plan mode
+  # is a lineage*), on the reviewer's precedent and for its reason: no
+  # shipped workflow dispatches it, so this row costs an install that
+  # never uses it nothing, and it makes plan mode a config edit rather
+  # than an authoring act. It is reachable with no config at all — any
+  # agent whose grant carries `dispatch` may `dispatch(planner)` today.
+  #
+  # Its grant is its confinement, and the confinement is the role: read
+  # the tree by path, search this workspace's history, load a skill.
+  # No `apply_patch`, no `python` and no `remember` (the three whose
+  # purpose is to change something), no `dispatch` (a planner that can
+  # spawn a fleet is not planning), no `message` (its plan is its
+  # terminal response, which is delivered), and no `bash` — which is
+  # the trade worth naming, since without a shell it cannot `grep`,
+  # `find` or list a directory. A shell is not confinable by a grant
+  # (mechanical confinement is the v1.1 sandbox's, ARCH §3.6), so
+  # granting `bash` here would trade a claim that HOLDS for one that
+  # merely asks. A deployment that wants a stronger planner adds the
+  # word to this list, where an operator can weigh it.
+  #
+  # Its model is the worker's, not the compactor's: judging what a
+  # change would take is the harder half of doing it, and a plan that
+  # is wrong costs more than the tokens it saved.
+  planner:
+    provider: anthropic
+    model: claude-sonnet-5
+    tools: [load_skill, read_file, search_history]

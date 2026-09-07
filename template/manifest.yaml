@@ -34,6 +34,25 @@ roles:
       - summary/**
     budget_tokens: 50000
     overflow: truncate
+  # The planner's subject is the goal and the tree it can read, so it
+  # composes what the worker does minus the work products it has no tool
+  # to touch: the lineage's facts (it must plan against what the
+  # workspace already knows), its goal and soul, and the tool
+  # descriptions — without which it would plan around tools it has. The
+  # summary chain and the workspace skills follow, because a plan that
+  # re-proposes what an earlier span already settled is a plan the
+  # operator has read before.
+  planner:
+    pinned:
+      - facts.md
+      - goal.md
+      - soul.md
+      - descriptions/**
+    order:
+      - summary/**
+      - skills/**
+    budget_tokens: 100000
+    overflow: drop_oldest_summaries
   reviewer:
     pinned:
       - goal.md
