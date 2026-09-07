@@ -26,14 +26,14 @@ fn write_json(worktree: &Path, name: &str, blocks: &[Content]) {
 #[test]
 fn absent_messages_dir_assembles_no_messages() {
     let dir = TempDir::new().unwrap();
-    assert!(assemble(dir.path(), None).unwrap().is_empty());
+    assert!(assemble(dir.path(), None).unwrap().messages.is_empty());
 }
 
 #[test]
 fn empty_messages_dir_assembles_no_messages() {
     let dir = TempDir::new().unwrap();
     std::fs::create_dir_all(dir.path().join(MESSAGES_DIR)).unwrap();
-    assert!(assemble(dir.path(), None).unwrap().is_empty());
+    assert!(assemble(dir.path(), None).unwrap().messages.is_empty());
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn messages_path_that_is_a_file_surfaces_io_error() {
 fn user_message_composes_as_a_user_text_block_verbatim() {
     let dir = TempDir::new().unwrap();
     write(dir.path(), "001-user.md", b"list files");
-    let msgs = assemble(dir.path(), None).unwrap();
+    let msgs = assemble(dir.path(), None).unwrap().messages;
     assert_eq!(msgs.len(), 1);
     assert_eq!(msgs[0].role, Role::User);
     assert_eq!(msgs[0].content, vec![Content::Text("list files".into())]);
@@ -84,7 +84,7 @@ fn replay_from_a_recorded_tree_yields_the_alternating_wire_history() {
         }],
     );
 
-    let msgs = assemble(dir.path(), None).unwrap();
+    let msgs = assemble(dir.path(), None).unwrap().messages;
     assert_eq!(msgs.len(), 3);
     assert_eq!(msgs[0].role, Role::User);
     assert_eq!(msgs[1].role, Role::Assistant);
@@ -121,7 +121,7 @@ fn consecutive_same_side_entries_group_into_one_message() {
     write_json(dir.path(), "003-tool.json", &[tool_result("a")]);
     write_json(dir.path(), "004-tool.json", &[tool_result("b")]);
 
-    let msgs = assemble(dir.path(), None).unwrap();
+    let msgs = assemble(dir.path(), None).unwrap().messages;
     assert_eq!(msgs.len(), 3);
     // The two tool entries grouped into one tool message, in seq order.
     assert_eq!(msgs[2].role, Role::Tool);
@@ -147,11 +147,37 @@ fn entries_sort_by_numeric_prefix_and_ignore_non_conforming_names() {
     write(dir.path(), "001-user.md", b"first");
     write(dir.path(), "notes.txt", b"ignored");
 
-    let msgs = assemble(dir.path(), None).unwrap();
+    let msgs = assemble(dir.path(), None).unwrap().messages;
     assert_eq!(msgs.len(), 2);
     assert_eq!(msgs[0].content, vec![Content::Text("first".into())]);
     assert_eq!(msgs[1].role, Role::Assistant);
     assert_eq!(msgs[1].content, vec![Content::Text("second".into())]);
+}
+
+#[test]
+fn an_orphan_tool_result_is_dropped_from_the_wire_and_named_in_the_record() {
+    // THE WEDGE (bl-2d93): a cut took the call's entry and left the
+    // result's, so the tree composes a `tool_result` with no `tool_use`
+    // — refused by every provider, on every later prompt, for good.
+    // Assembly composes the lawful subset and says what it left out.
+    let dir = TempDir::new().unwrap();
+    write(dir.path(), "001-user.md", b"do two");
+    write_json(dir.path(), "002-tool.json", &[tool_result("call_gone")]);
+    write(dir.path(), "003-user.md", b"still here?");
+
+    let assembled = assemble(dir.path(), None).unwrap();
+    assert_eq!(assembled.dropped_orphans, vec!["call_gone".to_string()]);
+    // The orphan's whole message goes, and the branch has a lawful
+    // history to prompt with again.
+    assert_eq!(assembled.messages.len(), 1);
+    assert_eq!(assembled.messages[0].role, Role::User);
+    assert_eq!(
+        assembled.messages[0].content,
+        vec![
+            Content::Text("do two".into()),
+            Content::Text("still here?".into())
+        ]
+    );
 }
 
 fn tool_result(id: &str) -> Content {
@@ -182,7 +208,9 @@ fn body_blocks_lead_the_history_and_group_with_the_first_user_entry() {
     std::fs::write(dir.path().join("summary/001.md"), "the summary").unwrap();
     write(dir.path(), "001-user.md", b"go");
 
-    let msgs = assemble(dir.path(), Some(&summary_rules())).unwrap();
+    let msgs = assemble(dir.path(), Some(&summary_rules()))
+        .unwrap()
+        .messages;
     assert_eq!(msgs.len(), 1);
     assert_eq!(msgs[0].role, Role::User);
     assert_eq!(msgs[0].content.len(), 2);

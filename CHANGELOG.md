@@ -29,6 +29,19 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+- Make a tool call and its result one unit for every cut, and refuse to send an
+  orphan. A compaction point is an arbitrary commit while a tool window spans
+  several — the model entry commits before any tool runs, each result as its
+  tool returns — so the §2.7 span sweep took a `tool_use` out of the base and
+  left its `tool_result` replaying on top: a history every provider refuses
+  ("tool_result without tool_use"; "No tool call found for function call output
+  with call_id …") on every later prompt, which killed three live compactor
+  conversations outright. The sweep now stops at the last settled boundary (the
+  same tail the fork prune already deleted from the compactor's tree), and
+  assembly drops an orphan `tool_result` a past cut already made, recording the
+  ids in the step's `meta.json` as `dropped_orphans` so a wedged branch revives
+  at its next prompt instead of dying at every one. [bl-2d93]
+
 ## [0.0.12](https://github.com/mudbungie/litany/compare/litany-v0.0.11...litany-v0.0.12) - 2026-09-06
 
 - Pin brazen `=0.0.18` and hand every model call the agent id as its canonical

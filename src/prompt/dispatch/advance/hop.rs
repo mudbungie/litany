@@ -96,7 +96,7 @@ pub(super) fn step(
     // §2.3 / §5: assemble the model-facing history from the tree — the
     // §5.2 head/body under the role's manifest rules, then the
     // transcript tail — one code path for running, retry, and replay.
-    let messages = assembler::assemble(worktree, resolved.manifest)?;
+    let assembled = assembler::assemble(worktree, resolved.manifest)?;
     // Everything this request declares (§3.3, §4.3, §2.7 — see [`tools`]):
     // the role's elected tools, the compactor's injected pair, and the
     // closure over the assembled history. A compactor inherits the
@@ -105,14 +105,14 @@ pub(super) fn step(
     let tools = tools::compose(
         worktree,
         &resolved.grant,
-        &messages,
+        &assembled.messages,
         &tools::injected(resolved.grant.role, deps.tool_executor, workspace, agent_id),
     )?;
     let request = canonical::build_request(
         resolved.model_id,
         agent_id,
         &system_with_goal,
-        messages,
+        assembled.messages,
         tools,
         resolved.max_output_tokens,
         resolved.effort,
@@ -129,6 +129,7 @@ pub(super) fn step(
         conv_id: agent_id,
         seq: step_seq,
         tip: commit_sha,
+        dropped_orphans: assembled.dropped_orphans,
     };
     let Some(step_dir_rel_str) = one_call::issue(step, &request, &call, &resolved, deps)? else {
         return Ok(StepOutcome::Terminal(Epitaph::Stopped));

@@ -98,7 +98,7 @@ fn a_child_forked_mid_tool_step_assembles_a_wire_valid_first_history() {
     // The fork point genuinely carries the defect: the parent's own tree
     // assembles with the dispatch's `tool_use` unanswered.
     assert_eq!(
-        unanswered(&assemble(&parent_wt, None).unwrap()),
+        unanswered(&assemble(&parent_wt, None).unwrap().messages),
         vec!["call_dispatch".to_string()],
         "the fork point must be mid-tool-step for this test to mean anything"
     );
@@ -126,7 +126,7 @@ fn a_child_forked_mid_tool_step_assembles_a_wire_valid_first_history() {
     // The child's first model call is wire-valid: nothing in its history
     // asks for a tool output that will never arrive.
     let child_wt = workspace::agent_worktree(&ws, &child);
-    let history = assemble(&child_wt, None).unwrap();
+    let history = assemble(&child_wt, None).unwrap().messages;
     assert!(
         unanswered(&history).is_empty(),
         "child history still carries an unanswered tool_use: {history:?}"

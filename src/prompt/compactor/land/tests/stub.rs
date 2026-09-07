@@ -27,6 +27,10 @@ struct Script {
     landed: &'static str,
     /// `log` answer (the compactor dispatch sha / checkpoint origin).
     log: &'static str,
+    /// `ls-tree` answer — the point's `messages/` listing, NUL-separated
+    /// (`-z`). Empty is a span with no transcript, which is every arm
+    /// but the pairing one.
+    ls_tree: &'static str,
     /// `show` answer — one removed transcript entry's bytes, read by the
     /// extract off the compaction point.
     show: &'static str,
@@ -93,6 +97,7 @@ impl GitRunner for Script {
             Some("write-tree") => "tsha".into(),
             Some("commit-tree") => "bsha".into(),
             Some("ls-files") => self.ls_files.into(),
+            Some("ls-tree") => self.ls_tree.into(),
             Some("show") => self.show.into(),
             _ => String::new(),
         })
@@ -134,6 +139,19 @@ fn a_span_transcript_ls_tree_failure_surfaces() {
         ..Script::ok()
     };
     assert_op(s.land().unwrap_err(), "compaction land span transcript");
+}
+
+#[test]
+fn a_span_entry_read_failure_surfaces() {
+    // The sweep reads the point's trailing model entry to find where a
+    // tool window begins (bl-2d93); a git that cannot answer for the
+    // blob is a loud landing failure, never a span swept blind.
+    let s = Script {
+        ls_tree: "messages/002-m.json\0",
+        fail_capture: Some("show"),
+        ..Script::ok()
+    };
+    assert_op(s.land().unwrap_err(), "compaction land span entry read");
 }
 
 #[test]

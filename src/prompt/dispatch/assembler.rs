@@ -28,7 +28,22 @@
 //! Consecutive same-side entries group into one alternating wire
 //! message, so every `tool_use` block is matched by a `tool_result` in
 //! the immediately following user message *by construction* (§2.3, §2.5
-//! pairing). Running, retry, and replay all call this one function
+//! pairing).
+//!
+//! **An orphan `tool_result` never reaches the wire** (bl-2d93,
+//! [`super::pairing`]). Construction holds for a transcript no cut has
+//! split, and the cuts are held to that ([`super::pairing`] again, the
+//! write side). A branch already carrying an orphan — its call swept out
+//! of context while its result survived — is dead at *every* later
+//! prompt, because the history is a pure function of the tree: the
+//! provider refuses the shape, so no deposit and no further step can get
+//! past it. So [`assemble`] drops the block and **names it**: the ids
+//! ride out in [`Assembled::dropped_orphans`] and land in the step's
+//! `meta.json`, which is what keeps this from being a silent
+//! disagreement with the branch's record (§2.3 *Diagnostic-only
+//! contract*). Assembly stays a pure function of the tree — the same
+//! tree assembles to the same history, orphan and all — it simply
+//! composes the lawful subset of it. Running, retry, and replay all call this one function
 //! against one input — a commit's tree — so "replay" is not a mode
 //! (§2.3 *Crash and recovery*). [`transcript`] composes part 2 alone —
 //! the §6 warrant derivation reads the transcript tail and must not see
@@ -72,27 +87,52 @@ impl Side {
     }
 }
 
+/// One assembled wire history and what assembly refused to send with it
+/// (module docs). Two fields because the second is *not* derivable from
+/// the first — a dropped block is by definition not in the messages —
+/// and its one reader is the step record that publishes it.
+#[derive(Debug)]
+pub(in crate::prompt) struct Assembled {
+    /// The §5.2/§5.5 wire message history.
+    pub(in crate::prompt) messages: Vec<Message>,
+    /// `tool_use` ids of the orphan `tool_result` blocks dropped, in the
+    /// order met. Empty for every history no cut has split, which is
+    /// every history the write side produces.
+    pub(in crate::prompt) dropped_orphans: Vec<String>,
+}
+
 /// Assemble the full §5.2/§5.5 wire message history: the manifest
-/// role's head-and-body blocks ([`body`]), then the transcript tail.
-/// `rules` is the role's manifest entry from the governing config
-/// commit (§2.2); a role the manifest does not list assembles
-/// transcript-only — the general path with empty inputs, not a special
-/// case.
+/// role's head-and-body blocks ([`body`]), then the transcript tail,
+/// then the pairing filter (module docs). `rules` is the role's manifest
+/// entry from the governing config commit (§2.2); a role the manifest
+/// does not list assembles transcript-only — the general path with empty
+/// inputs, not a special case.
 pub(in crate::prompt) fn assemble(
     worktree: &Path,
     rules: Option<&RoleRules>,
-) -> Result<Vec<Message>, Error> {
+) -> Result<Assembled, Error> {
     let mut messages: Vec<Message> = Vec::new();
     for text in body::compose(worktree, rules)? {
         push_grouped(&mut messages, Side::User, vec![Content::Text(text)]);
     }
     append_transcript(&mut messages, worktree)?;
-    Ok(messages)
+    let dropped_orphans = super::pairing::drop_orphans(&mut messages);
+    Ok(Assembled {
+        messages,
+        dropped_orphans,
+    })
 }
 
 /// Assemble the transcript tail alone (§2.3): the §6 warrant derivation
 /// reads only the tail's wire side, before any config is resolved, so
 /// head/body material must not lead the history it inspects.
+///
+/// **Unfiltered, deliberately** (bl-2d93): this is the *record's* own
+/// view, and its readers ask what the branch is owed — an orphan result
+/// still ends the tail tool-side, so the branch is still owed a model
+/// call, and it is that call's assembly that must not carry the orphan.
+/// A filter here would answer `NothingDue` and strand the branch for
+/// good.
 pub(super) fn transcript(worktree: &Path) -> Result<Vec<Message>, Error> {
     let mut messages: Vec<Message> = Vec::new();
     append_transcript(&mut messages, worktree)?;

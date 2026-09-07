@@ -19,8 +19,10 @@
 //!   replaces is not a judgement — it is the span, and the span is
 //!   derived from git ([`super::span`]). So a pass that wrote a summary
 //!   takes **every** `messages/**` path in the tree at the compaction
-//!   point out of the base, save the branch's dispatch entry
-//!   (`eligibility::is_dispatch_entry`, §2.7's first not-eligible class).
+//!   point out of the base, save two: the branch's dispatch entry
+//!   (`eligibility::is_dispatch_entry`, §2.7's first not-eligible class)
+//!   and a trailing **unsettled tool window**, which is one unit with
+//!   the results replaying on top of it ([`span_transcript`], bl-2d93).
 //!   A retained tail is already outside the sweep: `keep_recent` /
 //!   `keep_recent_tokens` move the compaction point back, and only the
 //!   point's tree is read here.
@@ -42,7 +44,9 @@ use super::super::Error;
 use super::super::tools::eligibility;
 use super::extract::{self, Extract};
 use super::span::Span;
+use crate::prompt::dispatch::{entry, pairing};
 use crate::template::GitRunner;
+use brazen::Content;
 use std::path::Path;
 
 /// The compaction product: what the compactor's two tools committed after
@@ -158,16 +162,35 @@ fn diff_class(
 
 /// The span's transcript entries — every `messages/**` path in the tree
 /// at the compaction point except the branch's dispatch entry (module
-/// docs). Read from the point, never the worktree: the live branch has
-/// kept stepping past it, and the point's tree is what the base is cut
-/// from.
+/// docs) and except a trailing **unsettled tool window** (below). Read
+/// from the point, never the worktree: the live branch has kept
+/// stepping past it, and the point's tree is what the base is cut from.
 ///
 /// `ls-tree` rather than a diff against the span's lower bound: what the
 /// summary replaces is everything in context at the point, and after the
 /// previous landing those are the same set. Stating it as the tree's
 /// contents rather than as a range makes the base's invariant one a test
-/// can read off the base alone — its `messages/` holds the dispatch entry
-/// and nothing else.
+/// can read off the base alone — its `messages/` holds the dispatch
+/// entry and nothing else.
+///
+/// **The sweep stops at the last settled boundary** (bl-2d93). A
+/// compaction point is an arbitrary commit — `HEAD~keep_recent` counts
+/// commits, and the token tail lands on a model entry's own commit
+/// (§5.2) — while a **tool window** spans several: the model output
+/// entry commits, then each `tool_result` entry commits after its tool
+/// returns (§2.5). So a point routinely falls *inside* a window, with
+/// the call in the point's tree and its results in the live tail. Swept
+/// flat, that takes the call out of the base and leaves the results
+/// replaying on top of it — an orphan `tool_result`, which every
+/// provider refuses (`pairing`: Anthropic as "tool_result without
+/// tool_use", the OpenAI Responses API as "No tool call found for
+/// function call output with call_id …") on *every* later prompt, so
+/// the branch is wedged rather than merely mis-compacted. A tool call
+/// and its result are one unit for every cut, so the trailing unsettled
+/// window stays in the base: the same tail the fork prune deletes from
+/// the compactor's own tree ([`crate::prompt::dispatch::step_commit`]),
+/// which is also exactly what the compactor never read and never
+/// summarized.
 fn span_transcript(
     parent_worktree: &Path,
     span: &Span,
@@ -190,9 +213,37 @@ fn span_transcript(
             op: "compaction land span transcript",
             source,
         })?;
-    Ok(out
-        .split_terminator('\0')
-        .filter(|p| !p.is_empty() && !eligibility::is_dispatch_entry(p))
-        .map(str::to_owned)
-        .collect())
+    let mut entries = pairing::ordered(
+        out.split_terminator('\0')
+            .filter(|p| !p.is_empty())
+            .map(str::to_owned)
+            .collect(),
+    );
+    if let Some(cut) = pairing::unsettled_from(&entries, &|rel: &str| {
+        blob(parent_worktree, &span.point, rel, git)
+    })? {
+        entries.truncate(cut);
+    }
+    entries.retain(|p| !eligibility::is_dispatch_entry(p));
+    Ok(entries)
+}
+
+/// The canonical blocks of one transcript entry as of `point` — the
+/// blob, never the worktree, for the same reason the listing is the
+/// point's tree: the live branch has moved on. Read through the entry
+/// shape's one home (§2.3, [`entry`]).
+fn blob(
+    parent_worktree: &Path,
+    point: &str,
+    rel: &str,
+    git: &dyn GitRunner,
+) -> Result<Vec<Content>, Error> {
+    let spec = format!("{point}:{rel}");
+    let out = git
+        .run_capture(parent_worktree, &["show", &spec])
+        .map_err(|source| Error::Git {
+            op: "compaction land span entry read",
+            source,
+        })?;
+    Ok(entry::blocks(out.as_bytes()))
 }

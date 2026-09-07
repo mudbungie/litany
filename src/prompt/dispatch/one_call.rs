@@ -23,16 +23,22 @@ use brazen::CanonicalRequest;
 use std::path::Path;
 
 /// Where one step's record goes and what read state it names — the
-/// four facts that travel together because none of them means anything
+/// five facts that travel together because none of them means anything
 /// without the others: the conv-repo the `steps/` tree lives under
 /// (§2.3), the conversation namespacing it, the sequence within that
-/// conversation, and the branch tip captured at step-start that
-/// `meta.json` records as the read state (§2.10).
+/// conversation, the branch tip captured at step-start that `meta.json`
+/// records as the read state (§2.10), and what assembly refused to send
+/// from that tip (bl-2d93).
 pub(super) struct Step<'a> {
     pub(super) conv_repo: &'a Path,
     pub(super) conv_id: &'a str,
     pub(super) seq: u32,
     pub(super) tip: String,
+    /// `tool_use` ids of the orphan `tool_result` blocks assembly
+    /// dropped composing this step's history
+    /// ([`super::assembler::Assembled`], §2.3). Recorded, never acted
+    /// on — the repair is the drop itself.
+    pub(super) dropped_orphans: Vec<String>,
 }
 
 /// Issue `request` for `step`, recording `request.json`, the response
@@ -75,6 +81,7 @@ pub(super) fn issue(
             config_commit: Some(resolved.grant.config_commit.to_string()),
             workflow_commit: Some(resolved.workflow_commit.to_string()),
             provider: Some(call.provider_row.to_string()),
+            dropped_orphans: step.dropped_orphans,
             started_at,
             ended_at,
         },

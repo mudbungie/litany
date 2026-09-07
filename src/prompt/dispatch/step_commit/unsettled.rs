@@ -35,6 +35,16 @@
 //! `tool_result` *is* the child's address (§2.5), so the settled boundary
 //! does not exist until after the fork must have happened.
 //!
+//! **That rejection is about the call side and stands** (bl-2d93). The
+//! read-side drop assembly *does* perform — [`super::super::pairing::
+//! drop_orphans`], a `tool_result` whose `tool_use` is absent — is the
+//! opposite case in every respect that mattered here: the write side has
+//! no repair for it (the call is already gone from the tree, so nothing
+//! a cut can do brings it back), the branch is otherwise dead at every
+//! later prompt rather than at one, and the drop is *recorded* in the
+//! step record rather than being a silent disagreement with the record.
+//! An unanswered `tool_use` still leaves by deletion, here, at the fork.
+//!
 //! It lives in [`super::trim_to_context`] beside the control-file and
 //! descriptor removals because it is the same act: the dispatch commit
 //! trimming the forked tree to exactly what this agent may hold. Total
@@ -44,16 +54,10 @@
 //! ref; all three settle to no git command at all.
 
 use crate::prompt::Error;
-use crate::prompt::dispatch::entry;
+use crate::prompt::dispatch::{MESSAGES_DIR, entry, pairing};
 use crate::template::GitRunner;
 use brazen::Content;
 use std::path::Path;
-
-/// Branch-scoped transcript directory (ARCH §2.3 — `messages/NNN-…`).
-const MESSAGES_DIR: &str = "messages";
-/// The one reserved `.json` origin token (§2.3): a tool call's result.
-/// Every other `.json` token is the model id that authored the entry.
-const TOOL_ORIGIN: &str = "tool";
 
 /// Stage the removal of the inherited transcript's unsettled tool step.
 ///
@@ -84,48 +88,21 @@ fn sequence(worktree: &Path) -> Result<Vec<String>, Error> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(e) => return Err(Error::Io(e)),
     };
-    let mut numbered: Vec<(u32, String)> = Vec::new();
+    let mut names: Vec<String> = Vec::new();
     for entry in read {
         let name = entry.map_err(Error::Io)?.file_name();
-        let name = name.to_string_lossy().into_owned();
-        if let Some(seq) = name.split('-').next().and_then(|p| p.parse::<u32>().ok()) {
-            numbered.push((seq, format!("{MESSAGES_DIR}/{name}")));
-        }
+        names.push(format!("{MESSAGES_DIR}/{}", name.to_string_lossy()));
     }
-    numbered.sort_by_key(|(seq, _)| *seq);
-    Ok(numbered.into_iter().map(|(_, rel)| rel).collect())
+    Ok(pairing::ordered(names))
 }
 
-/// The index in `entries` at which the unsettled tool step begins, or
-/// `None` when the tail is settled.
-///
-/// The step is the branch's *last* model-output entry plus everything
-/// after it: it is unsettled when some `tool_use` id it emitted has no
-/// `tool_result` naming it among the following tool entries. Only the
-/// tail can be unsettled — the executor commits every result before the
-/// next model call (§2.5 pairing) — so one look at the end is total.
+/// Where the inherited transcript's trailing **unsettled window**
+/// begins, or `None` when the tail is settled — the pairing invariant's
+/// one derivation ([`pairing::unsettled_from`]), read here over the
+/// forked worktree's own files. The fork and the compaction landing ask
+/// the same question of two different trees, so neither owns the answer.
 fn unsettled_from(worktree: &Path, entries: &[String]) -> Result<Option<usize>, Error> {
-    let Some(cut) = entries.iter().rposition(|rel| kind(rel) == Kind::Model) else {
-        return Ok(None);
-    };
-    let mut pending: Vec<String> = blocks(worktree, &entries[cut])?
-        .iter()
-        .filter_map(|b| match b {
-            Content::ToolUse { id, .. } => Some(id.clone()),
-            _ => None,
-        })
-        .collect();
-    let answering = entries[cut + 1..]
-        .iter()
-        .filter(|rel| kind(rel) == Kind::Tool);
-    for rel in answering {
-        for block in blocks(worktree, rel)? {
-            if let Content::ToolResult { tool_use_id, .. } = block {
-                pending.retain(|id| *id != tool_use_id);
-            }
-        }
-    }
-    Ok((!pending.is_empty()).then_some(cut))
+    pairing::unsettled_from(entries, &|rel: &str| blocks(worktree, rel))
 }
 
 /// The canonical blocks of one `.json` transcript entry, through the
@@ -133,34 +110,6 @@ fn unsettled_from(worktree: &Path, entries: &[String]) -> Result<Option<usize>, 
 fn blocks(worktree: &Path, rel: &str) -> Result<Vec<Content>, Error> {
     let bytes = std::fs::read(worktree.join(rel)).map_err(Error::Io)?;
     Ok(entry::blocks(&bytes))
-}
-
-/// What a transcript entry is, derived from its path alone (§2.3
-/// *Origins and wire framing*): the extension and the reserved-token
-/// test, never frontmatter.
-#[derive(PartialEq, Eq)]
-enum Kind {
-    /// `NNN-<sender>.md` — a delivered message (§2.11).
-    Message,
-    /// `NNN-tool.json` — one tool call's result.
-    Tool,
-    /// `NNN-<model-id>.json` — one step's model output.
-    Model,
-}
-
-fn kind(rel: &str) -> Kind {
-    let path = Path::new(rel);
-    if path.extension().and_then(|e| e.to_str()) != Some("json") {
-        return Kind::Message;
-    }
-    let stem = path
-        .file_stem()
-        .map(|s| s.to_string_lossy())
-        .unwrap_or_default();
-    match stem.split_once('-').map(|x| x.1) {
-        Some(TOOL_ORIGIN) => Kind::Tool,
-        _ => Kind::Model,
-    }
 }
 
 #[cfg(test)]

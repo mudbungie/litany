@@ -40,7 +40,19 @@ use serde::{Deserialize, Serialize};
 /// nothing new, and the §6 budget derivation is untouched — the field is
 /// provenance a reader prices, and pricing is not litany's question.
 ///
-/// All three are `Option` for exactly one reason: a `meta.json` written
+/// **`dropped_orphans` is what assembly refused to send** (bl-2d93). An
+/// orphan `tool_result` — a result whose `tool_use` a cut took out of
+/// context — is refused by every provider on every later prompt, so
+/// assembly drops the block rather than composing a history the branch
+/// can never get past ([`crate::prompt::dispatch::pairing`]). Dropping
+/// it silently would leave the wire disagreeing with the record with
+/// nothing saying so, so the ids land here, in the step that first sent
+/// the repaired history. Empty for every step of every branch no cut has
+/// split — a `Vec` rather than an `Option` because "none dropped" and
+/// "not recorded" are the same fact for a field whose absence a reader
+/// can only read as empty.
+///
+/// The first three are `Option` for exactly one reason: a `meta.json` written
 /// before the field existed carries none, and `None` says so. Every record
 /// this harness writes carries all three. Diagnostic provenance, the same
 /// class as `request.json` — read by audit and by a human, never a
@@ -65,6 +77,12 @@ pub struct StepMeta {
     /// call names a row, so the harness always writes one.
     #[serde(default)]
     pub provider: Option<String>,
+    /// The `tool_use` ids of the orphan `tool_result` blocks assembly
+    /// dropped from this step's wire history (bl-2d93). Empty is the
+    /// standing case; a record written before the field existed reads
+    /// as empty too.
+    #[serde(default)]
+    pub dropped_orphans: Vec<String>,
     pub started_at: String,
     pub ended_at: String,
 }
@@ -80,6 +98,7 @@ mod tests {
             config_commit: Some("cfg1111111111111111111111111111111111111".into()),
             workflow_commit: Some("wf22222222222222222222222222222222222222".into()),
             provider: Some("anthropic".into()),
+            dropped_orphans: vec!["call_gone".into()],
             started_at: "2026-04-22T06:54:32Z".into(),
             ended_at: "2026-04-22T06:54:35Z".into(),
         };
@@ -92,6 +111,7 @@ mod tests {
             "config_commit",
             "workflow_commit",
             "provider",
+            "dropped_orphans",
             "started_at",
             "ended_at",
         ] {
@@ -114,5 +134,6 @@ mod tests {
         assert_eq!(back.config_commit, None);
         assert_eq!(back.workflow_commit, None);
         assert_eq!(back.provider, None);
+        assert!(back.dropped_orphans.is_empty());
     }
 }

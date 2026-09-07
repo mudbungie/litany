@@ -485,6 +485,22 @@ already names — the dispatch entry, the operator's only copy of the
 opening prompt — so the sweep and the nomination gate share that fact
 rather than each spelling it (`compactor::tools::eligibility::is_dispatch_entry`).
 
+**One entry more survives, for the same kind of reason** (bl-2d93). The
+compaction point is an arbitrary commit — `keep_recent` counts commits,
+the token tail lands on a model entry's own commit — while a **tool
+window** spans several: the model entry carrying the `tool_use` commits
+before any tool runs, and each `tool_result` entry commits as its tool
+returns (ARCH §2.5). So the point routinely falls *inside* a window, and
+a flat sweep takes the call out of the base while its results replay on
+top of it. That history is not merely thinner, it is **illegal**: every
+provider refuses a `tool_result` whose `tool_use` is absent, on every
+later prompt, so the branch is wedged for good rather than compacted
+badly (three live conversations died this way). A tool call and its
+result are one unit for every cut, so the sweep stops at the last settled
+boundary — which is also exactly the tail the compactor's own fork prune
+had already deleted from its tree, so what the summary stands for stays
+what the compactor read.
+
 **Conditional on the summary, and on nothing else.** A pass that wrote no
 summary sweeps nothing: the summary is what stands in for the span, so
 with none there is nothing to stand in for the entries. That is the same

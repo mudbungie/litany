@@ -27,6 +27,7 @@ pub(crate) mod entry;
 mod exchange;
 mod model_call;
 mod one_call;
+pub(in crate::prompt) mod pairing;
 mod prefix;
 mod resolved;
 mod result_deposit;

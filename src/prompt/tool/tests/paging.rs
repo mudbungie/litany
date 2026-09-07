@@ -192,11 +192,25 @@ fn assembly_reads_nothing_under_steps() {
     let text = String::from_utf8(cut.content).expect("ASCII fixture");
     let address = address_in(&text);
 
-    // Commit it as the transcript entry the executor would (§2.3).
+    // Commit it as the transcript entries the executor would (§2.3) —
+    // the calling model entry and then the result, which are one unit
+    // (`dispatch::pairing`): a lone result is an orphan and assembly
+    // refuses to compose one at all.
     let messages = step.worktree.join("messages");
     std::fs::create_dir_all(&messages).expect("mkdir messages");
     std::fs::write(
-        messages.join("001-tool.json"),
+        messages.join("001-claude-fable-5.json"),
+        serde_json::to_vec(&[Content::ToolUse {
+            id: "toolu_big".into(),
+            name: "read_file".into(),
+            input: json!({}),
+            signature: None,
+        }])
+        .expect("blocks serialize"),
+    )
+    .expect("write call entry");
+    std::fs::write(
+        messages.join("002-tool.json"),
         serde_json::to_vec(&[Content::ToolResult {
             tool_use_id: "toolu_big".into(),
             content: vec![Content::Text(text.clone())],
@@ -215,10 +229,12 @@ fn assembly_reads_nothing_under_steps() {
     std::fs::remove_dir_all(steps_root).expect("remove steps/");
     assert!(!steps_root.exists());
 
-    let msgs = assemble(&step.worktree, None).expect("assembly needs no step record");
-    assert_eq!(msgs.len(), 1);
-    assert_eq!(msgs[0].role, Role::Tool);
-    let Some(Content::ToolResult { content, .. }) = msgs[0].content.first() else {
+    let msgs = assemble(&step.worktree, None)
+        .expect("assembly needs no step record")
+        .messages;
+    assert_eq!(msgs.len(), 2);
+    assert_eq!(msgs[1].role, Role::Tool);
+    let Some(Content::ToolResult { content, .. }) = msgs[1].content.first() else {
         panic!("the entry composes as a tool result");
     };
     let Some(Content::Text(composed)) = content.first() else {

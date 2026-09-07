@@ -99,7 +99,7 @@ fn a_child_never_opens_on_its_dispatchers_dialog() {
     // and the only user-side content is the deposited goal, waiting in
     // the child's inbox for its step-1 drain (§2.5).
     let child_wt = workspace::agent_worktree(&ws, &child);
-    let history = assemble(&child_wt, None).unwrap();
+    let history = assemble(&child_wt, None).unwrap().messages;
     assert!(history.is_empty(), "got {history:?}");
     let deposited = std::fs::read_dir(crate::prompt::inbox::inbox_dir(&ws, &child))
         .unwrap()

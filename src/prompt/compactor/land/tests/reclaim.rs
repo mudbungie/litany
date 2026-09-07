@@ -12,6 +12,7 @@
 
 use super::*;
 use crate::prompt::dispatch::assembler;
+use brazen::Content;
 
 /// Serialized bytes of the wire message history assembled from the
 /// branch's worktree — transcript-only (`rules: None`), which is what a
@@ -19,7 +20,7 @@ use crate::prompt::dispatch::assembler;
 /// a landing that "reclaimed" by deleting one small entry and adding a
 /// large summary would pass a count and fail this.
 fn prompt_bytes(wt: &Path) -> usize {
-    let messages = assembler::assemble(wt, None).unwrap();
+    let messages = assembler::assemble(wt, None).unwrap().messages;
     serde_json::to_vec(&messages).unwrap().len()
 }
 
@@ -152,4 +153,127 @@ fn the_extract_reports_the_swept_span_not_only_what_was_nominated() {
         !refs.contains("the opening prompt"),
         "the dispatch entry never leaves context: {refs}"
     );
+}
+
+/// A model-output entry carrying one `tool_use`, as the executor commits
+/// it before any tool runs (§2.5).
+fn call_entry(id: &str) -> String {
+    serde_json::to_string(&[Content::ToolUse {
+        id: id.to_string(),
+        name: "bash".into(),
+        input: serde_json::json!({"command": "true"}),
+        signature: None,
+    }])
+    .unwrap()
+}
+
+/// The `messages/NNN-tool.json` answering it, committed after the tool
+/// returned — which is after the compaction point was taken.
+fn result_entry(id: &str) -> String {
+    serde_json::to_string(&[Content::ToolResult {
+        tool_use_id: id.to_string(),
+        content: vec![Content::Text("ok".into())],
+        is_error: false,
+    }])
+    .unwrap()
+}
+
+/// Every `tool_use_id` the branch's **record** carries with no
+/// `tool_use` before it — what the provider refuses ("No tool call found
+/// for function call output with call_id …").
+///
+/// Read off the transcript files rather than through
+/// [`assembler::assemble`] on purpose: assembly's own orphan drop is the
+/// backstop for a branch already wedged (bl-2d93), and measuring through
+/// it would make this beat pass no matter what the landing did.
+fn orphans(wt: &Path) -> Vec<String> {
+    let mut called = std::collections::HashSet::new();
+    let mut orphaned = Vec::new();
+    for name in entries(wt).iter().filter(|n| n.ends_with(".json")) {
+        let Ok(bytes) = std::fs::read(wt.join("messages").join(name)) else {
+            continue;
+        };
+        for b in crate::prompt::dispatch::entry::blocks(&bytes) {
+            match b {
+                Content::ToolUse { id, .. } => {
+                    called.insert(id);
+                }
+                Content::ToolResult { tool_use_id, .. } if !called.contains(&tool_use_id) => {
+                    orphaned.push(tool_use_id);
+                }
+                _ => {}
+            }
+        }
+    }
+    orphaned
+}
+
+#[test]
+fn a_compaction_point_inside_a_tool_window_never_orphans_the_result() {
+    // THE REPRO (bl-2d93): the point is an arbitrary commit —
+    // `HEAD~keep_recent` counts commits, the token tail lands on a model
+    // entry's own commit — and a tool window spans several, so the point
+    // falls between the call and its result. Swept flat, the call leaves
+    // the base and the result replays on top of it, and every later
+    // prompt on that branch dies at the provider.
+    let dir = repo(&[("messages/001-user.md", "the opening prompt\n")]);
+    let wt = dir.path();
+    commit(
+        wt,
+        "step 002",
+        &[("messages/002-m.json", call_entry("call_1").as_str())],
+        &[],
+    );
+    // The compactor forks HERE — mid-window — and the tool returns while
+    // it runs.
+    compactor(wt, &[("summary/001.md", "digest\n")], &[], &[], &[]);
+    commit(
+        wt,
+        "step 003",
+        &[("messages/003-tool.json", result_entry("call_1").as_str())],
+        &[],
+    );
+
+    assert_eq!(
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
+        LandOutcome::Landed
+    );
+    assert_eq!(orphans(wt), Vec::<String>::new());
+    // The unit stays whole: the call is still in context beside its
+    // result, and the settled entries before it are still reclaimed.
+    assert_eq!(
+        entries(wt),
+        vec![
+            "001-user.md".to_string(),
+            "002-m.json".to_string(),
+            "003-tool.json".to_string()
+        ]
+    );
+}
+
+#[test]
+fn a_settled_window_inside_the_span_is_swept_whole() {
+    // The other direction: a window that closed before the point is
+    // ordinary span content, and the sweep takes both halves of it.
+    let dir = repo(&[("messages/001-user.md", "the opening prompt\n")]);
+    let wt = dir.path();
+    commit(
+        wt,
+        "step 002",
+        &[("messages/002-m.json", call_entry("call_1").as_str())],
+        &[],
+    );
+    commit(
+        wt,
+        "step 003",
+        &[("messages/003-tool.json", result_entry("call_1").as_str())],
+        &[],
+    );
+    compactor(wt, &[("summary/001.md", "digest\n")], &[], &[], &[]);
+
+    assert_eq!(
+        land(wt, "p1", "p1-cmp", None, &g()).unwrap(),
+        LandOutcome::Landed
+    );
+    assert_eq!(entries(wt), vec!["001-user.md".to_string()]);
 }

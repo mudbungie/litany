@@ -174,18 +174,18 @@ pub(in crate::prompt) fn run_exchange(
         // §2.3 / §5: assemble the model-facing history from the read-state
         // commit's tree — §5.2 head/body under the role's manifest rules,
         // then the transcript tail — one path for running, retry, replay.
-        let messages = assembler::assemble(&worktree_path, resolved.manifest)?;
+        let assembled = assembler::assemble(&worktree_path, resolved.manifest)?;
         let tools = tools::compose(
             &worktree_path,
             &resolved.grant,
-            &messages,
+            &assembled.messages,
             &tools::injected(resolved.grant.role, deps.tool_executor, repo, &conv_id),
         )?;
         let request = canonical::build_request(
             resolved.model_id,
             &conv_id,
             &system_with_goal,
-            messages,
+            assembled.messages,
             tools,
             resolved.max_output_tokens,
             resolved.effort,
@@ -202,6 +202,7 @@ pub(in crate::prompt) fn run_exchange(
             conv_id: &conv_id,
             seq: step_seq,
             tip: commit_sha,
+            dropped_orphans: assembled.dropped_orphans,
         };
         let Some(step_dir_rel_str) = one_call::issue(step, &request, &call, resolved, deps)? else {
             break Epitaph::Stopped;
