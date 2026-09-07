@@ -25,7 +25,7 @@ use super::step_commit::{
 };
 use super::tool_step::{self, run_tool_calls};
 use super::{
-    Resolved, assembler, canonical, child_result, drain, driver, one_call, result_deposit,
+    Resolved, assembler, canonical, child_result, drain, driver, one_call, prefix, result_deposit,
     stop_signal, terminal, tools, transcript,
 };
 use crate::prompt::inbox::{self, Epitaph};
@@ -190,6 +190,12 @@ pub(in crate::prompt) fn run_exchange(
             resolved.effort,
             resolved.priority,
         );
+        // §5.5: a subtraction from the declared surface is held until a
+        // miss is paid anyway — the previous step's record is the queue.
+        let request = prefix::hold(
+            prefix::previous(repo, &conv_id, step_seq)?.as_ref(),
+            request,
+        )?;
         let step = one_call::Step {
             conv_repo: repo,
             conv_id: &conv_id,

@@ -29,6 +29,7 @@ mod multi_step_terminal;
 mod parent_revival;
 mod pin;
 mod pinned;
+mod prefix_ladder;
 mod reply_address;
 mod retarget_boundary;
 mod reviewer_proposal;

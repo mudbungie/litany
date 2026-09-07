@@ -10,7 +10,7 @@
 //! `stopped`-epitaph terminal rather than riding into a successor.
 
 use super::super::{
-    assembler, canonical, child_result, model_call, one_call, result_deposit, step_commit,
+    assembler, canonical, child_result, model_call, one_call, prefix, result_deposit, step_commit,
     stop_signal, terminal, tool_step, tools, transcript,
 };
 use crate::config::Event;
@@ -117,6 +117,12 @@ pub(super) fn step(
         resolved.effort,
         resolved.priority,
     );
+    // §5.5: a subtraction from the declared surface is held until a
+    // miss is paid anyway — the previous step's record is the queue.
+    let request = prefix::hold(
+        prefix::previous(workspace, agent_id, step_seq)?.as_ref(),
+        request,
+    )?;
     let step = one_call::Step {
         conv_repo: workspace,
         conv_id: agent_id,

@@ -710,3 +710,53 @@ Amended by this ball: ARCH §2.7 (eligibility class, compaction product),
 `compaction:` block, `context_files:`); docs/PRINCIPLES.md *Compaction,
 never compression* (the extract); docs/TAXONOMY.md §3 (compaction product,
 soft archive, token tail, extract).
+
+## 11. G — Prefix maintenance: a subtraction rides a miss already paid
+
+Filed after the round-2 comparator drove one agent through four steps on
+two provider rows and read the bill: the claude row re-read ~13 k cached
+tokens on every step after the first, the gpt row read **0** on steps 3
+and 4, and nothing litany assembled differed between the two — the
+ladder was byte-identical and append-only on both. Two facts fell out of
+reading the assembly against that bill, and this section carries both
+(yog bl-b6f9 is the operator's design note; litany bl-b902 the
+landing).
+
+**The first is litany's, and it is now an invariant** (ARCH §5.5): *a
+prefix edit is applied only at a boundary that already invalidates the
+prefix.* Every change the harness can make ahead of the transcript tail
+is classified there as stable, a paid miss, or held. The held kind is a
+**subtraction from the declared surface** — a host retiring a tool it
+injected, a followed config edit that only narrows a grant — and it used
+to cost exactly what an addition costs: one full rebuild of the context
+behind the tools array, at the moment the retirement landed, for a
+change the model loses nothing by not hearing about yet. Now the request
+keeps sending the previous step's array until the model, the system
+slot or the first wire message moves anyway, and the subtraction rides
+that miss. The queue lives in the previous step's own `request.json` —
+the recorded fact of what the adapter was handed — so there is no
+second tree path and no boundary flag: comparing two records is what
+answers "would this miss anyway?". The measurement is the four-step
+ladder in `src/prompt/tests/prefix_ladder.rs`.
+
+What this does **not** reach, stated so nobody reads it as reached. A
+`load_skill` mid-run is an insertion into the body and re-bills every
+byte behind it until the next landing; it is deferrable by anchoring
+the loaded body in the tail beside the tool result that loaded it, and
+that is a change to the assembler's head/body split filed on its own
+(litany bl-70d2). An operator's config edit that moves the soul, the
+model or the descriptor cut is a paid miss by ruling (§5.5's table):
+follow-the-tip exists so that an edit binds at the next step, and a
+revoke that waited for a compaction would not be a revoke.
+
+**The second is brazen's.** Cache placement is brazen policy with no
+canonical knob (`specs/anthropic-messages.md` §2.10): the Anthropic
+dialect marks the last system block and the last two conversation
+positions, which is what that dialect wants for this shape, and the
+claude row's bill shows it working. The OpenAI dialects send no
+`prompt_cache_key`, and OpenAI's automatic cache is routed by that key:
+without it a growing, stateless, fully-resent input lands on whichever
+replica takes it, and the gpt row's 0 on steps 3 and 4 is the shape of
+that. Litany's half is the key it will hand over — the agent id, one
+per branch, stable for the branch's life — and the field is brazen
+bl-8b47.

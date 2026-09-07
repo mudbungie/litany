@@ -286,13 +286,19 @@ chase.
 
 **The set changes only by the binding's explicit act.** litany never
 queries anything to discover tools; it reads what the installed object
-states. A host that changes what `tools()` returns has changed the prompt
-prefix and pays the cache rebuild knowingly (ARCH §5.5: "between
-compactions the assembled prompt only grows at the tail, so provider
-prompt caches stay warm"). Nothing in litany makes the set churn — no
-poll, no notification receiver, no live catalog — which is the same
-property `DESIGN_MCP_BRIDGE.md` §2 got from pinning, arrived at from the
-other side: there, discovery is frozen at operator time; here, it is
+states. A host that *adds* to what `tools()` returns has changed the
+prompt prefix and pays the cache rebuild knowingly; a host that *retires*
+from it does not pay at all until a rebuild is being paid anyway — the
+subtraction is **held** (ARCH §5.5, bl-b902): the request keeps sending
+the array the previous step sent, byte for byte, until the model, the
+system slot or the first wire message moves for some other reason, and
+the retirement rides that miss. So yog's `clients unload` (yog bl-3455)
+costs the conversation nothing on its own account, and a call into the
+retired name meanwhile is refused in band as any undeclared name is —
+the router's own answer, one round trip. Nothing in litany makes the set
+churn — no poll, no notification receiver, no live catalog — which is the
+same property `DESIGN_MCP_BRIDGE.md` §2 got from pinning, arrived at from
+the other side: there, discovery is frozen at operator time; here, it is
 whatever the embedder holds still.
 
 **Adjudication is untouched.** The tool control (ARCH §3.3 *Tool

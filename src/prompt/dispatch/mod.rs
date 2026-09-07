@@ -27,6 +27,7 @@ pub(crate) mod entry;
 mod exchange;
 mod model_call;
 mod one_call;
+mod prefix;
 mod resolved;
 mod result_deposit;
 mod staging;
