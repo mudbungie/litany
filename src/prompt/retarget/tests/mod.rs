@@ -4,6 +4,7 @@
 //! in [`stub`].
 
 use super::*;
+use crate::prompt::retarget::preflight::Marks;
 use crate::template::RealGit;
 use crate::workspace::{
     DEFAULT_CONFIG_NAME, agent_ref, agent_worktree, config_ref, fixture, repo_git,
@@ -12,6 +13,7 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 mod preflighting;
+mod roles;
 mod stub;
 
 fn g() -> RealGit {
@@ -26,10 +28,13 @@ fn head_of(ws: &Path, name: &str) -> String {
         .to_string()
 }
 
-/// A **root** agent, forked off `config/default` and founded by the real
-/// root dispatch commit (`step 001: dispatch [<id>]`, §2.3 step 2) — the
-/// shape a retarget addresses. The trim is the production one, so the
-/// branch starts with exactly the tree a fork leaves.
+/// A **root** agent, forked off `config/default` and founded by the
+/// **pre-bl-946c** root dispatch commit (`step 001: dispatch [<id>]`) —
+/// deliberately the older spelling, so every landing below also pins
+/// that a branch founded before roots recorded their role still founds,
+/// still derives the worker default, and is re-minted in the current
+/// spelling. The trim is the production one, so the branch starts with
+/// exactly the tree a fork leaves.
 fn root(ws: &Path, id: &str) -> PathBuf {
     let git = g();
     let wt = agent_worktree(ws, id);
@@ -145,7 +150,7 @@ fn a_retarget_re_forks_the_branch_onto_the_target_and_replays_its_history() {
         [
             "transcript 002: tool [a]",
             "transcript 001: user [a]",
-            "step 001: dispatch [a]",
+            "dispatch: worker [a]",
         ],
     );
     assert_eq!(

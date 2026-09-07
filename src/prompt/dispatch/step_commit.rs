@@ -150,7 +150,18 @@ pub(super) fn write_dispatch_files(
 /// control files from the agent's tree (§2.2 — control is read from the
 /// governing config commit; the worktree holds only context) and settle
 /// the agent's `name` (§2.3), `git add goal.md soul.md`, then commit on
-/// the agent branch. The removal is
+/// the agent branch.
+///
+/// **The subject names the role**, `dispatch: <role> [<id>]` — the same
+/// spelling a child's dispatch commit carries
+/// ([`crate::prompt::subagent`]), because it is the same fact: the role
+/// this branch resolves from here on ([`crate::prompt::role::derive`],
+/// §4.3, §6). A root born on the worker default writes `worker` there
+/// rather than nothing, so `litany prompt --role planner` is the general
+/// path with a different input and not a second shape. Branches founded
+/// before bl-946c carry the older root spelling, `step 001: dispatch
+/// [<id>]`, which derives as no role and takes the same default —
+/// `role::founding_pattern` matches both. The removal is
 /// total, not conditional: `--ignore-unmatch` makes it a no-op when the
 /// fork point was not a config commit (a child forked off a parent's
 /// tip, whose tree already lost them). This is the only commit the
@@ -170,7 +181,7 @@ pub(super) fn commit_dispatch(
     deps.git
         .run(worktree_path, &add_args)
         .map_err(|source| Error::Git { op: "add", source })?;
-    let msg = format!("step 001: dispatch [{conv_id}]");
+    let msg = format!("dispatch: {} [{conv_id}]", resolved.grant.role);
     deps.git
         .run(worktree_path, &["commit", "-m", msg.as_str()])
         .map_err(|source| Error::Git {

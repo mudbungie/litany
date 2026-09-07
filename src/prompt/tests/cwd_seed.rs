@@ -61,6 +61,7 @@ fn a_root_start_seeds_the_mark_at_its_own_id_before_the_branch_exists() {
         None,
         crate::prompt::PinnedDocs::none(),
         Some(std::path::Path::new("/tmp")),
+        None,
         &valid_deps(
             &adapter,
             &sleeper,

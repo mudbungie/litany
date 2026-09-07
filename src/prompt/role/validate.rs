@@ -1,21 +1,30 @@
-//! Open-set role validation (ARCH §4.3): a role is valid iff the
-//! governing config commit (§2.2) of the ref the child forks off lists
-//! `roles.<name>` in `providers.yaml` **and** carries `souls/<name>.md`.
-//! Nothing else mints a role and the harness never enumerates role
-//! names. That ref is the dispatching branch itself unless the dispatch
-//! named a fork point (§2.3), in which case it is the fork point's — the
-//! same commit the soul and the `tools:` grant are read from, so the
-//! check and the artifacts can never answer to different configs.
+//! Open-set role validation (ARCH §4.3): a role is valid iff a config
+//! commit (§2.2) lists `roles.<name>` in `providers.yaml` **and** carries
+//! `souls/<name>.md`. Nothing else mints a role and the harness never
+//! enumerates role names.
 //!
 //! **Single authoritative home** (`docs/PRINCIPLES.md` Single source of
-//! truth): this is the one answer to "is this role dispatchable." Both
-//! front doors consult it — the model-facing `dispatch` built-in (§2.5,
-//! projecting [`Invalid`] onto its own typed error) and the
-//! `litany dispatch <role>` CLI (§3.4, pre-flighting before the fork so
-//! a rejected role leaves no branch debris). There is no hard-coded
-//! `worker`/`compactor` list anywhere; the closed vocabulary
-//! `worker`/`compactor`/`verifier` belongs to the §6 workflow
-//! interpreter, not to dispatch validity (§4.3 severability line).
+//! truth): this is the one answer to "is this role resolvable against
+//! that config." Three front doors consult it, each naming the commit
+//! its own act will read the soul and the grant from, so the check and
+//! the artifacts can never answer to different configs:
+//!
+//! - the model-facing `dispatch` built-in (§2.5, projecting [`Invalid`]
+//!   onto its own typed error) and the `litany dispatch <role>` CLI
+//!   (§3.4) ask [`validate`], whose commit is the governing config of
+//!   the ref the child forks off — the dispatching branch itself unless
+//!   the dispatch named a fork point (§2.3);
+//! - `litany retarget --role` (§2.2, bl-946c) asks [`against`] directly,
+//!   because its commit is the retarget target and is already in hand.
+//!
+//! `litany prompt --role` consults neither: a fresh root's role is
+//! *resolved* before the fork ([`crate::prompt::resolve`]), which reads
+//! the same two files and declines on the same two absences, so a second
+//! check there would be a second answer to a question already asked.
+//!
+//! There is no hard-coded `worker`/`compactor` list anywhere; the closed
+//! vocabulary `worker`/`compactor`/`verifier` belongs to the §6 workflow
+//! interpreter, not to role validity (§4.3 severability line).
 
 use crate::config::{LoadError, PerRepoProviders};
 use crate::prompt::{PER_REPO_PROVIDERS_FILE, SOULS_DIR};
@@ -24,14 +33,15 @@ use crate::workspace;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Why a role is not dispatchable against the config commit that will
-/// govern the child. A refusal names the control file the user knows and
-/// the agent the dispatch was issued from — never the commit sha and the
+/// Why a role is not resolvable against the config commit in question.
+/// A refusal names the control file the user knows and the **subject**
+/// — what that commit is about to govern — never the commit sha and the
 /// `<commit>:<path>` git-show form, which are internal representation
-/// (`docs/PRINCIPLES.md`; bl-c89b). It says *a child of* that agent
-/// rather than *that agent* because the two configs are the same only
-/// when the dispatch named no fork point (§2.2 fork-back-in): under
-/// `--from` the commit consulted governs the child, not the dispatcher.
+/// (`docs/PRINCIPLES.md`; bl-c89b). The subject is the caller's phrase
+/// because only the caller knows it: a dispatch says *a child of* the
+/// agent rather than the agent itself, since the two configs are the
+/// same only when the dispatch named no fork point (§2.2 fork-back-in),
+/// while a retarget says the agent, which is exactly who is moving.
 #[derive(Debug)]
 pub enum Invalid {
     /// The `roles:` block of the governing config's `providers.yaml`
@@ -40,17 +50,17 @@ pub enum Invalid {
     /// idiom `load_skill` and `litany tool` decline with.
     RoleMissing {
         role: String,
-        agent: String,
+        subject: String,
         defined: String,
     },
     /// The role is listed but its soul is absent from the same tree
     /// (§4.3 — the name is the path, no override).
-    SoulMissing { role: String, agent: String },
+    SoulMissing { role: String, subject: String },
     /// `providers.yaml` parsed but was malformed / legacy (§4.1).
     Config(LoadError),
     /// Deriving the governing config commit (§2.2) or reading a control
     /// file from its tree failed — a defective or absent workspace.
-    Governing { branch: String, source: io::Error },
+    Governing { subject: String, source: io::Error },
 }
 
 impl std::fmt::Display for Invalid {
@@ -58,22 +68,22 @@ impl std::fmt::Display for Invalid {
         match self {
             Self::RoleMissing {
                 role,
-                agent,
+                subject,
                 defined,
             } => write!(
                 f,
-                "role {role:?} is not defined in the providers.yaml that will govern a \
-                 child of agent {agent:?} — defined roles: {defined}"
+                "role {role:?} is not defined in the providers.yaml that will govern \
+                 {subject} — defined roles: {defined}"
             ),
-            Self::SoulMissing { role, agent } => write!(
+            Self::SoulMissing { role, subject } => write!(
                 f,
                 "role {role:?} is defined but its soul {SOULS_DIR}/{role}.md is missing from \
-                 the config that will govern a child of agent {agent:?} — a role is its \
-                 `roles:` entry and its soul (ARCH §4.3)"
+                 the config that will govern {subject} — a role is its `roles:` entry and \
+                 its soul (ARCH §4.3)"
             ),
             Self::Config(e) => write!(f, "providers.yaml: {e}"),
-            Self::Governing { branch, source } => {
-                write!(f, "governing config for {branch}: {source}")
+            Self::Governing { subject, source } => {
+                write!(f, "governing config for {subject}: {source}")
             }
         }
     }
@@ -82,11 +92,8 @@ impl std::fmt::Display for Invalid {
 impl std::error::Error for Invalid {}
 
 /// Confirm `role` is dispatchable against the governing config commit of
-/// the ref the child will fork off: listed in `providers.yaml` `roles:`
-/// **and** carrying `souls/<role>.md` in the same immutable tree (§4.3).
-/// Control is read only from the config commit's tree (§2.2), never a
-/// worktree file. Both checks precede any fork, so a rejected role leaves
-/// no debris.
+/// the ref the child will fork off (§2.2 fork-back-in). Both checks
+/// precede any fork, so a rejected role leaves no debris.
 ///
 /// `fork_point` is the dispatch's own (`ChildDispatchRequest::fork_point`,
 /// §2.3): `None` — the ordinary dispatch, and every model-issued one —
@@ -100,25 +107,45 @@ pub fn validate(
     role: &str,
     git: &dyn GitRunner,
 ) -> Result<(), Invalid> {
-    let gov = |source| Invalid::Governing {
-        branch: branch.to_string(),
-        source,
-    };
-    // The config that will govern the *child*, which is the governing
-    // config of the ref it forks off (§2.2 fork-back-in) — the parent's
-    // own branch when the dispatch names no fork point. Asking the
-    // parent's config for a role the child's config must carry would
-    // validate against a commit the soul is not read from.
+    let subject = format!("a child of agent {branch:?}");
+    // Asking the parent's config for a role the child's config must
+    // carry would validate against a commit the soul is not read from.
     let branch_ref = workspace::agent_ref(branch);
     let start = fork_point.unwrap_or(&branch_ref);
     // Followed, not frozen (§2.2, bl-403b): validity is asked of the
     // same commit the soul and grant will be read from.
     let commit = workspace::current_config::current_config(repo, start, git)
-        .map_err(gov)?
+        .map_err(|source| Invalid::Governing {
+            subject: subject.clone(),
+            source,
+        })?
         .commit()
         .to_string();
-    let providers_raw =
-        workspace::show_control(repo, &commit, PER_REPO_PROVIDERS_FILE, git).map_err(gov)?;
+    against(repo, &commit, &subject, role, git)
+}
+
+/// Confirm `role` is resolvable against the config commit `commit`:
+/// listed in `providers.yaml` `roles:` **and** carrying
+/// `souls/<role>.md` in the same immutable tree (§4.3). Control is read
+/// only from the config commit's tree (§2.2), never a worktree file.
+/// `subject` names what that commit is about to govern, for the decline.
+///
+/// The commit is the caller's, because a caller that already holds one
+/// must not have it re-derived: `litany retarget --role` validates the
+/// **target** it is about to mark, which is a commit no ancestry query
+/// of the agent's branch answers yet (bl-946c).
+pub fn against(
+    repo: &Path,
+    commit: &str,
+    subject: &str,
+    role: &str,
+    git: &dyn GitRunner,
+) -> Result<(), Invalid> {
+    let providers_raw = workspace::show_control(repo, commit, PER_REPO_PROVIDERS_FILE, git)
+        .map_err(|source| Invalid::Governing {
+            subject: subject.to_string(),
+            source,
+        })?;
     let origin = PathBuf::from(format!("{commit}:{PER_REPO_PROVIDERS_FILE}"));
     let providers = PerRepoProviders::parse(&providers_raw, &origin).map_err(Invalid::Config)?;
     if !providers.roles.contains_key(role) {
@@ -126,122 +153,19 @@ pub fn validate(
         let defined: Vec<&str> = providers.roles.keys().map(String::as_str).collect();
         return Err(Invalid::RoleMissing {
             role: role.to_string(),
-            agent: branch.to_string(),
+            subject: subject.to_string(),
             defined: crate::name::pool(&defined),
         });
     }
     let soul_rel = format!("{SOULS_DIR}/{role}.md");
-    if !workspace::control_exists(repo, &commit, &soul_rel, git) {
+    if !workspace::control_exists(repo, commit, &soul_rel, git) {
         return Err(Invalid::SoulMissing {
             role: role.to_string(),
-            agent: branch.to_string(),
+            subject: subject.to_string(),
         });
     }
     Ok(())
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::template::RealGit;
-    use crate::workspace::fixture;
-
-    fn git() -> RealGit {
-        RealGit::new()
-    }
-
-    /// The default scaffold lists `worker` with `souls/worker.md`, so a
-    /// worker off a fresh root validates.
-    #[test]
-    fn a_config_role_with_its_soul_is_valid() {
-        let (_h, ws) = fixture::workspace();
-        fixture::spawn_root(&ws, "p1");
-        validate(&ws, "p1", None, "worker", &git()).unwrap();
-    }
-
-    /// A third role the config defines — the v0.7 verifier, zero code —
-    /// validates exactly like the template roles.
-    #[test]
-    fn a_third_config_role_is_valid_zero_code() {
-        let (_h, ws) = fixture::workspace();
-        let yaml = "roles:\n  worker:\n    provider: anthropic\n    model: sonnet\n  \
-                    verifier:\n    provider: anthropic\n    model: sonnet\n";
-        fixture::amend_config(
-            &ws,
-            &[("providers.yaml", yaml), ("souls/verifier.md", "v\n")],
-        );
-        fixture::spawn_root(&ws, "p9");
-        validate(&ws, "p9", None, "verifier", &git()).unwrap();
-    }
-
-    #[test]
-    fn a_role_absent_from_providers_is_role_missing() {
-        let (_h, ws) = fixture::workspace();
-        fixture::spawn_root(&ws, "p1");
-        let err = validate(&ws, "p1", None, "ghost", &git()).unwrap_err();
-        match &err {
-            Invalid::RoleMissing {
-                role,
-                agent,
-                defined,
-            } => {
-                assert_eq!(role, "ghost");
-                assert_eq!(agent, "p1");
-                assert_eq!(defined, "compactor, planner, reviewer, worker");
-            }
-            other => panic!("expected RoleMissing, got {other:?}"),
-        }
-        // bl-c89b: the product's voice — no commit sha, no `<sha>:path`
-        // git-show form — and it names the pool that IS defined.
-        assert_eq!(
-            err.to_string(),
-            "role \"ghost\" is not defined in the providers.yaml that will govern a child \
-             of agent \"p1\" \
-             — defined roles: compactor, planner, reviewer, worker"
-        );
-    }
-
-    #[test]
-    fn a_role_listed_without_a_soul_is_soul_missing() {
-        let (_h, ws) = fixture::workspace();
-        let yaml = "roles:\n  verifier:\n    provider: anthropic\n    model: sonnet\n";
-        fixture::amend_config(&ws, &[("providers.yaml", yaml)]);
-        fixture::spawn_root(&ws, "p9");
-        let err = validate(&ws, "p9", None, "verifier", &git()).unwrap_err();
-        match &err {
-            Invalid::SoulMissing { role, agent } => {
-                assert_eq!(role, "verifier");
-                assert_eq!(agent, "p9");
-            }
-            other => panic!("expected SoulMissing, got {other:?}"),
-        }
-        assert_eq!(
-            err.to_string(),
-            "role \"verifier\" is defined but its soul souls/verifier.md is missing from \
-             the config that will govern a child of agent \"p9\" — a role is its \
-             `roles:` entry and its \
-             soul (ARCH §4.3)"
-        );
-    }
-
-    #[test]
-    fn a_legacy_providers_yaml_is_config_error() {
-        let (_h, ws) = fixture::workspace();
-        fixture::amend_config(&ws, &[("providers.yaml", "providers: {}\n")]);
-        fixture::spawn_root(&ws, "p9");
-        let err = validate(&ws, "p9", None, "worker", &git()).unwrap_err();
-        assert!(matches!(err, Invalid::Config(_)), "{err:?}");
-        assert!(err.to_string().starts_with("providers.yaml:"));
-    }
-
-    #[test]
-    fn a_non_workspace_repo_is_a_governing_error() {
-        let holder = tempfile::TempDir::new().unwrap();
-        let err = validate(holder.path(), "p1", None, "worker", &git()).unwrap_err();
-        match &err {
-            Invalid::Governing { branch, .. } => assert_eq!(branch, "p1"),
-            other => panic!("expected Governing, got {other:?}"),
-        }
-        assert!(err.to_string().contains("governing config for p1"));
-    }
-}
+mod tests;

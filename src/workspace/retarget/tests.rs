@@ -1,6 +1,6 @@
 //! The retarget mark against a real workspace (ARCH §2.2).
 
-use super::{clear, read, retarget_ref, write};
+use super::{clear, clear_role, read, read_role, retarget_ref, role_ref, write, write_role};
 use crate::template::{GitRunner, RealGit};
 use crate::workspace::{config_ref, fixture, repo_git};
 use std::path::{Path, PathBuf};
@@ -107,4 +107,34 @@ fn clearing_a_mark_that_was_never_set_is_a_clean_no_op() {
     let (_h, ws) = agent();
     clear(&ws, "a", &RealGit::new()).unwrap();
     assert_eq!(read(&ws, "a", &RealGit::new()), None);
+}
+
+#[test]
+fn the_role_mark_ref_shares_that_namespace_too() {
+    assert_eq!(role_ref("a-b"), "refs/litany/role/a-b");
+}
+
+#[test]
+fn a_written_role_mark_reads_back_the_name_and_clears() {
+    // The value-carrying mark shape (§3.3 `cwd`): the ref names a blob,
+    // so no second mechanism holds the one extra fact.
+    let (_h, ws) = agent();
+    let git = RealGit::new();
+    assert_eq!(read_role(&ws, "a", &git), None);
+    write_role(&ws, "a", "planner", &git).unwrap();
+    assert_eq!(read_role(&ws, "a", &git), Some("planner".to_string()));
+    write_role(&ws, "a", "worker", &git).unwrap();
+    assert_eq!(
+        read_role(&ws, "a", &git),
+        Some("worker".to_string()),
+        "last write wins, like the config mark's",
+    );
+    clear_role(&ws, "a", &git).unwrap();
+    assert_eq!(read_role(&ws, "a", &git), None);
+}
+
+#[test]
+fn a_role_mark_write_into_a_workspace_with_no_repo_surfaces_the_failure() {
+    let holder = tempfile::TempDir::new().unwrap();
+    assert!(write_role(holder.path(), "a", "planner", &RealGit::new()).is_err());
 }

@@ -46,6 +46,7 @@ fn loop_runs_each_tool_use_block_in_one_step_in_emission_order() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &valid_deps(
             &adapter,
             &sleeper,

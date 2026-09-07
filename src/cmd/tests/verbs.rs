@@ -213,6 +213,7 @@ fn prompt_reports_a_non_workspace() {
                 name: None,
                 pin: vec![],
                 cwd: None,
+                role: None,
             },
             fx,
         )

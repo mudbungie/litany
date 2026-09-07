@@ -10,18 +10,22 @@ use std::cell::RefCell;
 /// contains the pattern; `fail_capture` likewise for captures;
 /// `rebase_fails` fails that many non-`--abort` rebase invocations, each
 /// stop then consulting `ls_files`.
-struct Script {
-    fail_run: Option<&'static str>,
-    fail_capture: Option<&'static str>,
-    rebase_fails: RefCell<u32>,
-    ls_files: &'static str,
+pub(super) struct Script {
+    pub(super) fail_run: Option<&'static str>,
+    pub(super) fail_capture: Option<&'static str>,
+    pub(super) rebase_fails: RefCell<u32>,
+    pub(super) ls_files: &'static str,
     /// `log` answer — the founding sha, and the dispatch subject.
-    log: &'static str,
+    pub(super) log: &'static str,
     /// `rev-parse` answer — the governing config and the target alike, so
     /// the default script is deliberately *not* a no-op (below).
-    rev_parse: &'static str,
-    /// `show`/`cat-file` answer: the target's `providers.yaml` and soul.
-    providers: &'static str,
+    pub(super) rev_parse: &'static str,
+    /// `show` answer: the target's `providers.yaml` and soul.
+    pub(super) providers: &'static str,
+    /// `cat-file blob` answer — the role mark's blob (§4.3, bl-946c).
+    /// Empty is the ordinary agent: no role mark, so the branch keeps
+    /// the role its dispatch commit records.
+    pub(super) role_mark: &'static str,
 }
 
 impl Default for Script {
@@ -34,6 +38,7 @@ impl Default for Script {
             log: "dsha",
             rev_parse: "gsha",
             providers: "roles:\n  worker:\n    provider: p\n    model: m\n",
+            role_mark: "",
         }
     }
 }
@@ -43,7 +48,7 @@ impl Script {
     /// stub, so `rev-parse` answers it too — `target` is what the caller
     /// passes and `gsha` is what governs, which differ, so the ordinary
     /// script is a real landing rather than a no-op.
-    fn land(&self) -> Result<Option<Outcome>, Error> {
+    pub(super) fn land(&self) -> Result<Option<Outcome>, Error> {
         super::super::land(Path::new("/ws"), "a", Path::new("/ws/agents/a"), self)
     }
 }
@@ -93,6 +98,7 @@ impl crate::template::GitRunner for Script {
             Some("for-each-ref") if joined.contains("%(objectname)") => "gsha\n".into(),
             Some("for-each-ref") => "refs/heads/config/default\n".into(),
             Some("show") => self.providers.into(),
+            Some("cat-file") => self.role_mark.into(),
             Some("write-tree") => "wsha".into(),
             Some("commit-tree") => "bsha".into(),
             Some("ls-files") => self.ls_files.into(),
@@ -209,15 +215,6 @@ fn scratch_worktree_and_mint_failures_surface() {
     }
 }
 
-#[test]
-fn a_dispatch_subject_read_failure_surfaces() {
-    let s = Script {
-        fail_capture: Some("--format=%s dsha"),
-        ..Script::default()
-    };
-    assert_op(s.land().unwrap_err(), "retarget dispatch subject");
-}
-
 // Stages 2+3 on one path: both sides carry content, so git wrote markers.
 const BOTH_SIDES: &str = "100644 bbb 2\tsummary/001.md\n100644 ccc 3\tsummary/001.md\n";
 
@@ -257,19 +254,22 @@ mod preflighting {
             ..Script::default()
         };
         assert_op(
-            preflight(d.path(), "a", "default", &s).unwrap_err(),
+            preflight(d.path(), "a", "default", None, &s).unwrap_err(),
             "retarget resolve target",
         );
     }
 
     #[test]
-    fn a_target_that_already_governs_resolves_to_none() {
+    fn a_target_that_already_governs_and_a_role_unchanged_is_a_no_op() {
         // The script answers the same sha to `rev-parse` and to the
-        // ancestry derivation, which is exactly "already governing".
+        // ancestry derivation, which is exactly "already governing"; the
+        // branch's role derives empty, so it is the worker default and
+        // `--role` names nothing new.
         let d = shell();
-        assert_eq!(
-            preflight(d.path(), "a", "default", &Script::default()).unwrap(),
-            None,
+        assert!(
+            preflight(d.path(), "a", "default", None, &Script::default())
+                .unwrap()
+                .is_noop()
         );
     }
 }

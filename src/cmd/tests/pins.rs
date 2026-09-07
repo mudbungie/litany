@@ -32,6 +32,7 @@ fn prompt_declines_a_malformed_pin_in_its_own_voice() {
                 name: None,
                 pin: vec!["no-equals-here".into()],
                 cwd: None,
+                role: None,
             },
             fx,
         )

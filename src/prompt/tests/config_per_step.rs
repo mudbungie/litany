@@ -116,6 +116,7 @@ fn a_config_edit_between_two_steps_governs_the_second_one() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &deps,
     )
     .unwrap();

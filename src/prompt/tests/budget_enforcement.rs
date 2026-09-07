@@ -58,6 +58,7 @@ fn exhausted_conversation_stops_before_next_model_call_and_marks_the_ref() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &valid_deps(
             &adapter,
             &sleeper,
@@ -118,6 +119,7 @@ fn unbounded_workflow_never_triggers_a_budget_stop() {
         None,
         None,
         crate::prompt::PinnedDocs::none(),
+        None,
         None,
         &valid_deps(
             &adapter,
@@ -188,6 +190,7 @@ fn budget_ref_write_failure_surfaces_as_a_git_error() {
         None,
         None,
         crate::prompt::PinnedDocs::none(),
+        None,
         None,
         &valid_deps(
             &adapter,

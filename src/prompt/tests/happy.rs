@@ -30,6 +30,7 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &valid_deps(
             &adapter,
             &sleeper,
@@ -245,7 +246,7 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
     );
     assert_eq!(runs[21].1, vec!["add", "goal.md", "soul.md"]);
     assert_eq!(runs[22].1[0], "commit");
-    assert!(runs[22].1[2].contains("step 001: dispatch"));
+    assert!(runs[22].1[2].contains("dispatch: worker"));
     assert!(runs[22].1[2].contains("[ct-1-deadbeef]"));
     // The step-1 drain (§2.11 *Delivery*): a stray-recovery probe over
     // messages/ (clean here — no add/commit), then the initial user

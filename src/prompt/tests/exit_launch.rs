@@ -100,6 +100,7 @@ pub(super) fn plain_run(repo: &Path, deps: &Deps<'_>) -> Result<String, crate::p
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         deps,
     )
 }

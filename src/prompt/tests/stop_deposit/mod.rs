@@ -69,6 +69,7 @@ fn stop_between_steps_deposits_stopped_and_skips_compaction() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &deps,
     )
     .unwrap();
@@ -149,6 +150,7 @@ fn stop_during_model_call_deposits_stopped_and_preserves_missing_end() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &deps,
     )
     .unwrap();
@@ -217,6 +219,7 @@ fn stop_during_tool_execution_deposits_stopped_and_skips_compaction() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &deps,
     )
     .unwrap();
@@ -264,6 +267,7 @@ fn tool_killed_without_stop_surfaces_as_tool_exec_error() {
         None,
         None,
         crate::prompt::PinnedDocs::none(),
+        None,
         None,
         &valid_deps(
             &adapter,

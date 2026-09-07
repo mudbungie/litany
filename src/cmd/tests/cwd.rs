@@ -24,6 +24,7 @@ fn prompt_declines_a_cwd_that_names_nothing_in_its_own_voice() {
                 name: None,
                 pin: vec![],
                 cwd: Some("/no/such/place/at/all".into()),
+                role: None,
             },
             fx,
         )

@@ -67,6 +67,7 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &valid_deps(
             &adapter,
             &sleeper,
@@ -167,7 +168,7 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     assert_eq!(runs.len(), 54);
     assert_eq!(runs[20].1, vec!["add", "name"]);
     assert_eq!(runs[21].1, vec!["add", "goal.md", "soul.md"]);
-    assert!(runs[22].1[2].contains("step 001: dispatch"));
+    assert!(runs[22].1[2].contains("dispatch: worker"));
     // Step-1 drain (§2.11): stray-probe, then the initial user message (001).
     assert_eq!(runs[23].1, vec!["status", "--porcelain", "--", "messages"]);
     assert_eq!(runs[24].1, vec!["add", "messages/001-user.md"]);
@@ -252,6 +253,7 @@ fn loop_runs_three_steps_when_two_completions_in_a_row_are_tool_use() {
         None,
         None,
         crate::prompt::PinnedDocs::none(),
+        None,
         None,
         &valid_deps(
             &adapter,

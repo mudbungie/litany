@@ -31,6 +31,7 @@ fn loop_terminates_on_non_tool_use_finish() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &valid_deps(
             &adapter,
             &sleeper,
@@ -69,6 +70,7 @@ fn loop_surfaces_tool_executor_failure_as_tool_exec_error() {
         None,
         None,
         crate::prompt::PinnedDocs::none(),
+        None,
         None,
         &valid_deps(
             &adapter,
@@ -118,6 +120,7 @@ fn a_response_cut_at_the_output_cap_is_refused_not_committed() {
         None,
         None,
         crate::prompt::PinnedDocs::none(),
+        None,
         None,
         &valid_deps(
             &adapter,

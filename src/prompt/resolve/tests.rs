@@ -245,7 +245,15 @@ fn a_fresh_fork_has_no_descent_and_resolves_the_governing_workflow() {
     let (_h, ws) = fixture::workspace();
     let fx = Fx::new();
     let spec = workspace::config_ref("default");
-    let cfg = resolve_worker(&ws, ConfigSource::Fork(&spec), &fx.deps()).unwrap();
+    let cfg = resolve_worker(
+        &ws,
+        ConfigSource::Fork {
+            point: &spec,
+            role: crate::prompt::WORKER_ROLE,
+        },
+        &fx.deps(),
+    )
+    .unwrap();
     assert_eq!(cfg.workflow.retry.max_attempts, 3);
 }
 

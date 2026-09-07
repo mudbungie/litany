@@ -1,17 +1,8 @@
-//! Every way driving an agent can fail (ARCH §2, §4.4, §6).
-//!
-//! One taxonomy for the whole executor — the step loop, the config
-//! reads, the adapter, the dispatch gate, the inbox — deliberately
-//! narrower than brazen's: wire-level distinctions are brazen's, spoken
-//! in band as the `CanonicalError` this enum folds into
-//! [`Error::AdapterError`] (§4.4). It lives beside [`super::run`] rather
-//! than inside it because it is the module's shared vocabulary, not one
-//! function's.
+//! The taxonomy itself — one variant per way the executor can fail
+//! ([`super`] holds the module's subject, and why this is one flat enum).
 
-mod from_adapter;
-
-use super::{budget, dispatch, fork_point, inbox};
 use crate::prompt::ExecError;
+use crate::prompt::{budget, dispatch, fork_point, inbox};
 use std::path::PathBuf;
 use thiserror::Error as ThisError;
 
@@ -179,6 +170,12 @@ pub enum Error {
     /// refused at the fork rather than composed into a smaller toolset.
     #[error(transparent)]
     GrantUndescribed(#[from] dispatch::Undescribed),
+    /// A role the config commit in question does not declare or does not
+    /// soul (§4.3, [`crate::prompt::role::validate`]) — `litany retarget
+    /// --role` refusing before either mark is written (bl-946c), so a
+    /// declined role leaves the agent exactly as it was.
+    #[error(transparent)]
+    RoleUnavailable(#[from] crate::prompt::role::validate::Invalid),
     /// A `--name` malformed, id-shaped or taken (§2.3) — refused pre-fork.
     #[error(transparent)]
     NameUnavailable(#[from] crate::workspace::agent_name::Unavailable),

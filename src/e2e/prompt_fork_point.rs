@@ -24,15 +24,15 @@ use tempfile::TempDir;
 /// A workspace with a live mock provider: `(holder, workspace, harness,
 /// brazen config)`. The mock answers every model call with the same
 /// happy stream, so a test's subject is the git shape, never the reply.
-struct Fixture {
+pub(super) struct Fixture {
     _holder: TempDir,
     _server: MockServer,
-    ws: PathBuf,
+    pub(super) ws: PathBuf,
     harness: PathBuf,
     brazen_config: PathBuf,
 }
 
-fn fixture() -> Fixture {
+pub(super) fn fixture() -> Fixture {
     let server = MockServer::start();
     server.mock(|when, then| {
         when.method(POST).path("/v1/messages");
@@ -58,7 +58,7 @@ fn fixture() -> Fixture {
 
 impl Fixture {
     /// `litany prompt <ws> <message> [args…]` through the exec binding.
-    fn prompt(&self, message: &str, args: &[&str]) -> std::process::Output {
+    pub(super) fn prompt(&self, message: &str, args: &[&str]) -> std::process::Output {
         Command::new(crate::test_support::litany_binary())
             .arg("prompt")
             .arg(&self.ws)
@@ -73,7 +73,7 @@ impl Fixture {
 
     /// The agent id a successful start printed (§2.3 — the verb's one
     /// product).
-    fn start(&self, message: &str, args: &[&str]) -> String {
+    pub(super) fn start(&self, message: &str, args: &[&str]) -> String {
         let out = self.prompt(message, args);
         assert!(
             out.status.success(),
@@ -83,20 +83,20 @@ impl Fixture {
         String::from_utf8(out.stdout).unwrap().trim().to_string()
     }
 
-    fn bare(&self) -> PathBuf {
+    pub(super) fn bare(&self) -> PathBuf {
         self.ws.join("repo.git")
     }
 }
 
 /// The `system[0]` text of an agent's step-1 request — the system slot
 /// as it went on the wire (§2.3, §2.8, §4.4 typed request).
-fn system_slot(fx: &Fixture, agent: &str) -> String {
+pub(super) fn system_slot(fx: &Fixture, agent: &str) -> String {
     let path = fx.ws.join("steps").join(agent).join("001/request.json");
     let request: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
     request["system"][0]["text"].as_str().unwrap().to_string()
 }
 
-fn git(dest: &Path, args: &[&str]) -> String {
+pub(super) fn git(dest: &Path, args: &[&str]) -> String {
     let out = Command::new("git")
         .arg("-C")
         .arg(dest)

@@ -12,7 +12,8 @@ use crate::workspace;
 use std::path::PathBuf;
 
 /// `litany prompt <repo> <message> [--from <ref>] [--config <name>]
-/// [--name <name>] [--pin <dest>=<src>]... [--cwd <path>]`.
+/// [--role <name>] [--name <name>] [--pin <dest>=<src>]... [--cwd
+/// <path>]`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Path to the workspace (conversation repo) root.
@@ -40,6 +41,15 @@ pub struct Args {
     /// ([`crate::prompt::pinned_doc`]).
     #[arg(long = "pin", value_name = "DEST=SRC")]
     pub pin: Vec<String>,
+    /// Birth the root on this role instead of `worker` (ARCH §4.3,
+    /// §6 *Plan mode*): the role's soul, model assignment and `tools:`
+    /// grant are read from the same config commit the fork chooses, and
+    /// the dispatch commit records the name so every later step
+    /// resolves it. `--role planner` is plan mode for the whole
+    /// conversation, with no `litany config` pass. A role the governing
+    /// config does not declare is refused before the fork.
+    #[arg(long)]
+    pub role: Option<String>,
     /// Start the agent working in this directory instead of its worktree
     /// (ARCH §3.3): seeds the working-directory mark the `cd` built-in
     /// otherwise writes, before the first step. Validated — and refused —
@@ -106,6 +116,7 @@ fn go(args: Args, fx: &mut Fx) -> Result<String, Box<dyn std::error::Error>> {
         args.name.as_deref(),
         &pins,
         cwd.as_deref(),
+        args.role.as_deref(),
         &deps,
     )
     .map_err(Into::into)

@@ -69,8 +69,11 @@ use crate::template::GitRunner;
 use crate::workspace::agent_name as name_fact;
 use std::path::Path;
 
-/// Role name resolved from the config commit's `providers.yaml`
-/// (`roles:` block, ARCH §4.3) to drive the root conversation.
+/// The role a root is born on when its start named none (ARCH §4.3,
+/// §2.3 `litany prompt --role`) — the one home of "roots are workers",
+/// read from the config commit's `providers.yaml` `roles:` block like
+/// any other role. A start that *does* name one resolves that role
+/// instead, and the dispatch commit records which (`role::derive`).
 pub(crate) const WORKER_ROLE: &str = "worker";
 /// Directory in the config commit's tree holding the role souls (ARCH
 /// §4.3 — soul = `souls/<role>.md` in the governing config commit).
@@ -203,6 +206,7 @@ pub fn run(
     name: Option<&str>,
     pins: &PinnedDocs,
     cwd: Option<&Path>,
+    role: Option<&str>,
     deps: &Deps<'_>,
 ) -> Result<String, Error> {
     crate::workspace::require(repo)?;
@@ -211,7 +215,14 @@ pub fn run(
     // the living agents; absent → minted against the same scan. No root
     // starts nameless.
     let name = name_fact::mint::preflight(repo, name, deps.git, deps.rng)?;
-    let cfg = resolve::resolve_worker(repo, resolve::ConfigSource::Fork(&fork_point), deps)?;
+    let cfg = resolve::resolve_worker(
+        repo,
+        resolve::ConfigSource::Fork {
+            point: &fork_point,
+            role: role.unwrap_or(WORKER_ROLE),
+        },
+        deps,
+    )?;
     dispatch::run_exchange(
         repo,
         msg,

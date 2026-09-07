@@ -46,6 +46,7 @@ fn command_run_dispatches_every_non_prime_arm() {
         name: None,
         pin: vec![],
         cwd: None,
+        role: None,
     })));
     assert!(!dispatched(Command::Dispatch(dispatch::Args {
         role: "worker".into(),
@@ -61,6 +62,7 @@ fn command_run_dispatches_every_non_prime_arm() {
         workspace: ne(),
         agent: "a".into(),
         config: None,
+        role: None,
     })));
     assert!(!dispatched(Command::Workflow(workflow::Args {
         workspace: ne(),

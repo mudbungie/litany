@@ -82,6 +82,7 @@ fn a_failing_exit_launch_is_swallowed() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &deps,
     )
     .unwrap();
@@ -214,6 +215,7 @@ fn exit_race_late_deposit_is_delivered_via_the_exit_launched_driver() {
         None,
         None,
         crate::prompt::PinnedDocs::none(),
+        None,
         None,
         &deps,
     )

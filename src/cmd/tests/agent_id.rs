@@ -205,6 +205,7 @@ fn retarget_declines_an_escaping_id_before_it_reaches_a_ref() {
                 workspace: tmp.path().to_path_buf(),
                 agent: ESCAPING.into(),
                 config: None,
+                role: None,
             },
             fx,
         )

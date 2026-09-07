@@ -1,4 +1,5 @@
-//! **Retarget** — the change of config lineage (ARCH §2.2, §3.4).
+//! **Retarget** — the change of config lineage, and of the role an agent
+//! resolves as (ARCH §2.2, §4.3, §3.4).
 //!
 //! Fork chooses the lineage, and resolution follows its current tip at
 //! every step boundary (§2.2, bl-403b) — an operator who fixes an
@@ -43,18 +44,29 @@
 //! agent's next step, never mid-step: a config governs steps, and a
 //! retarget is in practice followed by a message, which *is* that next
 //! step.
+//!
+//! **The role rides the same landing** (bl-946c). An agent's role lives
+//! in its dispatch commit subject ([`role`]), and this landing mints a
+//! fresh dispatch commit — so *changing the role is changing what that
+//! commit says*, which is one field of the mint rather than a second
+//! mechanism. `litany retarget --role planner` writes the role mark
+//! beside the config one ([`workspace::retarget`]); either mark alone is
+//! a legal act, and an absent one reads as *unchanged*, so a role-only
+//! retarget re-forks the branch onto the config commit it already
+//! resolves and settles it as a planner. That is plan mode for a whole
+//! running conversation with no `litany config` pass (§6 *Plan mode is a
+//! lineage*), and accepting the plan is `--role worker` back.
 
 mod base;
+mod preflight;
+
+pub use preflight::preflight;
 
 use super::{Error, WORKER_ROLE, dispatch, fork_point, rebase_forward, role};
 use crate::prompt::rebase_forward::{Replay, Replayed};
 use crate::template::GitRunner;
 use crate::workspace;
 use std::path::Path;
-
-/// Why a retarget needed the agent to exist, for the shared
-/// [`workspace::require_agent`] decline (§2.3).
-const REASON: &str = "a retarget re-forks a running agent off another config commit (ARCH §2.2)";
 
 /// What consuming a retarget mark did to the branch.
 #[derive(Debug, PartialEq, Eq)]
@@ -74,75 +86,6 @@ pub enum Outcome {
     Conflicted(Vec<String>),
 }
 
-/// Everything `litany retarget` refuses **before** the mark is written
-/// (§3.4), returning the target config commit — or `None` when that commit
-/// already governs the agent, which is a clean no-op rather than an error.
-/// Nothing here writes, so a refusal leaves no debris at all: the same
-/// validity-before-fork discipline the §6 budget gate and the §3.3
-/// descriptor check hold to at every fork.
-///
-/// The checks are the ones a fork would run anyway, asked of the target:
-/// the workspace and the agent exist, the config lineage exists, and the
-/// agent's role — its own committed fact (§6) — is granted only tools the
-/// target config describes ([`dispatch::require_described`]). What is
-/// deliberately *not* checked is the tree: a retarget never inspects what
-/// the branch has been doing, because the freeze it lifts is about policy.
-pub fn preflight(
-    workspace_dir: &Path,
-    agent_id: &str,
-    config_name: &str,
-    git: &dyn GitRunner,
-) -> Result<Option<String>, Error> {
-    workspace::require(workspace_dir)?;
-    workspace::require_agent(workspace_dir, agent_id, REASON, git)?;
-    workspace::require_lineage(workspace_dir, config_name, git)
-        .map_err(|e| Error::from(fork_point::Error::from(e)))?;
-    let repo = workspace::repo_git(workspace_dir);
-    let branch = workspace::agent_ref(agent_id);
-    let spec = format!("{}^{{commit}}", workspace::config_ref(config_name));
-    let target = git
-        .run_capture(&repo, &["rev-parse", &spec])
-        .map_err(|source| Error::Git {
-            op: "retarget resolve target",
-            source,
-        })?
-        .trim()
-        .to_string();
-    if governing(workspace_dir, &branch, git)? == target {
-        return Ok(None);
-    }
-    let (role, tools) = grant_of(workspace_dir, &repo, agent_id, &branch, &target, git)?;
-    dispatch::require_described(
-        &repo,
-        &dispatch::Grant {
-            role: &role,
-            tools: &tools,
-            config_commit: &target,
-        },
-        git,
-    )?;
-    Ok(Some(target))
-}
-
-/// The role the branch committed and the `tools:` grant the **target**
-/// config declares for it — read once here so the pre-flight validates
-/// exactly the grant the base then forks with (§3.3). A root's dispatch
-/// subject carries no role, which is the worker default, exactly as step
-/// resolution reads it.
-fn grant_of(
-    workspace_dir: &Path,
-    access: &Path,
-    agent_id: &str,
-    start: &str,
-    target: &str,
-    git: &dyn GitRunner,
-) -> Result<(String, Vec<String>), Error> {
-    let role =
-        role::derive(access, start, agent_id, git)?.unwrap_or_else(|| WORKER_ROLE.to_string());
-    let tools = base::granted(workspace_dir, target, &role, git)?;
-    Ok((role, tools))
-}
-
 /// The commit the agent already resolves — the followed answer (§2.2
 /// *Fork chooses the lineage*, bl-403b): a target the agent's next step
 /// would read anyway is a clean no-op, so under follow-the-tip a
@@ -158,29 +101,62 @@ fn governing(workspace_dir: &Path, branch: &str, git: &dyn GitRunner) -> Result<
         })
 }
 
-/// Consume `agent_id`'s retarget mark, if it has one, against its branch
-/// checked out at `worktree` (ARCH §2.2). `Ok(None)` — no mark — is every
-/// agent's ordinary state at every boundary, so the whole feature costs an
-/// unmarked branch one ref read.
+/// The role the branch has committed — its own fact (§6), read from the
+/// dispatch commit subject reachable from `start` ([`role::derive`]). A
+/// root founded before bl-946c carries no role there, which is
+/// [`WORKER_ROLE`], exactly as step resolution reads it.
+fn committed_role(
+    access: &Path,
+    agent_id: &str,
+    start: &str,
+    git: &dyn GitRunner,
+) -> Result<String, Error> {
+    Ok(role::derive(access, start, agent_id, git)?.unwrap_or_else(|| WORKER_ROLE.to_string()))
+}
+
+/// Consume `agent_id`'s retarget marks, if it has either, against its
+/// branch checked out at `worktree` (ARCH §2.2). `Ok(None)` — neither
+/// mark — is every agent's ordinary state at every boundary, so the whole
+/// feature costs an unmarked branch two ref reads.
 ///
-/// **The mark is consumed in every outcome.** Landed, declined or no-op
-/// alike, the question has been answered; a surviving mark would re-ask it
-/// at the next boundary, and a declined landing would re-attempt a rebase
-/// that has already been recorded as refused.
+/// **An absent mark means unchanged, never nothing.** A config mark alone
+/// re-forks onto another lineage under the role the branch already
+/// carries; a role mark alone re-forks onto the commit it already
+/// resolves under a new role (bl-946c); both move both. There is no
+/// third case, because [`consume`] fills each absence from the branch's
+/// own committed fact.
+///
+/// **Both marks are consumed in every outcome.** Landed, declined or
+/// no-op alike, the question has been answered; a surviving mark would
+/// re-ask it at the next boundary, and a declined landing would
+/// re-attempt a rebase that has already been recorded as refused.
 pub fn land(
     workspace_dir: &Path,
     agent_id: &str,
     worktree: &Path,
     git: &dyn GitRunner,
 ) -> Result<Option<Outcome>, Error> {
-    let Some(target) = workspace::retarget::read(workspace_dir, agent_id, git) else {
+    let target = workspace::retarget::read(workspace_dir, agent_id, git);
+    let role = workspace::retarget::read_role(workspace_dir, agent_id, git);
+    if target.is_none() && role.is_none() {
         return Ok(None);
-    };
-    let outcome = consume(workspace_dir, agent_id, worktree, &target, git);
-    workspace::retarget::clear(workspace_dir, agent_id, git).map_err(|source| Error::Git {
+    }
+    let outcome = consume(
+        workspace_dir,
+        agent_id,
+        worktree,
+        target.as_deref(),
+        role.as_deref(),
+        git,
+    );
+    let err = |source| Error::Git {
         op: "retarget clear mark",
         source,
-    })?;
+    };
+    // `update-ref -d` on an absent ref succeeds, so both are cleared
+    // unconditionally rather than each behind a test of its own.
+    workspace::retarget::clear(workspace_dir, agent_id, git).map_err(err)?;
+    workspace::retarget::clear_role(workspace_dir, agent_id, git).map_err(err)?;
     outcome.map(Some)
 }
 
@@ -191,11 +167,19 @@ fn consume(
     workspace_dir: &Path,
     agent_id: &str,
     worktree: &Path,
-    target: &str,
+    marked_commit: Option<&str>,
+    marked_role: Option<&str>,
     git: &dyn GitRunner,
 ) -> Result<Outcome, Error> {
     let branch = workspace::agent_ref(agent_id);
-    if governing(workspace_dir, &branch, git)? == target {
+    let governing = governing(workspace_dir, &branch, git)?;
+    // An absent mark reads as the state the branch is already in, so a
+    // config mark naming the commit already governing, with no role mark
+    // beside it, is the whole of the no-op — and it is answered here,
+    // before the founding commit is read, because that is the one
+    // question a branch answers without one.
+    let target = marked_commit.unwrap_or(&governing);
+    if target == governing && marked_role.is_none() {
         return Ok(Outcome::NoOp);
     }
     let dispatch_sha = role::founding_sha(worktree, &branch, agent_id, git)?.ok_or(Error::Git {
@@ -205,14 +189,13 @@ fn consume(
              branch off its own founding commit (ARCH §2.2)"
         )),
     })?;
-    let (role, tools) = grant_of(
-        workspace_dir,
-        worktree,
-        agent_id,
-        &dispatch_sha,
-        target,
-        git,
-    )?;
+    // A role mark is the answer where it stands; without one the branch
+    // keeps the role its own dispatch commit records (§4.3).
+    let role = match marked_role {
+        Some(role) => role.to_string(),
+        None => committed_role(worktree, agent_id, &dispatch_sha, git)?,
+    };
+    let tools = base::granted(workspace_dir, target, &role, git)?;
     let base = base::commit(
         workspace_dir,
         worktree,

@@ -29,8 +29,9 @@
 //! mean "commits reachable from HEAD": a seconds-old child would read its
 //! parent's hundred commits as its own and be instantly due. The one
 //! commit that founds a branch is its **dispatch commit**, `dispatch:
-//! <role> [<agent-id>]` for a child and `step 001: dispatch [<agent-id>]`
-//! for a root ([`crate::prompt::dispatch::step_commit`]). One anchored
+//! <role> [<agent-id>]` for child and root alike, plus the pre-bl-946c
+//! root spelling `step 001: dispatch [<agent-id>]`
+//! ([`crate::prompt::dispatch::step_commit`]). One anchored
 //! pattern matches both spellings exactly
 //! ([`crate::prompt::role::founding_pattern`] — the single home of that
 //! question), so the root is not a special case; matching the

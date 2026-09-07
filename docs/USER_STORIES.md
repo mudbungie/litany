@@ -143,7 +143,7 @@ A **user story** here is one promise litany 0.0.1 makes to someone outside the c
 - **acceptance**
   - exit 0; **stdout is the bare agent id**, containing no `/` (the `agents/` prefix is the ref namespace, ARCH §2.3).
   - `refs/heads/agents/<id>` exists in `<ws>/repo.git`.
-  - Its history is, oldest first: `config: init [config/default]` → `step 001: dispatch [<id>]` → `transcript 001: user [<id>]` → `transcript 002: <model-id> [<id>]`. The initial user message rides the **inbox front door**, not a bespoke path — ARCH §2.11: *"The initial user message now rides this same path: the root executor deposits it into the agent's own inbox and the step-1 drain delivers it."*
+  - Its history is, oldest first: `config: init [config/default]` → `dispatch: worker [<id>]` → `transcript 001: user [<id>]` → `transcript 002: <model-id> [<id>]`. The initial user message rides the **inbox front door**, not a bespoke path — ARCH §2.11: *"The initial user message now rides this same path: the root executor deposits it into the agent's own inbox and the step-1 drain delivers it."*
   - The worktree at `<ws>/agents/<id>/` holds `goal.md`, `soul.md`, `descriptions/`, `messages/` — and **no** `providers.yaml`/`workflow.yaml`/`manifest.yaml`/`version` (ARCH §2.2: control is removed from the tree at the dispatch commit).
   - `messages/NNN-<model-id>.json` wraps the canonical `Content` blocks in `content`, with the provider's token `usage` as their sibling when the provider reported any (ARCH §2.3 *Usage rides the entry*; a bare block array parses too); `messages/NNN-user.md` is the delivered user message. The origin token is the model id, not a role.
   - `config/default` does **not** advance.

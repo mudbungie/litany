@@ -12,30 +12,37 @@ use std::path::Path;
 
 /// Which config commit governs the resolution (ARCH §2.2).
 pub(crate) enum ConfigSource<'a> {
-    /// A fresh root about to fork off this ref (§2.3 *Any ref is a legal
+    /// A fresh root about to fork off `point` (§2.3 *Any ref is a legal
     /// fork point*): a config lineage's head, or any commit of any agent
     /// (`--from`, §7.2). Either way resolution follows the governing
     /// lineage of that ref to its current tip (§2.2, bl-403b) — fork
     /// chooses the lineage, never the moment.
-    Fork(&'a str),
+    ///
+    /// `role` is the role the root is being born on (`litany prompt
+    /// --role`, §2.3): the fact its dispatch commit is about to record,
+    /// supplied here because there is no commit to read it from yet.
+    /// The caller passes [`crate::prompt::WORKER_ROLE`] when the start
+    /// named none — the default has one home, at the verb.
+    Fork { point: &'a str, role: &'a str },
     /// An existing agent: the current tip of its branch's governing
     /// lineage (§2.2, bl-403b), derived from ancestry plus the refs.
     Agent(&'a str),
 }
 
 /// The agent's role (§6 role-aware resolution). A fresh root about to
-/// fork has no dispatch commit yet, so it is the worker default; an
-/// existing agent's role is derived from its own dispatch commit subject
-/// — the single authoritative home ([`crate::prompt::role`]) — falling
-/// back to the worker default for a root branch (whose subject lacks the
-/// `dispatch: <role>` prefix).
+/// fork has no dispatch commit yet, so the start's own answer is carried
+/// on the source ([`ConfigSource::Fork`]); an existing agent's role is
+/// derived from its own dispatch commit subject — the single
+/// authoritative home ([`crate::prompt::role`]) — falling back to the
+/// worker default for a branch founded before roots recorded their role
+/// (whose subject lacks the `dispatch: <role>` prefix).
 pub(super) fn agent_role(
     workspace: &Path,
     source: &ConfigSource<'_>,
     deps: &Deps<'_>,
 ) -> Result<String, Error> {
     match source {
-        ConfigSource::Fork(_) => Ok(WORKER_ROLE.to_string()),
+        ConfigSource::Fork { role, .. } => Ok((*role).to_string()),
         ConfigSource::Agent(agent_id) => Ok(crate::prompt::role::derive(
             &workspace::repo_git(workspace),
             &workspace::agent_ref(agent_id),
@@ -61,7 +68,7 @@ pub(super) fn config_commit(
     deps: &Deps<'_>,
 ) -> Result<String, Error> {
     let rev = match source {
-        ConfigSource::Fork(fork_point) => (*fork_point).to_owned(),
+        ConfigSource::Fork { point, .. } => (*point).to_owned(),
         ConfigSource::Agent(agent_id) => workspace::agent_ref(agent_id),
     };
     let resolved =

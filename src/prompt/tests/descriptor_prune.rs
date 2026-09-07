@@ -59,6 +59,7 @@ fn the_dispatch_commit_derives_the_tree_to_the_resolved_grant() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &valid_deps(
             &adapter,
             &sleeper,

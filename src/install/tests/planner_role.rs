@@ -117,8 +117,10 @@ fn the_planner_soul_says_what_a_plan_is_and_why_it_cannot_act() {
 
 /// Declared and **unbound**: no shipped workflow dispatches a planner,
 /// which is what keeps the row free for an install that never uses it —
-/// and what makes plan mode a config act (a lineage) rather than
-/// something the basic agentic loop does on its own.
+/// and what makes plan mode an **operator** act (`dispatch(planner)`,
+/// `litany prompt --role planner`, `litany retarget --role planner`, or
+/// a lineage) rather than something the basic agentic loop does on its
+/// own.
 #[test]
 fn no_shipped_workflow_binds_the_planner() {
     for (name, raw) in [

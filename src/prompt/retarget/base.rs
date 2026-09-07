@@ -23,11 +23,17 @@
 //!   untouched; the soul is re-read from the target's `souls/<role>.md`,
 //!   which is the whole point of retargeting a role whose soul moved.
 //!
-//! **The subject is the old one, verbatim.** A branch's founding commit is
-//! identified by its subject ([`role::founding_sha`]), and the checkpoint
-//! clock (§2.7) and role derivation (§6) both read it — so re-minting it
-//! under any other wording would move the branch's own founding out from
-//! under them. The commit is new; what it *says* is the fact it restates.
+//! **The subject is composed from the grant, not copied.** A branch's
+//! founding commit is identified by its subject
+//! (`role::founding_pattern`), and the checkpoint clock (§2.7) and role
+//! derivation (§6) both read it — so it is re-minted in the one spelling
+//! every dispatch commit carries, `dispatch: <role> [<agent-id>]`, which
+//! restates the same fact when the role is unchanged and *is* the change
+//! when it is not (bl-946c: the role's home is this subject, so settling
+//! a role is writing it). A branch founded before bl-946c under the old
+//! root spelling (`step 001: dispatch [<id>]`) is re-minted in the
+//! current one; both match the founding pattern, and the role it derives
+//! as — the worker default — is unchanged.
 //!
 //! The mint never disturbs the live checkout: a throwaway detached
 //! worktree at the old dispatch commit gives the trim a tree to work in,
@@ -74,7 +80,7 @@ pub(super) fn commit(
         op: "retarget scratch worktree",
         source,
     })?;
-    let minted = mint(&tmp, worktree, agent_id, dispatch_sha, grant, &soul, git);
+    let minted = mint(&tmp, agent_id, grant, &soul, git);
     // The scratch worktree is disposable either way; a removal failure
     // must not shadow the mint's own outcome.
     let _ = git.run(worktree, &["worktree", "remove", "--force", &tmp_str]);
@@ -110,14 +116,10 @@ pub(super) fn granted(
 
 /// The object-store half of [`commit`], run inside the scratch worktree:
 /// the fork's own trim against the target config commit, the re-pinned
-/// soul, then the tree and the commit. `access` is any checkout onto the
-/// same object store — the subject is read there because the scratch
-/// worktree is about to be torn down.
+/// soul, then the tree and the commit.
 fn mint(
     tmp: &Path,
-    access: &Path,
     agent_id: &str,
-    dispatch_sha: &str,
     grant: &dispatch::Grant<'_>,
     soul: &str,
     git: &dyn GitRunner,
@@ -133,9 +135,7 @@ fn mint(
     let tree = git
         .run_capture(tmp, &["write-tree"])
         .map_err(err("retarget write-tree"))?;
-    let subject = git
-        .run_capture(access, &["log", "-n", "1", "--format=%s", dispatch_sha])
-        .map_err(err("retarget dispatch subject"))?;
+    let subject = format!("dispatch: {} [{agent_id}]", grant.role);
     let sha = git
         .run_capture(
             tmp,
@@ -145,7 +145,7 @@ fn mint(
                 "-p",
                 grant.config_commit,
                 "-m",
-                subject.trim(),
+                subject.as_str(),
             ],
         )
         .map_err(err("retarget commit-tree"))?;

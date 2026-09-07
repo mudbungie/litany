@@ -51,7 +51,9 @@ roles:
   # shipped workflow dispatches it, so this row costs an install that
   # never uses it nothing, and it makes plan mode a config edit rather
   # than an authoring act. It is reachable with no config at all — any
-  # agent whose grant carries `dispatch` may `dispatch(planner)` today.
+  # agent whose grant carries `dispatch` may `dispatch(planner)`, and
+  # `litany prompt --role planner` / `litany retarget --role planner`
+  # put a whole conversation under it (ARCH §4.3, §6, bl-946c).
   #
   # Its grant is its confinement, and the confinement is the role: read
   # the tree by path, search this workspace's history, load a skill.

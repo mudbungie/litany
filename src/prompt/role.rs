@@ -1,11 +1,12 @@
 //! Agent role derivation from the dispatch commit subject (ARCH §2.5, §6).
 //!
 //! **Single authoritative home** (`docs/PRINCIPLES.md` Single source of
-//! truth): a child agent's role lives in its **dispatch commit subject**,
-//! `dispatch: <role> [<agent-id>]`, written once by
-//! [`crate::prompt::subagent::spawn_subagent_branch`] and never restated —
-//! no sidecar role table, no pinned soul-name parse. Two readers derive
-//! from this one home:
+//! truth): an agent's role lives in its **dispatch commit subject**,
+//! `dispatch: <role> [<agent-id>]`, written once — by
+//! [`crate::prompt::subagent::spawn_subagent_branch`] for a child and by
+//! [`crate::prompt::dispatch::step_commit`] for a root (bl-946c) —
+//! and never restated: no sidecar role table, no pinned soul-name parse.
+//! Two readers derive from this one home:
 //!
 //! - a parent naming the lifecycle event of a **returning child** (§6,
 //!   [`crate::prompt::dispatch::child_result`]) reads the child's subject
@@ -13,10 +14,13 @@
 //! - an agent resolving **its own** soul + toolset under `litany advance`
 //!   (§6 role-aware resolution, [`crate::prompt::resolve`]) reads its own.
 //!
-//! A *root* agent's dispatch commit subject is `step 001: dispatch [<id>]`
-//! ([`crate::prompt::dispatch::step_commit`]) — it lacks the `dispatch:
-//! <role>` prefix, so [`derive`] yields `None` for a root and the caller
-//! applies the worker default (roots are workers).
+//! A root founded **before bl-946c** carries the older subject `step 001:
+//! dispatch [<id>]`, which lacks the `dispatch: <role>` prefix — so
+//! [`derive`] yields `None` there and the caller applies
+//! [`crate::prompt::WORKER_ROLE`], the one home of that default. Nothing
+//! writes that spelling any more; it is read, never minted, and a
+//! retarget landing re-mints it in the current spelling
+//! ([`crate::prompt::retarget::base`]).
 
 use crate::prompt::Error;
 use crate::template::GitRunner;
@@ -32,8 +36,8 @@ const DISPATCH_PREFIX: &str = "dispatch: ";
 /// Derive the role recorded in the dispatch commit that names `agent_id`
 /// (`dispatch: <role> [<agent-id>]`), reachable from `start` (a branch
 /// ref or commit sha) and read in `dir` (any checkout onto the workspace
-/// object store, §2.2). `None` when no such commit exists — a root, whose
-/// dispatch subject lacks the prefix.
+/// object store, §2.2). `None` when no such commit exists — a root
+/// founded before bl-946c, whose dispatch subject lacks the prefix.
 ///
 /// The `--grep` regex is anchored on the exact `[<agent-id>]` tail, so
 /// only the agent's *own* dispatch commit matches — never a descendant's
@@ -74,10 +78,11 @@ pub fn derive(
 /// drift apart ([`founding_sha`] here, [`crate::prompt::compactor`]'s
 /// checkpoint clock, which ORs it with its landing subjects).
 ///
-/// **One pattern founds every branch.** A child's subject is `dispatch:
-/// <role> [<id>]` and a root's is `step 001: dispatch [<id>]`
-/// ([`crate::prompt::dispatch::step_commit`]), so the alternation covers
-/// both and the root is the general path rather than a second case. The
+/// **One pattern founds every branch.** Every dispatch commit minted
+/// today reads `dispatch: <role> [<id>]`, root and child alike
+/// ([`crate::prompt::dispatch::step_commit`], bl-946c); the second
+/// alternative is the pre-bl-946c root spelling, `step 001: dispatch
+/// [<id>]`, kept so a workspace founded before it still answers. The
 /// two spellings are matched *exactly* rather than by the `[<id>]` tail
 /// alone, because the executor's own transcript commits end in that tail
 /// too (`transcript NNN: <origin> [<id>]`, and the stray recovery's
@@ -183,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_role_is_none_for_a_root_or_empty_subject() {
+    fn parse_role_is_none_for_a_pre_bl946c_root_or_empty_subject() {
         assert_eq!(parse_role("step 001: dispatch [a-b]"), None);
         assert_eq!(parse_role(""), None);
     }

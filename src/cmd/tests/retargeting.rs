@@ -11,18 +11,77 @@ use crate::workspace::{self, fixture};
 /// stderr (§3.4 — like `message`'s advisory), so what a test reads
 /// back is the mark itself: the one thing the verb writes.
 fn run(ws: &std::path::Path, agent: &str, config: Option<&str>) {
+    with_role(ws, agent, config, None);
+}
+
+/// The same, naming a role (§4.3, bl-946c).
+fn with_role(ws: &std::path::Path, agent: &str, config: Option<&str>, role: Option<&str>) {
     let (r, out, _err) = with_fx("true", b"", &noop_editor, |fx| {
         retarget::run(
             retarget::Args {
                 workspace: ws.to_path_buf(),
                 agent: agent.to_string(),
                 config: config.map(str::to_string),
+                role: role.map(str::to_string),
             },
             fx,
         )
     });
     assert!(matches!(r.unwrap(), Outcome::Quiet), "product-less (§3.4)");
     assert!(out.is_empty(), "no stdout product (§3.4)");
+}
+
+#[test]
+fn a_role_names_the_role_mark_and_nothing_else_when_the_lineage_is_unmoved() {
+    // §4.3 / bl-946c: plan mode for a whole running conversation is one
+    // gesture and one mark — the config the agent already resolves stays
+    // where it is.
+    let (_h, ws) = fixture::workspace();
+    fixture::spawn_root(&ws, "20260101-a1");
+    let git = RealGit::new();
+    with_role(&ws, "20260101-a1", None, Some("planner"));
+    assert_eq!(
+        workspace::retarget::read_role(&ws, "20260101-a1", &git),
+        Some("planner".to_string()),
+    );
+    assert_eq!(
+        workspace::retarget::read(&ws, "20260101-a1", &git),
+        None,
+        "an unmoved lineage writes no config mark",
+    );
+}
+
+#[test]
+fn the_role_the_agent_already_carries_writes_no_mark_at_all() {
+    let (_h, ws) = fixture::workspace();
+    fixture::spawn_root(&ws, "20260101-a1");
+    with_role(&ws, "20260101-a1", None, Some("worker"));
+    assert_eq!(
+        workspace::retarget::read_role(&ws, "20260101-a1", &RealGit::new()),
+        None,
+    );
+}
+
+#[test]
+fn a_role_the_config_does_not_declare_is_refused_before_any_mark() {
+    let (_h, ws) = fixture::workspace();
+    fixture::spawn_root(&ws, "20260101-a1");
+    let (r, _out, _err) = with_fx("true", b"", &noop_editor, |fx| {
+        retarget::run(
+            retarget::Args {
+                workspace: ws.clone(),
+                agent: "20260101-a1".into(),
+                config: None,
+                role: Some("ghost".into()),
+            },
+            fx,
+        )
+    });
+    assert_prefixed(r.unwrap_err(), "retarget");
+    assert_eq!(
+        workspace::retarget::read_role(&ws, "20260101-a1", &RealGit::new()),
+        None,
+    );
 }
 
 #[test]
@@ -93,6 +152,7 @@ fn a_declined_pre_flight_leaves_no_mark_and_renders_the_uniform_failure() {
                 workspace: ws.clone(),
                 agent: "20260101-a1".into(),
                 config: Some("nosuch".into()),
+                role: None,
             },
             fx,
         )
@@ -119,6 +179,7 @@ fn a_mark_that_cannot_be_written_surfaces_the_uniform_failure() {
                 workspace: ws.clone(),
                 agent: "20260101-a1".into(),
                 config: None,
+                role: None,
             },
             fx,
         )

@@ -20,6 +20,7 @@ mod prompt_adapter_failure;
 mod prompt_end_to_end;
 mod prompt_fork_point;
 mod prompt_retry;
+mod prompt_role;
 mod python_cli;
 mod replay_drive;
 mod scan_cli;

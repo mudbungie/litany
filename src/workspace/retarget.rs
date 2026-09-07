@@ -23,6 +23,19 @@
 //! reads a commit-ish and nothing decodes anything. `git gc` keeps the
 //! commit alive for as long as the mark does, which is what makes a
 //! marked-then-rewound config lineage still land.
+//!
+//! **The role mark is the second half of the same act** (bl-946c),
+//! `refs/litany/role/<agent-id>`, written by `litany retarget --role`
+//! and consumed by the same landing at the same boundary. It is a
+//! *second ref* and not a field on the first because the two are
+//! orthogonal facts of different shapes — which config lineage governs
+//! (a commit), and which role the agent is (a name, so a blob, the
+//! `cwd` shape). Either may be marked without the other, and the
+//! landing takes each absent one to mean *unchanged*: the general path
+//! with empty inputs. Both live here because one verb writes them and
+//! one landing answers them; a role has no other mark and no other
+//! reader, its permanent home being the dispatch commit subject
+//! ([`crate::prompt::role`]) the landing re-mints.
 
 use super::{MARK_REF_ROOT, repo_git};
 use crate::template::GitRunner;
@@ -62,6 +75,61 @@ pub fn write(
     git.run(
         &repo_git(workspace),
         &["update-ref", &retarget_ref(agent_id), commit],
+    )
+}
+
+/// Ref-namespace prefix for the role mark (§4.3, bl-946c).
+pub const ROLE_REF_PREFIX: &str = "role/";
+
+/// `refs/litany/role/<agent-id>` — the role mark ref for one agent.
+pub fn role_ref(agent_id: &str) -> String {
+    format!("{MARK_REF_ROOT}{ROLE_REF_PREFIX}{agent_id}")
+}
+
+/// The role an agent is marked to be settled on, or `None` when no role
+/// mark is set — the ordinary state of every agent, and the landing's
+/// reading of *keep the role the branch already committed*. An
+/// unreadable mark reads the same way, for the reason [`read`] gives.
+pub fn read_role(workspace: &Path, agent_id: &str, git: &dyn GitRunner) -> Option<String> {
+    let out = git
+        .run_capture(
+            &repo_git(workspace),
+            &["cat-file", "blob", &role_ref(agent_id)],
+        )
+        .ok()?;
+    let role = out.trim();
+    (!role.is_empty()).then(|| role.to_string())
+}
+
+/// Mark `agent_id` for settling onto `role` — last write wins, like
+/// [`write`]. The name is stored as a blob the ref points at, the
+/// value-carrying mark shape `cwd` established (§3.3); role names are
+/// `providers.yaml` keys, so no round-trip guard is needed beyond the
+/// trim [`read_role`] performs.
+pub fn write_role(
+    workspace: &Path,
+    agent_id: &str,
+    role: &str,
+    git: &dyn GitRunner,
+) -> io::Result<()> {
+    let repo = repo_git(workspace);
+    // `git hash-object` reads a file and the trait's methods carry no
+    // stdin, so the value is staged beside the repo under a pid-unique
+    // name and removed once hashed — the `cwd` mark's own recipe.
+    let staged = repo.join(format!("role-mark.{}.tmp", std::process::id()));
+    std::fs::write(&staged, role.as_bytes())?;
+    let staged_str = staged.to_string_lossy().into_owned();
+    let hashed = git.run_capture(&repo, &["hash-object", "-w", "--", &staged_str]);
+    std::fs::remove_file(&staged)?;
+    git.run(&repo, &["update-ref", &role_ref(agent_id), &hashed?])
+}
+
+/// Consume the role mark, on every path out of the landing — the reason
+/// [`clear`] gives, for the same boundary.
+pub fn clear_role(workspace: &Path, agent_id: &str, git: &dyn GitRunner) -> io::Result<()> {
+    git.run(
+        &repo_git(workspace),
+        &["update-ref", "-d", &role_ref(agent_id)],
     )
 }
 

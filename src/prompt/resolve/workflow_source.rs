@@ -94,7 +94,7 @@ pub(crate) fn source_of(
     git: &dyn GitRunner,
 ) -> Source {
     let marked = match source {
-        ConfigSource::Fork(_) => None,
+        ConfigSource::Fork { .. } => None,
         ConfigSource::Agent(agent_id) => nearest_mark(workspace, agent_id, git),
     };
     match marked {

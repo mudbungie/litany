@@ -700,7 +700,7 @@ head instead of `config/default`'s, and the agent is governed by that
 lineage (§2.2). A lineage the workspace does not have is declined by
 name, with the pool that does exist.
 
-## Moving a running agent onto a new config lineage: `litany retarget`
+## Moving a running agent onto a new config lineage or role: `litany retarget`
 
 A same-lineage config edit needs no verb at all: resolution follows the
 lineage's current tip at every step boundary (§2.2 follow-the-tip,
@@ -711,20 +711,25 @@ different `config/*` line, or settle an agent held on its fork commit
 because diverged lineages both reach it:
 
 ```
-litany retarget <workspace> <agent>                 # onto config/default's head
-litany retarget <workspace> <agent> --config strict # onto config/strict's head
+litany retarget <workspace> <agent>                  # onto config/default's head
+litany retarget <workspace> <agent> --config strict  # onto config/strict's head
+litany retarget <workspace> <agent> --role planner   # same config, another role
 ```
 
 It writes one ref, `refs/litany/retarget/<agent-id>`, at the target
-config commit — and nothing else. **The agent's own executor lands it**
-at its next step (ARCH §2.2, §2.3: no branch ever gains a second
-writer), by re-forking the branch off that commit and replaying the
-agent's own history on top: the same rebase-forward move the compaction
-landing uses. Afterwards the ordinary ancestry query answers the new
-config, with no new stored fact anywhere.
+config commit — and, where `--role` names a role the branch is not
+already on, a second, `refs/litany/role/<agent-id>`, at that name. It
+writes nothing else. **The agent's own executor lands them** at its next
+step (ARCH §2.2, §2.3: no branch ever gains a second writer), by
+re-forking the branch off that commit and replaying the agent's own
+history on top: the same rebase-forward move the compaction landing
+uses. Afterwards the ordinary ancestry query answers the new config, and
+the re-minted dispatch commit answers the role — with no new stored fact
+anywhere.
 
 ```
-litany: [20260101-a1] marked for retarget onto a06b090c1d2e (config/default); it lands at the agent's next step (ARCH §2.2)
+litany: [20260101-a1] marked for retarget onto a06b090c1d2e (config/default)
+litany: it lands at the agent's next step (ARCH §2.2)
 ```
 
 Three things worth knowing:
@@ -732,25 +737,29 @@ Three things worth knowing:
 - **It takes effect at the next step, never mid-step.** A config governs
   steps. In practice you follow a retarget with `litany message`, which
   *is* that next step.
-- **A target that already governs the agent is a clean no-op** — the verb
-  says so and writes nothing.
+- **A target that already governs the agent, under the role it already
+  carries, is a clean no-op** — the verb says so and writes nothing.
+  Either mark may stand without the other, and an absent one means
+  *unchanged*, so `--role` alone re-forks onto the commit already
+  governing.
 - **Every refusal precedes the mark**, so a declined retarget leaves no
   debris: an unknown workspace, agent or lineage, or a target config
   whose `providers.yaml` grants the agent's role a tool its
-  `descriptions/**` does not describe (ARCH §3.3), are all refused before
-  the ref is written.
+  `descriptions/**` does not describe (ARCH §3.3), or a `--role` the
+  target config does not declare or carries no soul for (§4.3), are all
+  refused before any ref is written.
 
 What is re-derived is everything config-shaped: the role's soul, the
 `descriptions/**` cut to its grant, the control-file removal. The
 agent's own facts — its goal, its name, its whole transcript and its work
 products — are untouched.
 
-## Plan before it acts: the `planner` role and a `plan` lineage
+## Plan before it acts: the `planner` role
 
-A plan mode — *produce a plan I accept before you act* — is a **lineage**
+A plan mode — *produce a plan I accept before you act* — is a **role**
 here, not a mode, because what holds an agent back from acting is its
 **grant**, and a grant is a fact of the governing config commit (ARCH
-§4.3, §6 *Plan mode is a lineage*). Two forms, and one of them needs no
+§4.3, §6 *Plan mode is a lineage*). Two forms, and neither needs any
 configuration at all.
 
 **Delegated, in a stock workspace.** The template ships a `planner` role
@@ -770,35 +779,39 @@ all it can produce. No `bash` is the trade worth knowing — a planner
 reads by path rather than by `grep` — and a deployment that wants a
 stronger one adds the word to that row.
 
-**The whole conversation.** A root always resolves the `worker` role, so
-putting your *own* conversation in plan mode means a lineage whose worker
-is the planner. One authoring pass per workspace, both edits copies of
-what the lineage already carries:
+**The whole conversation.** A root is born on the role its start names,
+so putting your *own* conversation in plan mode is one argument on the
+lineage you are already on — no `litany config` pass, no second lineage:
 
 ```
-litany config <workspace> plan --from default
-#   providers.yaml: set roles.worker.tools to roles.planner.tools
-#   souls/worker.md: replace with the text of souls/planner.md
+litany prompt <workspace> "<task>" --role planner
 ```
 
-Then start a conversation in it, or move a running one into it:
+A conversation already running moves the same way. `litany retarget`
+re-mints the branch's dispatch commit, which is where a role lives, so
+naming a role re-pins that role's soul and re-cuts the branch's tool
+descriptors to its grant — from the config commit already governing:
 
 ```
-litany prompt <workspace> "<task>" --config plan
-litany retarget <workspace> <agent> --config plan
+litany retarget <workspace> <agent> --role planner
 ```
 
 **Accepting the plan is the retarget back**, and there is no other act:
 
 ```
-litany retarget <workspace> <agent> --config default
+litany retarget <workspace> <agent> --role worker
 litany message <workspace> <agent> "looks right — do it"
 ```
 
 The agent keeps its branch, its transcript and the plan it wrote; at its
-next step boundary it resolves the default lineage's grant and soul and
-carries out what you just approved. Rejecting is the same act with
-different words — or `litany stop`.
+next step boundary it resolves the worker grant and soul and carries out
+what you just approved. Rejecting is the same act with different words —
+or `litany stop`.
+
+Both marks are consumed at that next step boundary and either may stand
+alone, so a plan mode that also wants a different *model* or a different
+context-assembly manifest is still a lineage, and the two compose:
+`litany retarget <workspace> <agent> --config plan --role planner`.
 
 **Not to be confused with `gate_return_on`.** That binding holds a
 *child's* return until a *model verifier* approves it (ARCH §6); it is a
@@ -1198,7 +1211,7 @@ sender's agent id, `tool`, or the authoring model's id:
 ```
 f265de7 (agents/…) transcript 002: qwen3.5:9b […]
 7ae527e transcript 001: user […]
-f643a50 step 001: dispatch […]
+f643a50 dispatch: worker […]
 6f4bd05 (config/default) config: init [config/default]
 ```
 

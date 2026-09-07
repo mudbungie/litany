@@ -112,6 +112,7 @@ fn a_name_a_living_agent_wears_is_refused_at_both_creation_verbs_and_forks_nothi
                 name: Some("pale-otter".into()),
                 pin: vec![],
                 cwd: None,
+                role: None,
             },
             fx,
         )

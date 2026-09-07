@@ -151,10 +151,10 @@ fn role_listed_but_soul_missing_surfaces_soulmissing() {
     match err {
         Error::Role(Invalid::SoulMissing {
             ref role,
-            ref agent,
+            ref subject,
         }) => {
             assert_eq!(role, "verifier");
-            assert_eq!(agent, "p9");
+            assert_eq!(subject, "a child of agent \"p9\"");
         }
         other => panic!("expected SoulMissing, got {other}"),
     }

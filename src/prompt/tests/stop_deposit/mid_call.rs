@@ -68,6 +68,7 @@ fn stop_in_the_retry_backoff_deposits_stopped_without_a_further_model_call() {
         None,
         crate::prompt::PinnedDocs::none(),
         None,
+        None,
         &deps,
     )
     .unwrap();
@@ -131,6 +132,7 @@ fn torn_line_with_a_stop_pending_deposits_stopped() {
         None,
         None,
         crate::prompt::PinnedDocs::none(),
+        None,
         None,
         &deps,
     )
