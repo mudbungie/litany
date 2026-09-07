@@ -126,9 +126,12 @@ retry:
 # What it costs is real and is priced here: a source file read whole is
 # cut in the middle, and the model gets the marker instead. That is the
 # intended trade — the full capture is on disk, the marker names its
-# path and the byte and line counts, and re-reading a named range
-# (`sed -n '120,180p'`) costs one cheap tool call, where carrying every
-# whole file forever costs every later step. Raise both numbers on a
+# path and the byte and line counts, and re-reading a named range costs
+# one cheap tool call, where carrying every whole file forever costs
+# every later step. The range is named for the model rather than
+# guessed by it: since bl-cbe0 `read_file` takes `offset`/`limit` in
+# lines and every result says which lines it returned, how many the
+# file has, and the offset to continue at. Raise both numbers on a
 # workspace whose work really is reading long files end to end; that is
 # what a severable policy block is for.
 tool_output:

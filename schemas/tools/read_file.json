@@ -7,6 +7,16 @@
     "path": {
       "type": "string",
       "description": "Filesystem path to the file to read. Relative paths resolve against the agent's current working directory."
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "1-based line to begin at. Omit to read from the first line. Every result names the lines it returned and the file's total, and says which offset to continue at when lines remain — so a second call reads the next window without guessing."
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How many lines to return, starting at `offset`. Omit to read to the end of the file."
     }
   },
   "required": ["path"],

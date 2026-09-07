@@ -1,13 +1,31 @@
 //! `read_file` built-in (ARCH §3.3, §12 v0.3 toolset).
 //!
-//! Stdin is the `tool_use.input` block as JSON: `{ "path": <string> }`.
-//! Stdout is the file's raw bytes; exit code 0 on success. Errors land
-//! on stderr (the executor concats it after stdout into
+//! Stdin is the `tool_use.input` block as JSON:
+//! `{ "path": <string>, "offset": <line>?, "limit": <lines>? }`.
+//! Stdout is the selected lines' raw bytes; exit code 0 on success.
+//! Errors land on stderr (the executor concats it after stdout into
 //! `tool_result.content` per §3.3) and the process exits non-zero.
 //!
+//! **The read says what it returned** (bl-cbe0,
+//! `docs/DESIGN_CODE_EXECUTION.md` §3). Every invocation writes one
+//! [`range::Selection::note`] line to stderr — the lines returned, the
+//! file's total, and, when lines remain, the `offset` to continue at.
+//! Stdout stays the file's bytes verbatim, because a model that reads a
+//! file and then patches it must not have a header line of ours in what
+//! it believes the file says; the envelope surfaces stderr on success
+//! too, so the note reaches the model either way. Without it a read cut
+//! by the `tool_output:` bound (2 KiB + 2 KiB since bl-ce09) tells the
+//! model *that* the middle is missing but not which lines to ask for
+//! next, and a `sed -n 'A,Bp'` re-read has to guess A and B.
+//!
 //! Oversized files are rejected with [`Error::TooLarge`] rather than
-//! truncated. The auto-dispatch shim that turns oversized output into a
+//! truncated — the cap is on the FILE, not on the selection, so
+//! `offset`/`limit` narrow a read that fits and do not open one that
+//! does not (`docs/DESIGN_CONTEXT_ECONOMY.md` §7's second gap, still
+//! open). The auto-dispatch shim that turns oversized output into a
 //! summarized read is deferred to v0.4+ (epic non-goal in §11/§12).
+
+mod range;
 
 use serde::Deserialize;
 use std::fs::File;
@@ -30,7 +48,15 @@ pub const MAX_BYTES: u64 = 1024 * 1024;
 #[serde(deny_unknown_fields)]
 struct Input {
     path: PathBuf,
+    /// 1-based line to begin at. Omitted reads from line 1 — the
+    /// general path with the parameter absent, not a second mode.
+    offset: Option<u64>,
+    /// How many lines to return. Omitted reads to the end of the file.
+    limit: Option<u64>,
 }
+
+/// Where a read begins when the model named no `offset`.
+const FIRST_LINE: u64 = 1;
 
 /// Every way [`run`] can fail. Each variant produces a distinct
 /// stderr message — the operator running `litany tool read_file`
@@ -76,6 +102,13 @@ pub enum Error {
         #[source]
         source: io::Error,
     },
+    /// `offset` or `limit` was zero. Both count from one — there is no
+    /// line 0 and no zero-line read — so a zero is a mistake with a
+    /// plausible intent (`offset: 0` meaning the first line), and
+    /// answering it silently would return a range the model did not
+    /// ask for.
+    #[error("{field} must be 1 or more (lines count from 1); got 0")]
+    Range { field: &'static str },
     /// Writing to stdout failed. Only fires when the harness's stdout
     /// pipe is closed before we finish writing — a fault, not a tool
     /// failure delivered to the model.
@@ -87,10 +120,21 @@ pub enum Error {
 /// bytes to `stdout`. Pure over [`Read`]/[`Write`] so unit tests drive
 /// it with `Cursor`/`Vec`; the `litany tool read_file` shim wires it
 /// to the live process stdio.
-pub fn run<R: Read, W: Write>(stdin: &mut R, stdout: &mut W) -> Result<(), Error> {
+pub fn run<R: Read, W: Write, E: Write>(
+    stdin: &mut R,
+    stdout: &mut W,
+    stderr: &mut E,
+) -> Result<(), Error> {
     let mut buf = Vec::new();
     stdin.read_to_end(&mut buf).map_err(Error::StdinRead)?;
     let input: Input = serde_json::from_slice(&buf).map_err(Error::InvalidJson)?;
+    let offset = input.offset.unwrap_or(FIRST_LINE);
+    if offset == 0 {
+        return Err(Error::Range { field: "offset" });
+    }
+    if input.limit == Some(0) {
+        return Err(Error::Range { field: "limit" });
+    }
     let path = input.path;
 
     let file = File::open(&path).map_err(|source| Error::Open {
@@ -124,8 +168,20 @@ pub fn run<R: Read, W: Write>(stdin: &mut R, stdout: &mut W) -> Result<(), Error
         let cap = MAX_BYTES;
         return Err(Error::TooLarge { path, cap, size });
     }
-    stdout.write_all(&content).map_err(Error::Write)
+    let selected = range::select(&content, offset, input.limit);
+    stdout
+        .write_all(
+            content
+                .get(selected.start..selected.end)
+                .unwrap_or_default(),
+        )
+        .map_err(Error::Write)?;
+    stderr
+        .write_all(selected.note().as_bytes())
+        .map_err(Error::Write)
 }
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_range;

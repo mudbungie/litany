@@ -217,7 +217,7 @@ path." Under that test the corpus adds `python` and nothing else.
 
 | Row | Verdict | Reasoning |
 |---|---|---|
-| read_file offset/limit | HAVE via `bash` | `sed -n 'A,Bp'`; the >1 MiB decline already names `head`. Two optional parameters would be a second home for a range `sed` already expresses. |
+| read_file offset/limit | **ADD** (bl-cbe0; was HAVE via `bash`) | See *The row that flipped* below. |
 | write whole file | HAVE via `apply_patch` / program | `*** Add File:` is the typed path; a program's `open(p, "w").write(...)` is the blob path. A `write_file` would be a third. |
 | glob / find | HAVE via `bash` | `find`, `rg --files`, shell globs. |
 | grep | HAVE via `bash` | `grep -rn`, `rg`. A grep tool would restate a tool every model was trained on. |
@@ -238,6 +238,55 @@ path." Under that test the corpus adds `python` and nothing else.
 Two definitions change text, not shape: `bash` gains the `timeout` sentence;
 `read_file`'s decline already points at `head`. The template `worker` grant
 (`template/providers.yaml`) gains `python` and loses `multi_tool` (§5).
+
+### 3.1 The row that flipped, and why (bl-cbe0)
+
+The verdict above read **HAVE via `bash`**, on the reasoning that
+`sed -n 'A,Bp'` already expresses a range and two optional parameters would be
+a second home for it. That reasoning was written before bl-ce09, and bl-ce09
+took its premise away.
+
+`tool_output:` now bounds every stream to 2 KiB of head and 2 KiB of tail
+(`docs/DESIGN_CONTEXT_ECONOMY.md` §7.1), so a whole-file `read_file` of any
+ordinary source file is **cut in the middle** and the model is handed a marker
+instead. §7.1 prices that trade honestly and names the remedy: "re-reading a
+named range costs one cheap tool call." The defect is in the word *named*. A
+cut result states the byte and line counts of what was captured; it does not
+state **which lines the model was given**, so the model does not know where the
+gap starts or ends, and `sed -n 'A,Bp'` cannot be issued without inventing `A`
+and `B`. What was observed is the model re-reading the same file with widening
+`sed` guesses — paying the round trips the bound existed to save.
+
+So the row flips, and the thing added is **not** the range: it is the
+**result that names its own range**. Every `read_file` result — ranged or not
+— writes one line to stderr, which the envelope surfaces on success as well as
+failure (ARCH §3.3):
+
+    read_file: 200 of 843 lines from offset 1; continue with offset 201
+
+One shape for every case, because a whole-file read *is* the ranged read with
+empty inputs (`docs/PRINCIPLES.md`: a special case is usually a missing
+reframe). The continuation clause is present exactly when lines remain past the
+window, so "how to continue" is answered by the general rule rather than by an
+arm for the cut case. An `offset` past the end of the file is an ordinary
+answer (`0 of 843 lines from offset 900`), not a decline; `offset: 0` and
+`limit: 0` are declined by name, since lines count from 1 and a zero is a
+mistake with a plausible intent.
+
+Three things it deliberately is **not**:
+
+- **Not a change to stdout.** The bytes remain the file's, verbatim. A model
+  that reads a file and then authors an `apply_patch` against it must not have
+  a header line of ours inside what it believes the file says — which is why
+  the note rides the other stream rather than the output.
+- **Not a lift of the 1 MiB cap.** The cap is on the **file**, not on the
+  window, so `offset`/`limit` narrow a read that fits and do not open one that
+  does not. `docs/DESIGN_CONTEXT_ECONOMY.md` §7's other gap — `read_file`
+  refuses above 1 MiB instead of projecting — is untouched and still open;
+  `bash` with `head`/`sed` is still the path for a file that large.
+- **Not a new built-in.** §7's refusal of new file/search/list/write built-ins
+  stands: this is two optional parameters and one stderr line on the tool that
+  was already there.
 
 ## 4. C — catalog capping
 

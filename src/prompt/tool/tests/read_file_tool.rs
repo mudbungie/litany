@@ -92,7 +92,14 @@ fn read_file_through_executor_returns_file_bytes_and_lands_disk_record() {
         .expect("execute succeeds");
 
     assert!(!outcome.is_error, "happy-path is_error should be false");
-    assert_eq!(after_header(&outcome.content), body);
+    // End to end, the model reads the file's bytes verbatim and then
+    // the read's own accounting under the stderr marker (bl-cbe0): the
+    // range returned and the file's total, which is what makes a
+    // continuation call exact rather than a guess.
+    assert_eq!(
+        String::from_utf8(after_header(&outcome.content).to_vec()).unwrap(),
+        "hello from read_file\n--- stderr ---\nread_file: 1 of 1 lines from offset 1\n"
+    );
 
     let dir = fixture
         .step
@@ -109,7 +116,7 @@ fn read_file_through_executor_returns_file_bytes_and_lands_disk_record() {
         serde_json::from_slice(&std::fs::read(dir.join(OUTPUT_FILE)).unwrap()).unwrap();
     assert_eq!(output.exit_code, 0);
     assert_eq!(output.stdout.as_bytes(), body);
-    assert_eq!(output.stderr, "");
+    assert_eq!(output.stderr, "read_file: 1 of 1 lines from offset 1\n");
     assert!(!output.started_at.is_empty(), "started_at present");
     assert!(!output.ended_at.is_empty(), "ended_at present");
 }
@@ -142,7 +149,10 @@ fn read_file_resolves_a_relative_path_against_the_agents_worktree() {
         .expect("execute succeeds");
 
     assert!(!outcome.is_error, "relative read resolves: {outcome:?}");
-    assert_eq!(after_header(&outcome.content), body);
+    assert!(
+        after_header(&outcome.content).starts_with(body),
+        "{outcome:?}"
+    );
 }
 
 #[test]

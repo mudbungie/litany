@@ -157,7 +157,14 @@ fn the_stub_module_lands_beside_the_invocation_s_own_record() {
     assert_eq!(out, format!("{TOOL_ID}\n"));
     let module = std::fs::read_to_string(scene.record().join(MODULE)).unwrap();
     assert!(module.contains("\ndef bash(*, command):\n"), "{module}");
-    assert!(module.contains("\ndef read_file(*, path):\n"), "{module}");
+    // Required parameters first and bare, optional ones after with
+    // `None` defaults — `read_file`'s `offset`/`limit` (bl-cbe0) are the
+    // shipped instance of the schema's `required` list reaching python's
+    // own signature grammar.
+    assert!(
+        module.contains("\ndef read_file(*, path, limit=None, offset=None):\n"),
+        "{module}"
+    );
     // Depth 1: the tool is absent from its own module (ARCH §3.3).
     assert!(!module.contains("\ndef python("), "{module}");
     assert!(

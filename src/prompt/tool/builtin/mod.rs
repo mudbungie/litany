@@ -196,7 +196,7 @@ pub fn run_with<R: Read, W: Write, E: Write>(
     sender: &dyn message::Sender,
 ) -> Result<i32, Error> {
     if name == READ_FILE {
-        return read_file::run(stdin, stdout)
+        return read_file::run(stdin, stdout, stderr)
             .map(|()| 0)
             .map_err(Error::ReadFile);
     }

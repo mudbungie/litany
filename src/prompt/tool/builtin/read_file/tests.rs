@@ -32,8 +32,15 @@ fn happy_path_reads_file_to_stdout() {
     std::fs::write(f.path(), b"hello bytes").unwrap();
     let mut stdin = Cursor::new(input_for(f.path()));
     let mut stdout = Vec::new();
-    run(&mut stdin, &mut stdout).unwrap();
+    let mut stderr = Vec::new();
+    run(&mut stdin, &mut stdout, &mut stderr).unwrap();
     assert_eq!(stdout, b"hello bytes");
+    // Stdout is the file verbatim — the counts ride stderr, which the
+    // envelope surfaces on success too (ARCH §3.3).
+    assert_eq!(
+        String::from_utf8(stderr).unwrap(),
+        "read_file: 1 of 1 lines from offset 1\n"
+    );
 }
 
 #[test]
@@ -41,15 +48,22 @@ fn empty_file_yields_empty_stdout() {
     let f = NamedTempFile::new().unwrap();
     let mut stdin = Cursor::new(input_for(f.path()));
     let mut stdout = Vec::new();
-    run(&mut stdin, &mut stdout).unwrap();
+    let mut stderr = Vec::new();
+    run(&mut stdin, &mut stdout, &mut stderr).unwrap();
     assert!(stdout.is_empty());
+    // An empty file has no lines, and the note says so rather than
+    // needing an arm of its own.
+    assert_eq!(
+        String::from_utf8(stderr).unwrap(),
+        "read_file: 0 of 0 lines from offset 1\n"
+    );
 }
 
 #[test]
 fn invalid_json_input_surfaces_invalid_json() {
     let mut stdin = Cursor::new(b"not json".to_vec());
     let mut stdout = Vec::new();
-    let err = run(&mut stdin, &mut stdout).unwrap_err();
+    let err = run(&mut stdin, &mut stdout, &mut Vec::new()).unwrap_err();
     assert!(matches!(err, Error::InvalidJson(_)), "{err}");
 }
 
@@ -57,7 +71,7 @@ fn invalid_json_input_surfaces_invalid_json() {
 fn missing_path_field_surfaces_invalid_json() {
     let mut stdin = Cursor::new(br#"{"other": "field"}"#.to_vec());
     let mut stdout = Vec::new();
-    let err = run(&mut stdin, &mut stdout).unwrap_err();
+    let err = run(&mut stdin, &mut stdout, &mut Vec::new()).unwrap_err();
     assert!(matches!(err, Error::InvalidJson(_)), "{err}");
 }
 
@@ -67,7 +81,7 @@ fn extra_fields_rejected_by_deny_unknown_fields() {
     // ignored, so the model sees an explicit failure.
     let mut stdin = Cursor::new(br#"{"path": "/tmp/x", "extra": 1}"#.to_vec());
     let mut stdout = Vec::new();
-    let err = run(&mut stdin, &mut stdout).unwrap_err();
+    let err = run(&mut stdin, &mut stdout, &mut Vec::new()).unwrap_err();
     assert!(matches!(err, Error::InvalidJson(_)), "{err}");
 }
 
@@ -77,7 +91,7 @@ fn missing_file_surfaces_open_error() {
     let nope = dir.path().join("does-not-exist");
     let mut stdin = Cursor::new(input_for(&nope));
     let mut stdout = Vec::new();
-    let err = run(&mut stdin, &mut stdout).unwrap_err();
+    let err = run(&mut stdin, &mut stdout, &mut Vec::new()).unwrap_err();
     let msg = err.to_string();
     assert!(matches!(err, Error::Open { .. }), "{msg}");
     assert!(msg.contains("does-not-exist"), "{msg}");
@@ -94,7 +108,7 @@ fn directory_path_surfaces_read_or_open_error() {
     let dir = TempDir::new().unwrap();
     let mut stdin = Cursor::new(input_for(dir.path()));
     let mut stdout = Vec::new();
-    let err = run(&mut stdin, &mut stdout).unwrap_err();
+    let err = run(&mut stdin, &mut stdout, &mut Vec::new()).unwrap_err();
     assert!(
         matches!(err, Error::Open { .. } | Error::Read { .. }),
         "{err}",
@@ -112,7 +126,7 @@ fn oversized_file_surfaces_too_large() {
 
     let mut stdin = Cursor::new(input_for(f.path()));
     let mut stdout = Vec::new();
-    let err = run(&mut stdin, &mut stdout).unwrap_err();
+    let err = run(&mut stdin, &mut stdout, &mut Vec::new()).unwrap_err();
     let msg = err.to_string();
     assert!(
         matches!(err, Error::TooLarge { size, cap, .. } if size == true_size && cap == MAX_BYTES),
@@ -130,7 +144,9 @@ fn oversize_sizes_are_the_files_own_not_the_capped_read_length() {
         let f = sparse_file(size);
         let mut stdin = Cursor::new(input_for(f.path()));
         let mut stdout = Vec::new();
-        run(&mut stdin, &mut stdout).unwrap_err().to_string()
+        run(&mut stdin, &mut stdout, &mut Vec::new())
+            .unwrap_err()
+            .to_string()
     };
     let small = msg_for(MAX_BYTES + 1);
     let large = msg_for(MAX_BYTES * 4);
@@ -156,7 +172,7 @@ fn stdin_read_error_surfaces_stdin_read() {
     }
     let mut stdin = BrokenReader;
     let mut stdout = Vec::new();
-    let err = run(&mut stdin, &mut stdout).unwrap_err();
+    let err = run(&mut stdin, &mut stdout, &mut Vec::new()).unwrap_err();
     assert!(matches!(err, Error::StdinRead(_)), "{err}");
 }
 
@@ -177,6 +193,6 @@ fn stdout_write_error_surfaces_write() {
     std::fs::write(f.path(), b"non-empty").unwrap();
     let mut stdin = Cursor::new(input_for(f.path()));
     let mut stdout = BrokenWriter;
-    let err = run(&mut stdin, &mut stdout).unwrap_err();
+    let err = run(&mut stdin, &mut stdout, &mut Vec::new()).unwrap_err();
     assert!(matches!(err, Error::Write(_)), "{err}");
 }

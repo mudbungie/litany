@@ -577,9 +577,14 @@ The bounded projection (ARCH §3.3, bl-d5fa) *is* the lesson: head and tail
 kept, the middle cut, the marker stating counts and where the full record
 lives, nothing lost. Two gaps, neither this document's to close:
 
-- `read_file` refuses above 1 MiB instead of projecting, and has no
-  offset/limit, so a partial read of a large file is a `bash` recipe. That is
-  a tool-corpus contract (the tool-injection owner's), not a projection gap.
+- `read_file` refuses above 1 MiB instead of projecting. That is a tool-corpus
+  contract (the tool-injection owner's), not a projection gap. **The
+  offset/limit half of this gap is closed** (bl-cbe0,
+  `docs/DESIGN_CODE_EXECUTION.md` §3.1): `read_file` takes an optional
+  `offset` and `limit` in lines, and every result — ranged or not — names the
+  lines it returned, the file's total, and the offset to continue at when
+  lines remain. The 1 MiB refusal is untouched: the cap is on the file, not on
+  the window, so a partial read of a *large* file is still a `bash` recipe.
 - The marker's recovery path is `steps/…/output.json`, outside the worktree:
   reachable by `bash` on the engine's box, unreachable from a foot. §4's
   address is the model-followable pointer for *transcript* content; the
@@ -620,11 +625,21 @@ head on top.
 cut in the middle. That is the trade and not an oversight: the full
 capture is on disk, the marker names its path and the byte and line counts
 (ARCH §3.3), and re-reading a named range costs one cheap tool call, where
-carrying every whole file forever costs every later step. §7's first gap —
-`read_file` has no offset/limit — is what makes the re-read a `bash`
-recipe rather than a first-class one, and it is still that owner's to
-close. A workspace whose work really is reading long files end to end
-raises both numbers; that is what a severable policy block is for.
+carrying every whole file forever costs every later step. A workspace whose
+work really is reading long files end to end raises both numbers; that is what
+a severable policy block is for.
+
+**What "a named range" was missing, and now has (bl-cbe0).** This paragraph
+shipped alongside §7's first gap — `read_file` had no offset/limit — and read
+that the gap "is still that owner's to close". Closing it turned out to be
+about the *name* rather than the range. A cut result states what was captured;
+it never stated **which lines the model was handed**, so the model could not
+say where the gap began, and `sed -n 'A,Bp'` had to be issued with invented
+bounds. `read_file` now takes `offset`/`limit` in lines and every result names
+its window and the file's total on stderr — `read_file: 200 of 843 lines from
+offset 1; continue with offset 201` — so the re-read this paragraph prices at
+one cheap tool call is one cheap tool call in fact
+(`docs/DESIGN_CODE_EXECUTION.md` §3.1).
 
 **`extract_bytes` moved for a different reason.** Since bl-2071 (§5.5) the
 landing sweeps the span's transcript entries itself, so the extract now
