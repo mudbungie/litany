@@ -41,7 +41,9 @@ pub(super) struct Step<'a> {
 /// call.
 ///
 /// `resolved` supplies the step's policy provenance beside the read
-/// state (bl-e4a0).
+/// state (bl-e4a0), and `call` the provider row the step was issued
+/// through — the string handed to `bz --provider`, recorded rather than
+/// re-resolved (bl-4c1c).
 pub(super) fn issue(
     step: Step<'_>,
     request: &CanonicalRequest,
@@ -72,6 +74,7 @@ pub(super) fn issue(
             commit: step.tip,
             config_commit: Some(resolved.grant.config_commit.to_string()),
             workflow_commit: Some(resolved.workflow_commit.to_string()),
+            provider: Some(call.provider_row.to_string()),
             started_at,
             ended_at,
         },

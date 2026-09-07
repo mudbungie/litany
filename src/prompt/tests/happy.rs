@@ -112,6 +112,10 @@ fn run_happy_path_writes_branch_worktree_and_two_commits() {
     // carrying both rather than one conditionally.
     assert_eq!(meta.config_commit.as_deref(), Some(STUB_SHA));
     assert_eq!(meta.workflow_commit.as_deref(), Some(STUB_SHA));
+    // …and the provider row the call was issued through (bl-4c1c),
+    // verbatim the `--provider` argument asserted below: the model id
+    // alone does not price a step, the (row, model) pair does.
+    assert_eq!(meta.provider.as_deref(), Some("anthropic"));
 
     // Adapter called twice: the version guard (`bz --version`) then the
     // model call (`bz --json --provider anthropic`, request on stdin).
