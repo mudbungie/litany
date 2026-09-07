@@ -486,9 +486,13 @@ minted a compactor **and** a reviewer, generation after generation — 15
 conversation branches five levels deep and 4.53M tokens from one
 question, on `n: 6`. Nothing about the loop's own configuration bounds
 that: `n: 20` is slower, not finite, and `budgets.max_depth` is the only
-other term — which yog strips at every start. So a role this document
-adds later joins the excluded set in the same edit that makes it
-dispatchable, or it recurs the same defect a third time.
+other term — which since bl-c701 the template does declare (5), but which
+yog still strips at every start, and which in any case bounds the *depth*
+of the recursion rather than ending it: the measured runaway reached five
+levels, so a declared 5 would have caught it only at the floor, after
+4.53M tokens were already spent. So a role this document adds later joins
+the excluded set in the same edit that makes it dispatchable, or it recurs
+the same defect a third time.
 
 And its **dispatch commit**. The reviewer joins the compactor in
 `step_commit::inherited::DIALOG_KEEPERS` — ARCH §2.2's third principled

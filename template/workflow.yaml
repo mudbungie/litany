@@ -160,13 +160,55 @@ context_files: [AGENTS.md, CLAUDE.md]
 # and depth are derived from disk each check — no stored counter. Omit a
 # limit (or the whole block) to leave that axis unbounded.
 #
-# Deliberately not configured here (operator ruling 2026-08-16): a
-# whole-tree ceiling binds far earlier than its number reads, because a
-# root and every agent below it spend one shared allowance — an hour of
-# accumulated wall across a tree ends a conversation that is working. So
-# nothing ships bounded: tokens, wall and depth are all unbounded, and a
-# ceiling is config an operator adds. To wire one:
+# What ships bounded is DEPTH, and only depth (bl-c701).
+#
+# The two SPEND ceilings stay off, for the reason the 2026-08-16
+# operator ruling gave: a whole-tree ceiling binds far earlier than its
+# number reads, because a root and every agent below it spend one shared
+# allowance — an hour of accumulated wall across a tree ends a
+# conversation that is working, and raising the number moves that cliff
+# rather than removing it. Nothing here bounds tokens or wall; an
+# operator who wants a spend ceiling declares one. To wire one:
 # budgets:
 #   max_total_tokens: 2000000
 #   max_wall_seconds: 3600
-#   max_depth: 4
+#
+# max_depth was swept out with them rather than judged on its own, and
+# it is a different kind of limit. It is not a spend judgement: it is
+# the tree's only prohibition on GROWTH (ARCH §6 "The depth ceiling is
+# the tree's only prohibition on growth"). Every agent may dispatch
+# children, a parent never blocks, and stopping a parent does not
+# cascade downward on its own — so with no depth ceiling a tree that
+# re-dispatches itself has nothing structural to stop it. That is not
+# hypothetical: the runaway reproduced in yog bl-d023 re-dispatched
+# every ~3 seconds per generation and was ended by an operator at
+# depth 4, not by the harness. Unlike a token or wall cap, a depth
+# ceiling cannot cut off legitimate long work; it refuses only a shape.
+#
+# Why 5. Depth counts dispatches from the root, which is depth 0, and
+# max_depth is the deepest ALLOWED depth: a dispatch that would land a
+# child deeper is refused before the fork, so the deepest agent a
+# dispatch can create sits at exactly max_depth. Five is therefore a
+# root plus five levels of delegation. Observed practice in real fleets
+# is two or three levels; five leaves two clear levels of headroom above
+# it, while a runaway recursion crosses it in seconds.
+#
+# The cost, stated rather than hidden: the fork gate makes no
+# distinction between a dispatch the model asked for and one the
+# workflow ran, so an agent sitting AT max_depth cannot fork a compactor
+# either — its compaction checkpoint is refused and the branch steps on
+# uncompacted (ARCH §6 "One gate, every dispatch"). That is the second
+# reason the number sits above ordinary practice rather than at it: the
+# band that cannot compact should be a band nothing ordinarily reaches.
+#
+# Severable, and already severed for one consumer: delete the two lines
+# below and the tree is unbounded on every axis again — config deleted,
+# no code touched. yog does exactly that, stripping any top-level
+# budgets: block from every workspace it manages at every start (yog
+# bl-56af), because a seat holds a dollar ceiling at a conversation's
+# birth and an operator watching the board, and two ceilings over one
+# concern is the second representation that drifts. So this default
+# binds the plain-litany operator — whose fleet nobody is watching,
+# which is exactly whose fleet it was filed about.
+budgets:
+  max_depth: 5

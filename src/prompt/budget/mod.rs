@@ -1,9 +1,11 @@
 //! Whole-tree budget enforcement (ARCH §6 "Budgets (v0.7)").
 //!
 //! `workflow.yaml` declares `budgets: {max_total_tokens, max_wall_seconds,
-//! max_depth}` (all optional; omitted → unbounded, and the shipped
-//! template declares none of them — ARCH §6 "Nothing ships bounded", so
-//! every check below is vacuous until an operator declares a limit).
+//! max_depth}` (all optional; omitted → unbounded). The shipped template
+//! declares `max_depth: 5` and neither spend ceiling (ARCH §6 "No SPEND
+//! ships bounded; depth does"), so out of the box the depth check below
+//! is live and the token and wall checks are vacuous until an operator
+//! declares a limit.
 //! The harness checks
 //! them at every model-call boundary, *before* invoking the adapter
 //! (`crate::prompt::dispatch::run_exchange`). Spend, wall, and depth are

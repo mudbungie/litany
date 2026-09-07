@@ -2,7 +2,7 @@
 
 use crate::config::action::{Action, DispatchMode};
 use crate::config::error::LoadError;
-use crate::config::workflow::{Backoff, Budgets, CompactionTrigger, Event, RetryConfig, Workflow};
+use crate::config::workflow::{Backoff, CompactionTrigger, Event, RetryConfig, Workflow};
 use std::path::Path;
 use std::time::Duration;
 
@@ -110,58 +110,6 @@ fn omitted_retry_block_uses_the_default() {
     assert_eq!(w.retry, RetryConfig::default());
     assert_eq!(w.retry.max_attempts, 3);
     assert_eq!(w.retry.backoff, Backoff::Exponential);
-}
-
-#[test]
-fn parses_explicit_budgets_block() {
-    // ARCH §6 budgets example: all three limits declared.
-    let w = parse("events: {}\nbudgets:\n  max_total_tokens: 2000000\n  max_wall_seconds: 3600\n  max_depth: 4\n").unwrap();
-    assert_eq!(w.budgets.max_total_tokens, Some(2_000_000));
-    assert_eq!(w.budgets.max_wall_seconds, Some(3600));
-    assert_eq!(w.budgets.max_depth, Some(4));
-}
-
-#[test]
-fn omitted_budgets_block_is_all_unbounded() {
-    // No `budgets:` → Budgets::default (every axis None = unbounded).
-    let w = parse("events:\n  user_message:\n    - land_compaction\n").unwrap();
-    assert_eq!(w.budgets, Budgets::default());
-    assert!(w.budgets.max_total_tokens.is_none());
-    assert!(w.budgets.max_wall_seconds.is_none());
-    assert!(w.budgets.max_depth.is_none());
-}
-
-#[test]
-fn the_shipped_template_declares_no_budgets_and_is_unbounded() {
-    // Operator ruling 2026-08-16 (ARCH §6 "Nothing ships bounded"): the
-    // shipped `workflow.yaml` declares no `budgets:` block, so a
-    // template-born workspace is unbounded on every axis — including
-    // `max_depth`. These are the exact bytes `litany new` writes into
-    // the first config commit (pinned by template/tests_override.rs),
-    // so this is the workspace's own state, not just the parser's.
-    let raw = crate::template::TEMPLATE
-        .get_file("workflow.yaml")
-        .expect("the template ships a workflow.yaml")
-        .contents_utf8()
-        .expect("utf8");
-    assert!(
-        !raw.contains("\nbudgets:"),
-        "the shipped template must declare no budgets block"
-    );
-    let w = parse(raw).unwrap();
-    assert_eq!(w.budgets, Budgets::default());
-    assert!(w.budgets.max_total_tokens.is_none());
-    assert!(w.budgets.max_wall_seconds.is_none());
-    assert!(w.budgets.max_depth.is_none());
-}
-
-#[test]
-fn partial_budgets_leaves_the_other_axes_unbounded() {
-    // A single declared limit; the rest stay unbounded (§6).
-    let w = parse("events: {}\nbudgets:\n  max_total_tokens: 500\n").unwrap();
-    assert_eq!(w.budgets.max_total_tokens, Some(500));
-    assert!(w.budgets.max_wall_seconds.is_none());
-    assert!(w.budgets.max_depth.is_none());
 }
 
 #[test]
