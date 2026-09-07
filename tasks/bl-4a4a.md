@@ -1,7 +1,8 @@
 +++
 title = "litany skills calls a never-loaded pool tool active and a never-loaded workspace skill unused on identical evidence"
 created = 1788673910
-updated = 1788673910
+updated = 1788744625
+claimant = "Cantaloups-L5"
 priority = 4
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["usability-r1"]
