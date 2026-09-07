@@ -1,7 +1,8 @@
 +++
 title = "a dev box's standalone litany and bz binaries have no CD and go stale behind the embedded ones"
 created = 1788673941
-updated = 1788673941
+updated = 1788745722
+claimant = "Cantaloups-L5"
 priority = 3
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["usability-r1"]
