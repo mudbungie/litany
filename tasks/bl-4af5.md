@@ -1,7 +1,8 @@
 +++
 title = "release 0.0.13: the compaction sweep no longer splits a tool window, and an orphaned tool result no longer kills the conversation"
 created = 1788753636
-updated = 1788753636
+updated = 1788753637
+claimant = "Cantaloups-LR3"
 priority = 1
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["usability-r3"]
