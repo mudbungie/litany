@@ -116,10 +116,15 @@ pub enum Error {
     /// reason [`Error::AdapterMissing`] is split from `AdapterSpawn`: it
     /// is the one provider failure a first-run user is *certain* to hit
     /// and can act on unaided, so it gets a remedy rather than a
-    /// classification. brazen's own message already names the remedies —
-    /// but as `bz --login --provider <id>`, a literal placeholder,
-    /// because the row id is exactly what it cannot supply. This variant
-    /// substitutes it.
+    /// classification. It was written to substitute the row into brazen's
+    /// `bz --login --provider <id>` placeholder, and **that half is no
+    /// longer what it adds**: since the pinned brazen 0.0.17 (brazen
+    /// bl-e809) every `auth` refusal names its own row, because under
+    /// `bz --serve` the row is chosen by a model string the client never
+    /// saw. What remains is the half brazen cannot state — the env-var
+    /// route, `bz --list-providers`, and *which* row a role is bound to
+    /// and where that binding lives — so the remedy stays and the row is
+    /// substituted for the sentence's own sake, not to fill a gap.
     #[error(
         "provider error (auth) on provider row {row:?}: {message} — no credential is \
          reaching that row; authenticate it with `bz --login --provider {row}`, or export \
