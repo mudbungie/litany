@@ -1,7 +1,8 @@
 +++
 title = "read_file has no offset or limit, so the 4 KiB tool_output bound cuts a whole-file read in the middle and the model re-reads with sed"
 created = 1788675642
-updated = 1788675642
+updated = 1788744426
+claimant = "Cantaloups-M2"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["usability-r2"]
