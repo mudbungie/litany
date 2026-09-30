@@ -10,14 +10,18 @@ When creating a task, always create the following gates:
 
 `make check` is the complete gate: `fmt-check → lint → coverage →
 test-install`, where `lint` is `line-cap → deploy-selftest → leak-scan →
-clippy -D warnings`. The pre-commit hook (`.githooks/pre-commit`, bl-2311)
-does not run them on this machine: it leak-scans locally, then asks
-`bl-speculate check` for a verified verdict on the staged tree and otherwise
-has the noodlezoo builder run `make check` and sign one (`bl-remote-gate`,
-`~/ops/remote-builds.md` "Repo gate"). There is no local build path; an
-unreachable builder is exit 75 (no verdict, commit refused), never `cargo
-test`. `.github/workflows/ci.yml` runs `make ci`; nobody restates a step the
-Makefile defines. Run `make install-hooks` once per clone.
+clippy -D warnings`. The pre-commit hook (`.githooks/pre-commit`) is the
+mainline refusal plus `exec bl-gate "$@"`: the gate is `bl-gate` from userconf
+(`~/userconf/bin/bl-gate`, ops bl-1f80, `~/ops/remote-builds.md` "Phase 2"),
+the one copy every repo on this machine runs. This laptop does not compile in
+the gate, and `cargo tarpaulin` / `cargo llvm-cov` are shimmed here and refuse
+to run: bl-gate leak-scans locally, then asks `bl-speculate check` for a
+verified verdict on the staged tree and otherwise has the noodlezoo builder run
+`make check` and sign one (`bl-remote-gate`). Exit 0 pass, 1 the builder failed
+the tree, 75 no verdict (commit refused), never `cargo test`. `bl-remote-run
+<target>` runs any make target on the builder when you want tests before
+committing. `.github/workflows/ci.yml` runs `make ci`; nobody restates a step
+the Makefile defines. Run `make install-hooks` once per clone.
 
 **All tests must pass and coverage must be 100% before anything merges.** It
 does not matter who broke the test.

@@ -2376,11 +2376,14 @@ release, and unlike that one it is a step of `make image` rather than a habit.
 
 ### Pre-commit hook
 
-`.githooks/pre-commit` does not build on this machine (bl-2311; the shape is
-thrall's, `~/ops/remote-builds.md` "Repo gate"). The gate's targets are
+`.githooks/pre-commit` is two lines: the mainline refusal, then
+`exec bl-gate "$@"`. The gate body lives once, in `~/userconf/bin/bl-gate`
+(ops bl-1f80, `~/ops/remote-builds.md` "Phase 2"); this repo owns no copy of
+it. This laptop does not compile in a gate, and `cargo tarpaulin` /
+`cargo llvm-cov` are shimmed here and refuse to run. The gate's targets are
 **`make check`** — `fmt-check` + `lint` + `coverage` + `test-install`, where
 `lint` is `line-cap` → `deploy-selftest` → `leak-scan` → `clippy -D warnings`
-— and the hook has the noodlezoo builder run them. Three steps, no fourth:
+— and bl-gate has the noodlezoo builder run them. Three steps, no fourth:
 
 1. **`make leak-scan` locally** — cheap, and the one thing that must never
    leave the box unscanned (it reads index blobs, so the bytes scanned are
@@ -2390,19 +2393,23 @@ thrall's, `~/ops/remote-builds.md` "Repo gate"). The gate's targets are
 3. **`bl-remote-gate`** — pushes the staged tree to the builder, which runs
    `make check` in its container and signs a verdict; the client verifies the
    signature, imports it, and its exit is the gate's exit: 0 pass, 1 the
-   builder failed the tree, 75 no verdict (unreachable, unverifiable, timed
-   out — nothing recorded, commit refused).
+   builder failed the tree (`ssh builder cat /tank/build/out/<sha>/log`), 75
+   no verdict (unreachable, unverifiable, timed out — nothing recorded,
+   commit refused).
 
 Ahead of the three, one refusal that is about the ref and not the tree, so no
-verdict can carry it: **no direct commits to mainline.** `main` and `master`
-are rejected unless the commit is the tail of a merge (`MERGE_MSG`/`SQUASH_MSG`
-present), which is how `bl close` lands squash-merges.
+verdict can carry it, and so it stays in the hook file rather than in bl-gate:
+**no direct commits to mainline.** `main` and `master` are rejected unless the
+commit is the tail of a merge (`MERGE_MSG`/`SQUASH_MSG` present), which is how
+`bl close` lands squash-merges.
 
 There is no local build path. If the builder is unreachable the answer is 75,
-not `cargo test`. `BALLS_TOOLCHAIN` (`rustc -V`, the toolchain half of every
-verdict key) is exported by the hook, once; the builder's rustc is the
-`rust-toolchain.toml` pin, so the string is byte-identical on both sides and a
-verdict keys on the same (tree, toolchain) pair wherever it was made.
+not `cargo test`; `bl-remote-run <target>` runs any make target on the builder
+when you want tests before committing. `BALLS_TOOLCHAIN` (`rustc -V`, the
+toolchain half of every verdict key) is exported by bl-gate, once; the
+builder's rustc is the `rust-toolchain.toml` pin, so the string is
+byte-identical on both sides and a verdict keys on the same (tree, toolchain)
+pair wherever it was made.
 
 Because the builder runs `make check` and nothing else, **`make check` is the
 whole gate** — every rule the hook once enforced itself now has a Makefile
