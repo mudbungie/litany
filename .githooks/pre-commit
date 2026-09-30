@@ -1,53 +1,65 @@
 #!/usr/bin/env bash
-# Litany pre-commit hook.
+# The pre-commit gate (bl-2311; ops bl-3e3f, ~/ops/remote-builds.md "Repo gate";
+# the shape is thrall's scripts/pre-commit, bl-e66f).
 #
-# Enforces:
-#   1. No direct commits to mainline (main/master). Squash-merges from `bl review`
-#      are permitted; detected via presence of MERGE_MSG or SQUASH_MSG.
-#   2. No source file over 300 lines (docs and config exempt).
-#   3. `make check` — the repo's gate: fmt-check, clippy (-D warnings),
-#      100% coverage (cargo tarpaulin --fail-under 100), and the install
-#      contract (cargo test --test install, uninstrumented — tarpaulin skips
-#      it). The Makefile is the single source of what the gate is; this hook
-#      invokes `make check`
-#      rather than re-listing the commands, so the close gate can never drift
-#      from `make check`. rust-toolchain.toml pins the toolchain, so the
-#      fmt/clippy verdict is identical here, in CI, and for every agent.
+# This laptop does not compile. The gate's targets are `make check`
+# (README "Pre-commit hook"; AGENTS.md "The gate"); the noodlezoo builder
+# runs them on the staged tree and signs a bl-speculate verdict;
+# bl-remote-gate (userconf) brings it home. Three steps, no fourth:
+#   1. leak-scan here — cheap, and the one thing that must never leave the box
+#      unscanned;
+#   2. `bl-speculate check` — a verified verdict for this exact tree under
+#      this toolchain already passed: done;
+#   3. `bl-remote-gate` — its exit is the gate's exit (0 pass, 1 the builder
+#      failed the tree, 75 no verdict: nothing recorded, commit refused).
+# There is no local build path. If the builder is unreachable, the answer is
+# 75, not `cargo test` — see ~/ops/noodlezoo/docs/builder.md.
+#
+# Ahead of the three, one refusal that is about the REF and not the tree, so
+# no verdict can carry it: no direct commit to mainline. A squash landing from
+# `bl close` is the tail of a merge (MERGE_MSG/SQUASH_MSG present) and passes.
+# Everything the hook used to run itself — the 300-line cap, fmt-check, lint,
+# coverage, test-install — is `make check` now (`line-cap` under `lint`), so
+# the builder's verdict means exactly what this hook used to mean.
+#
+# BALLS_TOOLCHAIN is the gate half of every verdict key (balls ≥ 0.5.13):
+# exported once here, inherited by both tools. The builder's rustc is the
+# rust-toolchain.toml pin, so the string is byte-identical on both sides.
 #
 # Bypass is intentionally not supported. If something is broken, fix it.
 
 set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
 
 branch="$(git symbolic-ref --short HEAD 2>/dev/null || echo DETACHED)"
 git_dir="$(git rev-parse --git-dir)"
-
 case "$branch" in
   main|master)
     if [ ! -f "$git_dir/MERGE_MSG" ] && [ ! -f "$git_dir/SQUASH_MSG" ]; then
       echo "error: direct commits to '$branch' are not permitted." >&2
-      echo "       use 'bl claim <task>' to work in a worktree, then 'bl review'." >&2
+      echo "       use 'bl claim <task>' to work in a worktree, then 'bl close'." >&2
       exit 1
     fi
     ;;
 esac
 
-# The 300-line cap is a repo INVARIANT, not a per-commit property: a file
-# can cross the cap in one commit and never be re-measured if we only look
-# at the staged set. So sweep every tracked code file in the whole tree
-# (git ls-files is cheap — a single index read, no working-tree walk).
-exempt='\.(md|txt|toml|yaml|yml|json|lock)$|(^|/)(Makefile|LICENSE|\.gitignore|\.githooks/)'
-while IFS= read -r file; do
-  [ -z "$file" ] && continue
-  [[ "$file" =~ $exempt ]] && continue
-  [ -f "$file" ] || continue
-  lines=$(wc -l < "$file")
-  if [ "$lines" -gt 300 ]; then
-    echo "error: $file has $lines lines (>300 limit for code files)." >&2
-    exit 1
-  fi
-done < <(git ls-files)
+# Hook env (GIT_INDEX_FILE et al.) would point the tools at a temporary index.
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars)
 
-if [ -f Cargo.toml ] && command -v make >/dev/null 2>&1 && command -v cargo >/dev/null 2>&1; then
-  echo "pre-commit: running 'make check' (fmt-check, clippy -D warnings, 100% coverage, install contract)..." >&2
-  make check
+for tool in cargo bl-speculate bl-remote-gate; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "error: $tool not installed; cannot run the gate." >&2; exit 1; }
+done
+export BALLS_TOOLCHAIN="$(rustc -V)"
+
+echo "gate: leak-scan (make leak-scan)..." >&2
+make leak-scan >&2
+
+if bl-speculate check; then
+  echo "gate: verdict cache hit — this exact tree already passed this exact gate." >&2
+  exit 0
 fi
+echo "gate: no verdict yet — building on the noodlezoo builder (bl-remote-gate)..." >&2
+bl-remote-gate
+echo "gate: OK (remote verdict verified and imported)." >&2

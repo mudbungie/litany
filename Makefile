@@ -1,4 +1,4 @@
-.PHONY: all build release test test-install coverage lint leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan mac-artifact clean deploy-local deploy-selftest deploy-status
+.PHONY: all build release test test-install coverage lint line-cap leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan mac-artifact clean deploy-local deploy-selftest deploy-status
 
 # Install location for `make install`. Defaults to the XDG-ish user-local
 # convention; override for system-wide installs or packaging:
@@ -177,6 +177,40 @@ eval:
 	@cargo build --quiet -p litany-eval-agent
 	@cargo run --quiet -p agent-eval -- run $(foreach c,$(CONFIG),--config "$(c)") --suite "$(SUITE)" --runs "$(RUNS)" --agent "$(AGENT)" $(if $(RECORD),--record "$(RECORD)")
 
+# The 300-line cap (bl-2311; the shape is thrall's). A repo INVARIANT, not a
+# per-commit property: a file can cross the cap in one commit and never be
+# re-measured if only the staged set is read, so this sweeps every tracked
+# code file (`git ls-files` — one index read, no working-tree walk). Docs,
+# config, the lockfile, this file, LICENSE, .gitignore and the hooks are
+# exempt. It lived in .githooks/pre-commit until that hook stopped running
+# anything the noodlezoo builder does not: the builder runs `make check`, so
+# a rule the hook alone enforced was a rule no verdict covered. Enumerating
+# ZERO files fails outright — a check that matches nothing is broken, never
+# a clean tree. `make line-cap LINE_CAP=199` lists the pre-split band.
+LINE_CAP := 300
+LINE_CAP_EXEMPT := \.(md|txt|toml|yaml|yml|json|lock)$$|(^|/)(Makefile|LICENSE|\.gitignore|\.githooks/)
+
+line-cap:
+	@files=$$(git ls-files | grep -Ev '$(LINE_CAP_EXEMPT)' || true); \
+	n=$$(printf '%s\n' "$$files" | grep -c . || true); \
+	over=$$(printf '%s\n' "$$files" | while IFS= read -r f; do \
+	    { [ -n "$$f" ] && [ -f "$$f" ]; } || continue; \
+	    c=$$(wc -l < "$$f"); \
+	    [ "$$c" -gt $(LINE_CAP) ] && printf '  %s: %s lines\n' "$$f" "$$c"; \
+	    true; \
+	  done); \
+	if [ "$$n" -eq 0 ]; then \
+	  echo "line-cap: enumerated 0 source files — the scan is broken, not the tree" >&2; \
+	  exit 1; \
+	fi; \
+	if [ -n "$$over" ]; then \
+	  echo "error: source files over the $(LINE_CAP)-line cap:" >&2; \
+	  printf '%s\n' "$$over" >&2; \
+	  echo "       split along a real seam — do not shave lines." >&2; \
+	  exit 1; \
+	fi; \
+	echo "line-cap: $$n source files, all within $(LINE_CAP) lines"
+
 # The disclosure gate (scripts/leak-rules.sh is the table, leak-scan.sh the
 # mechanism; from rust-bootstrap bl-2c4e). --self-test first: a leak gate dies
 # by silently matching nothing. The machine-global bl-leak-gate plugin runs
@@ -185,7 +219,7 @@ leak-scan:
 	@scripts/leak-scan.sh --self-test
 	@scripts/leak-scan.sh
 
-lint: deploy-selftest leak-scan
+lint: line-cap deploy-selftest leak-scan
 	cargo clippy --all-targets -- -D warnings
 
 fmt:

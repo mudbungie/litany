@@ -6,6 +6,22 @@ When creating a task, always create the following gates:
 - docs: make sure the docs have been updated to represent the current state.
 - alignment: check that the implementation is coherent against the project's spec docs — at minimum docs/ARCHITECTURE.md, docs/PRINCIPLES.md, and docs/TAXONOMY.md.
 
+### The gate
+
+`make check` is the complete gate: `fmt-check → lint → coverage →
+test-install`, where `lint` is `line-cap → deploy-selftest → leak-scan →
+clippy -D warnings`. The pre-commit hook (`.githooks/pre-commit`, bl-2311)
+does not run them on this machine: it leak-scans locally, then asks
+`bl-speculate check` for a verified verdict on the staged tree and otherwise
+has the noodlezoo builder run `make check` and sign one (`bl-remote-gate`,
+`~/ops/remote-builds.md` "Repo gate"). There is no local build path; an
+unreachable builder is exit 75 (no verdict, commit refused), never `cargo
+test`. `.github/workflows/ci.yml` runs `make ci`; nobody restates a step the
+Makefile defines. Run `make install-hooks` once per clone.
+
+**All tests must pass and coverage must be 100% before anything merges.** It
+does not matter who broke the test.
+
 ### Published text nobody committed
 
 **No agent-session URL in this repository's published text, anywhere** (bl-1408, operator ruling 2026-08-30: *ban them, no reason to allow it*). An **agent-session URL** is a vendor console link to one recorded harness conversation, carrying that conversation's identifier in its path — "session" there is the vendor's product word inside this quoted term and inside the ported rule name `session-artifact`, never the interaction-span sense banned by `docs/ARCHITECTURE.md` §2.1.

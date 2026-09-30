@@ -2263,7 +2263,8 @@ first use — no manual `rustup` step. This is what keeps `fmt-check` and
 | `make test`           | `cargo test`, with the pinned `bz` first on `PATH` (below) |
 | `make test-install`   | `cargo test --test install` — the install contract end-to-end, uninstrumented (it is `cfg_attr(tarpaulin, ignore)`, so `coverage` skips it); ~45s warm, and it re-installs `bz` at the `brazen` pin |
 | `make coverage`       | `cargo tarpaulin --fail-under 100` (llvm engine), same pinned `PATH` (below); hard-gated on tarpaulin **0.35.2** exactly (`TARPAULIN_PIN` in the `Makefile` — its one home; any other version aborts with the `cargo install cargo-tarpaulin --version 0.35.2 --locked` fix-it line) |
-| `make lint`           | `cargo clippy --all-targets -- -D warnings`           |
+| `make lint`           | `line-cap` + `deploy-selftest` + `leak-scan` + `cargo clippy --all-targets -- -D warnings` |
+| `make line-cap`       | Every tracked code file is within 300 lines (docs, config, lockfile, `Makefile`, `LICENSE`, `.gitignore`, `.githooks/` exempt); a step of `lint` |
 | `make fmt`            | `cargo fmt`                                           |
 | `make fmt-check`      | `cargo fmt --check`                                   |
 | `make schemas`        | Regenerate `schemas/*.json` from the Rust types       |
@@ -2375,40 +2376,62 @@ release, and unlike that one it is a step of `make image` rather than a habit.
 
 ### Pre-commit hook
 
-`.githooks/pre-commit` enforces three rules on every commit:
+`.githooks/pre-commit` does not build on this machine (bl-2311; the shape is
+thrall's, `~/ops/remote-builds.md` "Repo gate"). The gate's targets are
+**`make check`** — `fmt-check` + `lint` + `coverage` + `test-install`, where
+`lint` is `line-cap` → `deploy-selftest` → `leak-scan` → `clippy -D warnings`
+— and the hook has the noodlezoo builder run them. Three steps, no fourth:
 
-1. **No direct commits to mainline.** `main` and `master` are rejected unless
-   the commit is the tail of a merge (`MERGE_MSG`/`SQUASH_MSG` present), which
-   is how `bl close` lands squash-merges.
-2. **300-line cap on code files.** The cap is a repo *invariant*, not a
-   per-commit property, so the hook sweeps **every tracked code file in the
-   tree** (`git ls-files`), not just the staged set — a file that crosses the
-   cap in one commit and is untouched afterward is still caught. Docs (`*.md`,
-   `*.txt`), config (`*.toml`, `*.yaml`, `*.yml`, `*.json`, `*.lock`),
-   `Makefile`, `.gitignore`, `LICENSE`, and anything under `.githooks/` are
-   exempt.
-3. **`make check`** on every commit that touches a Cargo project: `fmt-check`
-   (formatting), `lint` (`clippy -D warnings`), `coverage` (`cargo tarpaulin
-   --fail-under 100`), and `test-install` (`cargo test --test install`). The
-   hook invokes `make check` rather than re-listing the commands, so the close
-   gate is always exactly what `make check` is — the Makefile is the single
-   source. Formatting and lint drift therefore cannot land invisibly.
-   `test-install` is a separate step because the install test shells out to a
-   release build and `cargo install brazen`, which contend with tarpaulin's
-   `target/` lock; it is `cfg_attr(tarpaulin, ignore)`, so without its own
-   uninstrumented step the install contract — the first thing every user
-   touches — would never run at the gate at all. It costs ~45s warm and leaves
-   the machine-global `~/.cargo/bin/bz` alone: the test redirects `make
-   install`'s `cargo install brazen` into a per-worktree root under `target/`
-   with `CARGO_INSTALL_ROOT`, so a sibling worktree at another pin is never
-   rolled over. The
-   toolchain is pinned in `rust-toolchain.toml` and the tarpaulin version in
-   `tarpaulin.toml` (also
-   `.github/workflows/ci.yml`) so `fmt-check`, `lint`, and the coverage
-   denominator mean the same thing locally and on CI — newer tarpaulin
-   releases have silently dropped inline `#[cfg(test)] mod tests;` files from
-   the count, weakening the floor. `make coverage` aborts with an install
-   hint if the local tarpaulin version drifts.
+1. **`make leak-scan` locally** — cheap, and the one thing that must never
+   leave the box unscanned (it reads index blobs, so the bytes scanned are
+   the bytes committed).
+2. **`bl-speculate check`** — a verified, signed verdict for this exact tree
+   under this toolchain already exists: the commit proceeds.
+3. **`bl-remote-gate`** — pushes the staged tree to the builder, which runs
+   `make check` in its container and signs a verdict; the client verifies the
+   signature, imports it, and its exit is the gate's exit: 0 pass, 1 the
+   builder failed the tree, 75 no verdict (unreachable, unverifiable, timed
+   out — nothing recorded, commit refused).
+
+Ahead of the three, one refusal that is about the ref and not the tree, so no
+verdict can carry it: **no direct commits to mainline.** `main` and `master`
+are rejected unless the commit is the tail of a merge (`MERGE_MSG`/`SQUASH_MSG`
+present), which is how `bl close` lands squash-merges.
+
+There is no local build path. If the builder is unreachable the answer is 75,
+not `cargo test`. `BALLS_TOOLCHAIN` (`rustc -V`, the toolchain half of every
+verdict key) is exported by the hook, once; the builder's rustc is the
+`rust-toolchain.toml` pin, so the string is byte-identical on both sides and a
+verdict keys on the same (tree, toolchain) pair wherever it was made.
+
+Because the builder runs `make check` and nothing else, **`make check` is the
+whole gate** — every rule the hook once enforced itself now has a Makefile
+home, so the verdict means what the hook used to mean:
+
+- **300-line cap on code files** — `make line-cap`, a step of `lint`. The cap
+  is a repo *invariant*, not a per-commit property, so it sweeps **every
+  tracked code file in the tree** (`git ls-files`), not just the staged set —
+  a file that crosses the cap in one commit and is untouched afterward is
+  still caught. Docs (`*.md`, `*.txt`), config (`*.toml`, `*.yaml`, `*.yml`,
+  `*.json`, `*.lock`), `Makefile`, `.gitignore`, `LICENSE`, and anything
+  under `.githooks/` are exempt. Enumerating zero files fails outright.
+- **`fmt-check`, `lint`, `coverage` (`cargo tarpaulin --fail-under 100`),
+  `test-install` (`cargo test --test install`).** `test-install` is a
+   separate step because the install test shells out to a release build and
+   `cargo install brazen`, which contend with tarpaulin's `target/` lock; it
+   is `cfg_attr(tarpaulin, ignore)`, so without its own uninstrumented step
+   the install contract — the first thing every user touches — would never
+   run at the gate at all. It costs ~45s warm and leaves the machine-global
+   `~/.cargo/bin/bz` alone: the test redirects `make install`'s `cargo
+   install brazen` into a per-worktree root under `target/` with
+   `CARGO_INSTALL_ROOT`, so a sibling worktree at another pin is never
+   rolled over. The toolchain is pinned in `rust-toolchain.toml` and the
+   tarpaulin version in `tarpaulin.toml` (also `.github/workflows/ci.yml`)
+   so `fmt-check`, `lint`, and the coverage denominator mean the same thing
+   on the builder, locally, and on CI — newer tarpaulin releases have
+   silently dropped inline `#[cfg(test)] mod tests;` files from the count,
+   weakening the floor. `make coverage` aborts with an install hint if the
+   tarpaulin version drifts.
 
 A floor of exactly 100% only holds if every line's coverage is caused by the
 code's own structure and not by winning a race, so **no line may be reachable
