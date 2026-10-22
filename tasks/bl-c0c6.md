@@ -1,7 +1,8 @@
 +++
 title = "role-generic verdict events: <role>_<token> fires when the workflow binds it and the child's leading line says it; else <role>_return; the gate generalizes over them"
 created = 1792631678
-updated = 1792631678
+updated = 1792632653
+claimant = "Satellite"
 parent = "bl-06ae"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
