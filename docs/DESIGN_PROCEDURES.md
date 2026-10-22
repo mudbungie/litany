@@ -342,9 +342,14 @@ follows the conversation, and no token of it in the root's context.
   pre-empt the answer.
 - **The injection watcher.** It is config over this design, not a
   mechanism of its own: `on_tool_return: [dispatch(guard)]` with a guard
-  soul that answers `CLEAN` or `INJECTED` and `guard_injected: [notify_ui]`
-  (or `mark_abandoned`) — the token is bound, the guard is machinery, the
-  landing is a mark. Nothing here is built for it, and nothing needs to be.
+  soul that answers `CLEAN` or `INJECTED` and `guard_injected:
+  [land_response(guard)]` — the token is bound, the guard is machinery,
+  the landing is the generic one. The *natural* landing is a mark
+  (`notify_ui`: the operator should look), and the verdict event fires
+  for it today, but `child_result::execute_child` still declines a ref
+  mark at a child's return; running the two marks there is one tracked
+  executor change, filed as the follow-on that also closes this sentence.
+  Nothing else is built for the watcher, and nothing else needs to be.
 - **The rendering.** What will happen on enter is the governing workflow's
   bindings over the next hop's circumstances; a seat shows it (yog
   bl-20d2). It is read-only by ruling, and this document is the vocabulary
