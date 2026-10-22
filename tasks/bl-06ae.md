@@ -1,9 +1,13 @@
 +++
 title = "Workflow-run procedures become general: dispatch from a hook, one landing for a child's conclusion, role-generic verdict events, and titling as the first consumer"
 created = 1792631675
-updated = 1792631675
+updated = 1792631676
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
+
+[[blockers]]
+id = "bl-041b"
+on = "close"
 +++
 ## Ruling (operator, 2026-10-21)
 
