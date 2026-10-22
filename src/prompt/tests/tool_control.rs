@@ -173,6 +173,7 @@ fn a_fresh_hold_in_a_hop_exits_held_with_the_lease_released() {
     deps.launcher = &rec;
     let mut cfg = || -> Result<WorkerConfig, crate::prompt::Error> {
         Ok(WorkerConfig {
+            version: crate::config::version::Version(1),
             workflow: Workflow::parse(&gated_workflow(&control), Path::new("workflow.yaml"))
                 .unwrap(),
             ..worker_config()

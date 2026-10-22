@@ -25,8 +25,8 @@ use super::step_commit::{
 };
 use super::tool_step::{self, run_tool_calls};
 use super::{
-    Resolved, assembler, canonical, child_result, drain, driver, one_call, prefix, result_deposit,
-    stop_signal, terminal, tools, transcript,
+    Resolved, boundary, child_result, compose, drain, driver, one_call, result_deposit,
+    stop_signal, terminal, transcript,
 };
 use crate::prompt::inbox::{self, Epitaph};
 use crate::prompt::resolve::{ConfigSource, WorkerConfig, resolve_worker};
@@ -115,12 +115,23 @@ pub(in crate::prompt) fn run_exchange(
         // message into the transcript ahead of this step's read-state
         // capture — after the prior step's tool entries, so a message
         // never wedges between paired tool blocks (§2.3).
-        seen = drain::drain(&worktree_path, &inbox, &conv_id, deps.git)?.left;
+        let delivery = drain::drain(&worktree_path, &inbox, &conv_id, deps.git)?;
 
-        // §6 prompt→advance collapse: interpret delivered child results
-        // (deliver_result / land_compaction / verifier gate) at the same
-        // boundary `litany advance` does — empty-inputs no-op for a root.
-        child_result::interpret_pending(repo, &conv_id, &worktree_path, resolved.workflow, deps)?;
+        // §6 prompt→advance collapse: the boundary's circumstances —
+        // delivered child results, and an operator message under a config
+        // that fires `user_message` (step 1's own prompt takes this path
+        // too) — at the same seam `litany advance` runs them.
+        boundary::circumstances(
+            repo,
+            &conv_id,
+            &worktree_path,
+            &delivery,
+            resolved.workflow,
+            resolved.grant.role,
+            resolved.version,
+            deps,
+        )?;
+        seen = delivery.left;
 
         // §3.3 × §2.2: re-derive the descriptor cut against what just
         // resolved, ahead of the read-state capture (bl-37cd). Under the
@@ -171,40 +182,26 @@ pub(in crate::prompt) fn run_exchange(
             expect_handshake: resolved.expect_handshake,
         };
 
-        // §2.3 / §5: assemble the model-facing history from the read-state
-        // commit's tree — §5.2 head/body under the role's manifest rules,
-        // then the transcript tail — one path for running, retry, replay.
-        let assembled = assembler::assemble(&worktree_path, resolved.manifest)?;
-        let tools = tools::compose(
-            &worktree_path,
-            &resolved.grant,
-            &assembled.messages,
-            &tools::injected(resolved.grant.role, deps.tool_executor, repo, &conv_id),
-        )?;
-        let request = canonical::build_request(
-            resolved.model_id,
+        // One step's request from the read state (§2.3, §5; [`compose`]).
+        let composed = compose::request(
+            repo,
             &conv_id,
+            &worktree_path,
+            step_seq,
             &system_with_goal,
-            assembled.messages,
-            tools,
-            resolved.max_output_tokens,
-            resolved.effort,
-            resolved.priority,
-        );
-        // §5.5: a subtraction from the declared surface is held until a
-        // miss is paid anyway — the previous step's record is the queue.
-        let request = prefix::hold(
-            prefix::previous(repo, &conv_id, step_seq)?.as_ref(),
-            request,
+            resolved,
+            deps,
         )?;
         let step = one_call::Step {
             conv_repo: repo,
             conv_id: &conv_id,
             seq: step_seq,
             tip: commit_sha,
-            dropped_orphans: assembled.dropped_orphans,
+            dropped_orphans: composed.dropped_orphans,
         };
-        let Some(step_dir_rel_str) = one_call::issue(step, &request, &call, resolved, deps)? else {
+        let Some(step_dir_rel_str) =
+            one_call::issue(step, &composed.request, &call, resolved, deps)?
+        else {
             break Epitaph::Stopped;
         };
 
@@ -265,7 +262,14 @@ pub(in crate::prompt) fn run_exchange(
 
         // §6 collapse: the `compaction:` checkpoint clock, same seam as
         // `litany advance` (`worker_flush` → dispatch a compactor off C).
-        child_result::run_flush(repo, &conv_id, &worktree_path, resolved.workflow, deps)?;
+        child_result::run_flush(
+            repo,
+            &conv_id,
+            &worktree_path,
+            resolved.workflow,
+            resolved.version,
+            deps,
+        )?;
         step_seq += 1;
     };
 

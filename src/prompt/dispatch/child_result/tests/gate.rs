@@ -198,7 +198,9 @@ fn a_verdict_action_without_an_executor_is_declined() {
     verifier_child(&ws, parent, &wtip, Some("APPROVE"), &fx);
 
     let wt = agent_worktree(&ws, parent);
-    let wf = workflow("events:\n  verifier_approve:\n    - notify_ui\n");
+    // Under the gate it answers for: the verdict executor is the one
+    // that declines, not the ordinary child-result executor.
+    let wf = workflow(&format!("{GATE}  verifier_approve:\n    - notify_ui\n"));
     let err = interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap_err();
     assert!(
         matches!(err, crate::prompt::Error::ActionUnsupported { .. }),
@@ -220,7 +222,12 @@ fn verifier_reject_honors_a_literal_with_value_as_feedback() {
     verifier_child(&ws, parent, &wtip, Some("REJECT: bad"), &fx);
 
     let wt = agent_worktree(&ws, parent);
-    let wf = workflow("events:\n  verifier_reject:\n    - \"dispatch(worker, with: fixit)\"\n");
+    // The verifier is a gating child only under the gate it answers for
+    // (`docs/DESIGN_PROCEDURES.md` §5), so the hold is bound beside the
+    // literal-feedback rejection.
+    let wf = workflow(&format!(
+        "{GATE}  verifier_reject:\n    - \"dispatch(worker, with: fixit)\"\n"
+    ));
     interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
 
     // A fresh worker was dispatched with the literal feedback as its goal.

@@ -2,6 +2,13 @@
 //!
 //! Per ARCH §10, this is a bare integer. The file's content is the integer
 //! and nothing else (trailing whitespace tolerated).
+//!
+//! **A version means something.** The number is not only a guard against
+//! shapes a parser cannot read; it is the home of every behaviour that
+//! had to change with a config's vocabulary and could not change under
+//! configs already frozen (ARCH §2.2). Each such behaviour is a method
+//! on [`Version`], so the rule "what does a version-N config do" has one
+//! reading and the firing site asks it rather than comparing integers.
 
 use crate::config::error::LoadError;
 use schemars::JsonSchema;
@@ -14,7 +21,19 @@ use std::path::Path;
 /// declined loudly (`docs/PRINCIPLES.md` "Decline illegal operations")
 /// rather than read on a guess. Older versions stay readable — that is
 /// the §10 promise, and what migration code is written for on a bump.
-pub const SUPPORTED: u32 = 1;
+pub const SUPPORTED: u32 = 2;
+
+/// The version from which the `user_message` lifecycle event fires
+/// (`docs/DESIGN_PROCEDURES.md` §3). Every version-1 config carries
+/// `user_message: [dispatch(worker)]` — the shipped template's own line,
+/// frozen into every workspace's `config/default` — and no hop ever
+/// derived the event, so the binding never ran. Firing it under those
+/// configs would fork a procedure worker on every operator prompt of
+/// every existing conversation; declining it at parse would refuse every
+/// existing workspace at its next step. So version 1 keeps the behaviour
+/// it always had, stated as that version's rule, and the event is
+/// version 2's.
+const USER_MESSAGE_FIRES: u32 = 2;
 
 /// The schema version of a conversation repo's config, already checked
 /// against [`SUPPORTED`]. Constructing one *is* the guard — there is no
@@ -50,6 +69,13 @@ impl Version {
         }
         Ok(Version(parsed))
     }
+
+    /// Whether a config at this version fires the `user_message`
+    /// lifecycle event when the drain delivers an operator message
+    /// ([`USER_MESSAGE_FIRES`]; ARCH §6, `docs/DESIGN_PROCEDURES.md` §3).
+    pub fn fires_user_message(self) -> bool {
+        self.0 >= USER_MESSAGE_FIRES
+    }
 }
 
 #[cfg(test)]
@@ -62,7 +88,7 @@ mod tests {
 
     #[test]
     fn parses_a_bare_integer() {
-        assert_eq!(Version::parse("1\n", origin()).unwrap(), Version(SUPPORTED));
+        assert_eq!(Version::parse("2\n", origin()).unwrap(), Version(SUPPORTED));
     }
 
     #[test]
@@ -94,5 +120,14 @@ mod tests {
             }
             other => panic!("expected Invalid, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn user_message_fires_from_version_two() {
+        // `docs/DESIGN_PROCEDURES.md` §3: version 1 keeps the behaviour it
+        // always had (the event never fired); the event is version 2's.
+        assert!(!Version(1).fires_user_message());
+        assert!(Version(2).fires_user_message());
+        assert!(Version(SUPPORTED).fires_user_message());
     }
 }

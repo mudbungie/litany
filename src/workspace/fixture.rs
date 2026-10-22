@@ -108,3 +108,29 @@ pub(crate) fn amend_lineage(ws: &Path, name: &str, files: &[(&str, &str)]) {
 pub(crate) fn amend_config(ws: &Path, files: &[(&str, &str)]) {
     amend_lineage(ws, DEFAULT_CONFIG_NAME, files);
 }
+
+/// The shipped basic agentic loop with every binding that forks or lands
+/// one of `roles` removed — for tests that author a `providers.yaml`
+/// without those roles: a workflow dispatching an undeclared role is
+/// refused at load (ARCH §4.3), and a test that replaces the roles must
+/// replace the bindings that name them in the same breath. The titler is
+/// the shipped case (`docs/DESIGN_PROCEDURES.md` §6): declared and bound,
+/// so a roles file without it needs a workflow without it.
+pub(crate) fn workflow_without(roles: &[&str]) -> String {
+    let raw = crate::template::TEMPLATE
+        .get_file("workflow.yaml")
+        .expect("the template ships workflow.yaml")
+        .contents_utf8()
+        .expect("workflow.yaml is UTF-8");
+    let mut workflow =
+        crate::config::Workflow::parse(raw, Path::new("template/workflow.yaml")).unwrap();
+    workflow.events.retain(|event, actions| {
+        let returns_one =
+            matches!(event, crate::config::Event::Return(r) if roles.contains(&r.as_str()));
+        let forks_one = actions
+            .iter()
+            .any(|a| roles.iter().any(|r| a.trim() == format!("dispatch({r})")));
+        !returns_one && !forks_one
+    });
+    serde_yaml_ng::to_string(&workflow).unwrap()
+}

@@ -37,6 +37,7 @@ impl Launcher for RecLauncher {
 /// fixture model. No version guard runs (resolution is injected).
 pub(super) fn worker_config() -> WorkerConfig {
     WorkerConfig {
+        version: crate::config::version::Version(1),
         role: "worker".into(),
         model_id: "claude-sonnet-5".into(),
         provider_row: "anthropic".into(),

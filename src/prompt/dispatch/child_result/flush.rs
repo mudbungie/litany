@@ -11,7 +11,9 @@
 //! dispatch(reviewer)]` forks two children off the same commit: the
 //! compactor, whose product lands by rebase-forward, and the reviewer,
 //! whose proposal lands nowhere. One clock, one point, two forks — no
-//! second trigger and no second "since last" derivation.
+//! second trigger and no second "since last" derivation. The fork door
+//! and the goal are [`procedure`]'s, shared with every other self-firing
+//! dispatch (`docs/DESIGN_PROCEDURES.md` §2).
 //!
 //! **The in-flight suppressor stays keyed on the compactor** (§2.7,
 //! bl-b9f0), and that is exact rather than an omission: a reviewer is
@@ -22,8 +24,9 @@
 //! costs one overlapping reviewer and is bounded by the clock the landing
 //! reset.
 
+use crate::config::version::Version;
 use crate::config::{Action, Event, Workflow};
-use crate::prompt::{ChildDispatchRequest, Deps, Error, child_dispatch, compactor, procedure};
+use crate::prompt::{Deps, Error, compactor, procedure};
 use std::path::Path;
 
 /// Run the `worker_flush` checkpoint at a step boundary (§2.7, §6): if the
@@ -33,34 +36,46 @@ use std::path::Path;
 /// when the workflow retains a recent tail (§2.6). A branch with no
 /// `compaction:` block is never due, so this is a no-op — the general
 /// path with empty inputs; so is a due clock whose whole span sits inside
-/// the retained tail (nothing beneath the tail to compact).
+/// the retained tail (nothing beneath the tail to compact), and so is a
+/// machinery branch, which the clock never finds due (`procedure`).
 pub(in crate::prompt::dispatch) fn run_flush(
     workspace: &Path,
     agent_id: &str,
     worktree: &Path,
     workflow: &Workflow,
+    version: Version,
     deps: &Deps<'_>,
 ) -> Result<(), Error> {
     // No `compaction:` clock → never due; skip the git-derived state (§2.7).
     let Some(cfg) = workflow.compaction.as_ref() else {
         return Ok(());
     };
-    let state = compactor::state(worktree, agent_id, deps.clock.now_unix(), false, deps.git)?;
+    let state = compactor::state(
+        worktree,
+        agent_id,
+        deps.clock.now_unix(),
+        false,
+        workflow,
+        version,
+        deps.git,
+    )?;
     if !compactor::due(Some(cfg), &state)? {
         return Ok(());
     }
     let Some(point) = compaction_point(worktree, agent_id, cfg, &state, deps.git)? else {
         return Ok(());
     };
-    for action in flush_actions(workflow) {
-        execute_flush(
-            &action,
-            workspace,
-            agent_id,
-            worktree,
-            point.as_deref(),
-            deps,
-        )?;
+    for action in procedure::self_firing_actions(workflow, &Event::WorkerFlush) {
+        // A checkpoint is a fork or nothing: any other closed-set action
+        // here is declined (`docs/PRINCIPLES.md` "Decline illegal
+        // operations").
+        let Action::Dispatch { role, .. } = &action else {
+            return Err(Error::ActionUnsupported {
+                action: format!("{action:?}"),
+                event: Event::WorkerFlush.key(),
+            });
+        };
+        procedure::dispatch(role, workspace, agent_id, worktree, point.as_deref(), deps)?;
     }
     Ok(())
 }
@@ -107,90 +122,6 @@ fn compaction_point(
     Ok(Some(Some(sha.trim().to_string())))
 }
 
-/// The `worker_flush` actions, or the §2.7 baseline default when unbound:
-/// dispatch a compactor. Overridable by binding the event.
-fn flush_actions(workflow: &Workflow) -> Vec<Action> {
-    let bound = workflow.actions_for(Event::WorkerFlush);
-    if bound.is_empty() {
-        vec![Action::Dispatch {
-            role: compactor::COMPACTOR_ROLE.to_string(),
-            with: None,
-            mode: None,
-        }]
-    } else {
-        bound
-    }
-}
-
-/// Execute one `worker_flush` action. A dispatch of a role the harness
-/// has a checkpoint goal for runs ([`procedure::checkpoint_goal`], the
-/// one home of that set); any other closed-set action here is declined
-/// (`Error::ActionUnsupported`), as is a dispatch of any other role — a
-/// checkpoint fork the harness cannot instruct is a config fault, and
-/// declining it loudly beats forking a child with nothing to do
-/// (`docs/PRINCIPLES.md` "Decline illegal operations"). The same `match`
-/// answers which branches are excluded from being compaction subjects
-/// (§2.7, bl-08b4): what the harness mints, it never compacts.
-fn execute_flush(
-    action: &Action,
-    workspace: &Path,
-    agent_id: &str,
-    worktree: &Path,
-    point: Option<&str>,
-    deps: &Deps<'_>,
-) -> Result<(), Error> {
-    let unsupported = || Error::ActionUnsupported {
-        action: format!("{action:?}"),
-        event: Event::WorkerFlush.as_str(),
-    };
-    let Action::Dispatch { role, .. } = action else {
-        return Err(unsupported());
-    };
-    // The boilerplate goal quotes the dispatching branch's own goal
-    // (§2.7), read from the worktree we are forking off — `goal.md` is
-    // pinned at dispatch (§2.8), so the tip's copy is the point's too.
-    let Some(build) = procedure::checkpoint_goal(role) else {
-        return Err(unsupported());
-    };
-    let goal = build(worktree, agent_id)?;
-    dispatch_at_point(role, &goal, workspace, agent_id, worktree, point, deps)
-}
-
-/// Fork one checkpoint child off `agent_id`'s compaction point — `None`
-/// is the tip — and start it through the front door (§2.5, §2.7). What
-/// its return does is the returning role's business on a later hop: a
-/// compactor's lands the rebase-forward (`compactor_return`), a
-/// reviewer's stages a proposal (`reviewer_return`).
-fn dispatch_at_point(
-    role: &str,
-    goal: &str,
-    workspace: &Path,
-    agent_id: &str,
-    worktree: &Path,
-    point: Option<&str>,
-    deps: &Deps<'_>,
-) -> Result<(), Error> {
-    let req = ChildDispatchRequest {
-        repo: workspace,
-        parent_branch: agent_id,
-        parent_worktree: worktree,
-        role,
-        goal,
-        name: None,
-        fork_point: point,
-        cwd: None,
-        pins: crate::prompt::PinnedDocs::none(),
-    };
-    child_dispatch::run_procedure(
-        &req,
-        deps.git,
-        deps.clock,
-        deps.id_gen,
-        deps.launcher,
-        deps.rng,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,7 +138,7 @@ mod tests {
             commits_since_checkpoint: commits,
             seconds_since_checkpoint: 0,
             flush_requested: false,
-            is_checkpoint_child: false,
+            is_machinery: false,
             compaction_in_flight: false,
             last_usage: None,
         }

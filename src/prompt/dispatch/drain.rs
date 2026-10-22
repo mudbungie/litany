@@ -17,6 +17,7 @@
 
 use super::transcript;
 use crate::prompt::Error;
+use crate::prompt::inbox::USER_SENDER;
 use crate::template::GitRunner;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -45,6 +46,7 @@ pub(super) fn drain(
     recover_strays(worktree, conv_id, git)?;
     let mut delivery = Delivery {
         delivered: 0,
+        operator_spoke: false,
         left: Vec::new(),
     };
     for msg in pending(inbox)? {
@@ -67,6 +69,7 @@ pub(super) fn drain(
         }
         transcript::deliver_message(worktree, conv_id, &msg.sender, &msg.path, git)?;
         delivery.delivered += 1;
+        delivery.operator_spoke |= msg.sender == USER_SENDER;
     }
     Ok(delivery)
 }
@@ -77,6 +80,11 @@ pub(super) fn drain(
 pub(super) struct Delivery {
     /// Messages moved into the transcript as delivery commits (§2.11).
     pub(super) delivered: usize,
+    /// At least one of them was the operator's ([`USER_SENDER`], §2.3
+    /// *Origins*) — the circumstance that fires `user_message` (§6,
+    /// `docs/DESIGN_PROCEDURES.md` §3). A circumstance, not a count: the
+    /// event fires once per hop that delivered any.
+    pub(super) operator_spoke: bool,
     /// The §2.11 release rule's seen-set: deposits this drain enumerated
     /// and deliberately left (held results, `super::child_result`).
     pub(super) left: Vec<SeenDeposit>,

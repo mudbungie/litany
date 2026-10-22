@@ -21,6 +21,7 @@ const CHILD_DEPTH: u32 = 1;
 /// A `WorkerConfig` whose only declared budget is `max_depth: n`.
 fn capped(n: u32) -> WorkerConfig {
     WorkerConfig {
+        version: crate::config::version::Version(1),
         workflow: Workflow::parse(
             &format!("events: {{}}\nbudgets:\n  max_depth: {n}\n"),
             Path::new("workflow.yaml"),

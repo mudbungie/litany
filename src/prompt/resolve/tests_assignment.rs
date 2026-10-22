@@ -30,7 +30,10 @@ fn the_role_effort_follows_the_tip_to_the_resolved_shape() {
     assert_eq!(before.effort, None, "the shipped template requests none");
     fixture::amend_config(
         &ws,
-        &[("providers.yaml", &providers_with("effort: medium"))],
+        &[
+            ("providers.yaml", &providers_with("effort: medium")),
+            ("workflow.yaml", &fixture::workflow_without(&["titler"])),
+        ],
     );
     let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
     assert_eq!(cfg.effort, Some(crate::config::Effort::Medium));
@@ -53,7 +56,10 @@ fn the_role_priority_follows_the_tip_to_the_resolved_shape() {
     assert_eq!(before.priority, None, "the shipped template asks no lane");
     fixture::amend_config(
         &ws,
-        &[("providers.yaml", &providers_with("priority: true"))],
+        &[
+            ("providers.yaml", &providers_with("priority: true")),
+            ("workflow.yaml", &fixture::workflow_without(&["titler"])),
+        ],
     );
     let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
     assert_eq!(cfg.priority, Some(true));
@@ -61,7 +67,10 @@ fn the_role_priority_follows_the_tip_to_the_resolved_shape() {
     // And back off the lane, on the same one act.
     fixture::amend_config(
         &ws,
-        &[("providers.yaml", &providers_with("priority: false"))],
+        &[
+            ("providers.yaml", &providers_with("priority: false")),
+            ("workflow.yaml", &fixture::workflow_without(&["titler"])),
+        ],
     );
     let after = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
     assert_eq!(after.priority, Some(false));
@@ -83,10 +92,13 @@ fn the_role_output_cap_follows_the_tip_to_the_resolved_shape() {
     );
     fixture::amend_config(
         &ws,
-        &[(
-            "providers.yaml",
-            &providers_with("max_output_tokens: 32000"),
-        )],
+        &[
+            (
+                "providers.yaml",
+                &providers_with("max_output_tokens: 32000"),
+            ),
+            ("workflow.yaml", &fixture::workflow_without(&["titler"])),
+        ],
     );
     let cfg = resolve_worker(&ws, ConfigSource::Agent("20260101-r1"), &fx.deps()).unwrap();
     assert_eq!(cfg.max_output_tokens, Some(32000));

@@ -85,6 +85,13 @@ pub(crate) struct SpawnRequest<'a> {
     /// distinguishes the role at a glance — compactor uses
     /// `compaction: dispatch [...]`; worker uses `dispatch: worker [...]`.
     pub(crate) commit_subject: &'a str,
+    /// Whether the fork keeps the dispatching branch's inherited dialog
+    /// (ARCH §2.2 *Branch-scoped vs inherited*): true for a procedure
+    /// child, whose subject that dialog is — machinery under the
+    /// governing workflow ([`crate::prompt::procedure::is_machinery`]).
+    /// Derived by the caller, which holds the workflow; a second
+    /// derivation here would be a second home for the set.
+    pub(crate) keeps_dialog: bool,
 }
 
 /// Spawn the subagent branch and write the dispatch commit. Steps,
@@ -144,6 +151,12 @@ pub(crate) fn spawn_subagent_branch(
     // explicit `create_dir_all` is here for stub-git tests (and is a
     // harmless no-op in production since the directory already exists).
     std::fs::create_dir_all(req.sub_worktree)?;
+    // The dialog prune runs **before** the trim: the trim's reviewer
+    // read checks the followed config commit's `skills/**` into the
+    // tree, and a prune after it would be asked to remove what that
+    // read just staged. Pruned first, a non-keeper's tree is clean and
+    // the read lands the config's bodies fresh.
+    crate::prompt::dispatch::prune_inherited_dialog(req.sub_worktree, req.keeps_dialog, git)?;
     crate::prompt::dispatch::trim_to_context(
         req.sub_worktree,
         req.sub_branch,
@@ -151,7 +164,6 @@ pub(crate) fn spawn_subagent_branch(
         req.name,
         git,
     )?;
-    crate::prompt::dispatch::prune_inherited_dialog(req.sub_worktree, req.grant.role, git)?;
     std::fs::write(req.sub_worktree.join(GOAL_FILE), req.goal_text)?;
     if let Some(soul) = req.soul_text {
         std::fs::write(req.sub_worktree.join(SOUL_FILE), soul)?;

@@ -4,6 +4,7 @@
 
 use super::super::run_flush;
 use super::{Fx, workflow};
+use crate::config::version::Version;
 use crate::template::{GitRunner, RealGit};
 use crate::workspace::{agent_worktree, fixture};
 
@@ -18,7 +19,7 @@ fn run_flush_is_a_noop_when_the_clock_is_below_threshold() {
     let wf = workflow(
         "events: {}\ncompaction:\n  intermediate:\n    trigger: every_n_commits\n    n: 1000000\n",
     );
-    run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &wf, Version(2), &fx.deps()).unwrap();
     assert!(fx.launcher.launched.borrow().is_empty());
 }
 
@@ -48,13 +49,13 @@ fn run_flush_never_compacts_a_compactor_branch() {
     let wf = workflow(
         "events: {}\ncompaction:\n  intermediate:\n    trigger: every_n_commits\n    n: 1\n",
     );
-    run_flush(&ws, parent, &parent_wt, &wf, &fx.deps()).unwrap();
+    run_flush(&ws, parent, &parent_wt, &wf, Version(2), &fx.deps()).unwrap();
     let compactor = fx.launcher.launched.borrow()[0].clone();
 
     // Now run the same boundary on the compactor itself: not due, no
     // second-generation compactor, no cascade.
     let compactor_wt = agent_worktree(&ws, &compactor);
-    run_flush(&ws, &compactor, &compactor_wt, &wf, &fx.deps()).unwrap();
+    run_flush(&ws, &compactor, &compactor_wt, &wf, Version(2), &fx.deps()).unwrap();
     assert_eq!(
         fx.launcher.launched.borrow().len(),
         1,
@@ -82,7 +83,7 @@ fn run_flush_forks_the_compactor_off_the_configured_compaction_point() {
     let wf = workflow(
         "events: {}\ncompaction:\n  intermediate:\n    trigger: every_n_commits\n    n: 3\n    keep_recent: 2\n",
     );
-    run_flush(&ws, parent, &parent_wt, &wf, &fx.deps()).unwrap();
+    run_flush(&ws, parent, &parent_wt, &wf, Version(2), &fx.deps()).unwrap();
     let compactor = fx.launcher.launched.borrow()[0].clone();
     // The basic agentic loop binds one dispatch, so one child forks —
     // unchanged by the checkpoint running every dispatch it binds
@@ -133,7 +134,7 @@ fn run_flush_skips_a_due_clock_whose_span_sits_inside_the_retained_tail() {
     let wf = workflow(
         "events: {}\ncompaction:\n  intermediate:\n    trigger: every_t_seconds\n    n: 1\n    keep_recent: 4\n",
     );
-    run_flush(&ws, parent, &wt, &wf, &deps).unwrap();
+    run_flush(&ws, parent, &wt, &wf, Version(2), &deps).unwrap();
     assert!(fx.launcher.launched.borrow().is_empty());
 }
 

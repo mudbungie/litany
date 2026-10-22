@@ -179,8 +179,14 @@ fn rejects_unknown_tool_control_fields() {
 
 #[test]
 fn rejects_unknown_event() {
-    let err = parse("events:\n  user_request:\n    - notify_ui\n").unwrap_err();
+    // Outside both shapes — no `_`, so neither a closed name nor a
+    // `<role>_<token>` key — is refused at load (`config::event`).
+    let err = parse("events:\n  teleport:\n    - notify_ui\n").unwrap_err();
     assert!(matches!(err, LoadError::Yaml { .. }));
+    // A key of the open shape parses as that role's verdict: the set is
+    // open along exactly that axis (`docs/DESIGN_PROCEDURES.md` §5).
+    let w = parse("events:\n  user_request:\n    - notify_ui\n").unwrap();
+    assert!(w.events.contains_key(&Event::verdict("user", "request")));
 }
 
 #[test]

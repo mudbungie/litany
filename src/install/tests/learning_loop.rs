@@ -64,11 +64,12 @@ fn the_learning_loop_is_the_basic_loop_plus_the_reviewer() {
             Some(&expected),
             learning.events.get(event),
             "{} diverged",
-            event.as_str()
+            event.key()
         );
     }
+    let reviewer_return = Event::returned("reviewer");
     assert_eq!(
-        learning.actions_for(Event::ReviewerReturn),
+        learning.actions_for(&reviewer_return),
         vec![Action::StageProposal],
         "the reviewer's landing is the one binding the learning loop adds"
     );
@@ -77,7 +78,7 @@ fn the_learning_loop_is_the_basic_loop_plus_the_reviewer() {
         .keys()
         .filter(|e| !basic.events.contains_key(e))
         .collect();
-    assert_eq!(added, vec![&Event::ReviewerReturn], "one event was added");
+    assert_eq!(added, vec![&reviewer_return], "one event was added");
 }
 
 /// `prime` seeds the alternative beside the default (§2.2, §6), and a
@@ -104,7 +105,7 @@ fn prime_seeds_the_learning_loop_beside_the_default() {
 fn the_default_still_dispatches_no_reviewer() {
     let (basic, _) = shipped();
     assert_eq!(
-        basic.actions_for(Event::WorkerFlush),
+        basic.actions_for(&Event::WorkerFlush),
         vec![Action::Dispatch {
             role: "compactor".into(),
             with: None,
@@ -112,7 +113,7 @@ fn the_default_still_dispatches_no_reviewer() {
         }],
         "the basic agentic loop forks a compactor and nobody else"
     );
-    assert!(basic.actions_for(Event::ReviewerReturn).is_empty());
+    assert!(basic.actions_for(&Event::returned("reviewer")).is_empty());
 }
 
 /// **The asset's prose may not contradict the interpreter.** The comment

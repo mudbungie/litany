@@ -114,6 +114,7 @@ fn a_parked_branch_queues_mail_and_resumes_on_release() {
     deps.launcher = &rec;
     let mut cfg = || -> Result<WorkerConfig, crate::prompt::Error> {
         Ok(WorkerConfig {
+            version: crate::config::version::Version(1),
             workflow: Workflow::parse(&gated_workflow(&control), Path::new("workflow.yaml"))
                 .unwrap(),
             ..worker_config()
@@ -282,6 +283,7 @@ fn a_stop_felling_the_resumes_control_is_the_stopped_terminal() {
     deps.launcher = &rec;
     let mut cfg = || -> Result<WorkerConfig, crate::prompt::Error> {
         Ok(WorkerConfig {
+            version: crate::config::version::Version(1),
             workflow: Workflow::parse(&gated_workflow(&control), Path::new("workflow.yaml"))
                 .unwrap(),
             ..worker_config()

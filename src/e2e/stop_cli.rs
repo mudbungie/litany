@@ -193,10 +193,16 @@ fn stop_lands_during_tool_execution_via_inbox_lock_fd() {
     // none) — another config-commit amendment (§2.2).
     amend_config(
         &dest,
-        &[(
-            "providers.yaml",
-            "roles:\n  worker:\n    provider: test\n    model: claude-sonnet-5\n    tools: [bash]\n  compactor:\n    provider: test\n    model: claude-haiku-4-5\n",
-        )],
+        &[
+            (
+                "providers.yaml",
+                "roles:\n  worker:\n    provider: test\n    model: claude-sonnet-5\n    tools: [bash]\n  compactor:\n    provider: test\n    model: claude-haiku-4-5\n",
+            ),
+            (
+                "workflow.yaml",
+                &crate::workspace::fixture::workflow_without(&["titler"]),
+            ),
+        ],
     );
 
     let mut prompt_child = spawn_prompt(&dest, &harness, &brazen_config, "run a slow tool");

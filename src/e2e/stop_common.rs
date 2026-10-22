@@ -119,9 +119,10 @@ pub fn scaffold_repo(dest: &Path, harness: &Path) {
     // lineage (§2.2), never as loose files.
     amend_config(
         dest,
-        &[(
-            "providers.yaml",
-            "\
+        &[
+            (
+                "providers.yaml",
+                "\
 roles:
   worker:
     provider: test
@@ -130,7 +131,13 @@ roles:
     provider: test
     model: claude-haiku-4-5
 ",
-        )],
+            ),
+            // No titler row, so no titler bindings (ARCH §4.3).
+            (
+                "workflow.yaml",
+                &crate::workspace::fixture::workflow_without(&["titler"]),
+            ),
+        ],
     );
 }
 

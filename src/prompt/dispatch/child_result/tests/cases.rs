@@ -2,7 +2,7 @@
 //! shared real-git harness (stubs, `Fx`, `returned_child`) lives in the
 //! parent [`super`] module.
 
-use super::super::{has_pending_result, interpret_pending, run_flush};
+use super::super::{has_pending_result, interpret_pending};
 use super::{Fx, returned_child, returned_child_ep, steer, workflow};
 use crate::prompt::inbox::Epitaph;
 use crate::prompt::{Error, SystemClock};
@@ -207,52 +207,6 @@ fn interpret_pending_skips_a_steering_deposit() {
 }
 
 #[test]
-fn run_flush_dispatches_a_compactor_when_the_checkpoint_is_due() {
-    // §2.7/§6: a `compaction:` clock due at the boundary runs worker_flush
-    // → dispatch(compactor), forking a compactor off the tip C.
-    let (_h, ws) = fixture::workspace();
-    let parent = "20260101-p6";
-    let wt = fixture::spawn_root(&ws, parent);
-    let fx = Fx::new();
-    // every_n_commits n=1: the parent already has commits, so it is due.
-    let wf = workflow(
-        "events: {}\ncompaction:\n  intermediate:\n    trigger: every_n_commits\n    n: 1\n",
-    );
-    run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
-    // A compactor child was launched through the front door.
-    let launched = fx.launcher.launched.borrow();
-    assert_eq!(launched.len(), 1);
-    assert!(
-        launched[0].starts_with(&format!("{parent}-")),
-        "{launched:?}"
-    );
-}
-
-#[test]
-fn run_flush_is_a_noop_without_a_compaction_block() {
-    let (_h, ws) = fixture::workspace();
-    let parent = "20260101-p7";
-    let wt = fixture::spawn_root(&ws, parent);
-    let fx = Fx::new();
-    run_flush(&ws, parent, &wt, &workflow("events: {}\n"), &fx.deps()).unwrap();
-    assert!(fx.launcher.launched.borrow().is_empty());
-}
-
-#[test]
-fn run_flush_declines_an_unsupported_flush_action() {
-    let (_h, ws) = fixture::workspace();
-    let parent = "20260101-p8";
-    let wt = fixture::spawn_root(&ws, parent);
-    let fx = Fx::new();
-    // Due, but worker_flush bound to a non-dispatch action → declined.
-    let wf = workflow(
-        "events:\n  worker_flush:\n    - notify_ui\ncompaction:\n  intermediate:\n    trigger: every_n_commits\n    n: 1\n",
-    );
-    let err = run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap_err();
-    assert!(matches!(err, Error::ActionUnsupported { .. }), "{err:?}");
-}
-
-#[test]
 fn a_reply_from_an_agent_this_one_never_dispatched_is_not_a_child_result() {
     // §2.6: the return is the *dispatcher's* business — the work-product
     // transfer diffs against the fork the dispatcher made, and the §6
@@ -293,4 +247,53 @@ fn a_reply_from_an_agent_this_one_never_dispatched_is_not_a_child_result() {
         "left for the drain, untouched"
     );
     assert!(!wt.join(format!("messages/001-{stranger}.md")).exists());
+}
+
+#[test]
+fn land_response_commits_the_file_and_neither_transfers_nor_delivers() {
+    // `docs/DESIGN_PROCEDURES.md` §4: the child's conclusion lands as one
+    // file at the dispatcher's root; its work product stays on its own
+    // branch and no message enters the transcript.
+    let (_h, ws) = fixture::workspace();
+    let parent = "20260101-l1";
+    let wt = fixture::spawn_root(&ws, parent);
+    let fx = Fx::new();
+    let child = returned_child(&ws, parent, "worker", "name it", ("out.txt", "work\n"), &fx);
+    let wf = workflow("events:\n  worker_return:\n    - land_response(title)\n");
+    interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+
+    assert_eq!(std::fs::read_to_string(wt.join("title")).unwrap(), "done\n");
+    let subject = fx
+        .git
+        .run_capture(&wt, &["log", "-1", "--format=%s"])
+        .unwrap();
+    assert_eq!(subject.trim(), format!("landing: title [{child}]"));
+    assert!(!wt.join("out.txt").exists(), "no work-product transfer");
+    assert!(
+        !wt.join("messages").exists()
+            || std::fs::read_dir(wt.join("messages")).unwrap().count() == 0,
+        "no transcript entry"
+    );
+    assert!(!has_pending_result(&ws, parent).unwrap(), "consumed");
+}
+
+#[test]
+fn a_died_child_under_land_response_delivers_its_obituary_and_lands_nothing() {
+    let (_h, ws) = fixture::workspace();
+    let parent = "20260101-l2";
+    let wt = fixture::spawn_root(&ws, parent);
+    let fx = Fx::new();
+    returned_child_ep(
+        &ws,
+        parent,
+        "worker",
+        "name it",
+        ("o.txt", "w"),
+        Epitaph::Died,
+        &fx,
+    );
+    let wf = workflow("events:\n  worker_return:\n    - land_response(title)\n");
+    interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+    assert!(!wt.join("title").exists());
+    assert_eq!(std::fs::read_dir(wt.join("messages")).unwrap().count(), 1);
 }

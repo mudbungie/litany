@@ -30,7 +30,7 @@ fn surfaces_worktree_add_failure() {
 fn surfaces_control_rm_failure() {
     let parent_dir = tmpdir();
     let sub_dir = tmpdir();
-    let git = StubGit::failing_at(1);
+    let git = StubGit::failing_at(2);
     let err = spawn_subagent_branch(
         &req(parent_dir.path(), sub_dir.path(), Some("soul\n")),
         &git,
@@ -52,7 +52,7 @@ fn surfaces_control_rm_failure() {
 fn surfaces_dialog_prune_failure() {
     let parent_dir = tmpdir();
     let sub_dir = tmpdir();
-    let git = StubGit::failing_at(5);
+    let git = StubGit::failing_at(1);
     let err = spawn_subagent_branch(
         &req(parent_dir.path(), sub_dir.path(), Some("soul\n")),
         &git,
@@ -118,6 +118,7 @@ fn surfaces_io_failure_when_sub_worktree_is_a_file() {
         pins: crate::prompt::PinnedDocs::none(),
         grant: &EMPTY_GRANT,
         commit_subject: "x",
+        keeps_dialog: false,
     };
     let err = spawn_subagent_branch(&r, &git).unwrap_err();
     assert!(matches!(err, Error::Io(_)), "got {err:?}");
@@ -127,11 +128,11 @@ fn surfaces_io_failure_when_sub_worktree_is_a_file() {
 fn surfaces_name_settle_failure() {
     // The trim's sixth part (§2.3): staging the settled `name` fails,
     // and the dispatch commit reports it in its own voice rather than
-    // as an anonymous git error (2 and 3 are the facts cut's probe and
-    // checkout, which the stub answers).
+    // as an anonymous git error (3 and 4 are the facts cut's probe and
+    // checkout, which the stub answers; 1 the dialog prune).
     let parent_dir = tmpdir();
     let sub_dir = tmpdir();
-    let git = StubGit::failing_at(4);
+    let git = StubGit::failing_at(5);
     let err =
         spawn_subagent_branch(&req(parent_dir.path(), sub_dir.path(), None), &git).unwrap_err();
     assert!(

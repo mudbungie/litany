@@ -276,7 +276,9 @@ fn a_deposit_onto_a_buried_unpaired_window_is_still_declined_after_delivery() {
     let id = FixedIdGen;
     let tools = StubToolExecutor::ok();
     let deps = valid_deps(&adapter, &sleeper, &git, &clock, &id, &tools, ws.path());
-    let err = run(ws.path(), AGENT, None, &deps, &mut no_resolve).unwrap_err();
+    // The operator spoke, so the hop resolves (the `user_message`
+    // circumstance, `docs/DESIGN_PROCEDURES.md` §3) before it declines.
+    let err = run(ws.path(), AGENT, None, &deps, &mut || Ok(worker_config())).unwrap_err();
     assert!(matches!(err, Error::UnpairedToolUse { .. }), "{err}");
     // The mail DID deliver — the decline reads through it, not past it.
     assert!(wt.join("messages/004-user.md").exists());

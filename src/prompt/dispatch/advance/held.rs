@@ -109,13 +109,23 @@ pub(super) fn resume(
             // then the ordinary exec-baton handoff; the successor
             // delivers the queued mail at its own step boundary.
             workflow_actions::run_step_hook(
-                &cfg.workflow,
-                Event::OnToolReturn,
-                &worktree,
+                workspace,
                 agent_id,
-                deps.git,
+                &worktree,
+                &cfg.workflow,
+                cfg.version,
+                &cfg.role,
+                Event::OnToolReturn,
+                deps,
             )?;
-            child_result::run_flush(workspace, agent_id, &worktree, &cfg.workflow, deps)?;
+            child_result::run_flush(
+                workspace,
+                agent_id,
+                &worktree,
+                &cfg.workflow,
+                cfg.version,
+                deps,
+            )?;
             Ok(Resumption::Done(AdvanceOutcome::ToolsPending(lock)))
         }
     }

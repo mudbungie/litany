@@ -6,6 +6,7 @@
 
 use super::super::run_flush;
 use super::{Fx, workflow};
+use crate::config::version::Version;
 use crate::template::GitRunner;
 use crate::workspace::fixture;
 
@@ -23,8 +24,8 @@ fn a_compaction_in_flight_suppresses_the_next_checkpoint() {
     let wf = workflow(
         "events: {}\ncompaction:\n  intermediate:\n    trigger: every_n_commits\n    n: 1\n",
     );
-    run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
-    run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &wf, Version(2), &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &wf, Version(2), &fx.deps()).unwrap();
     let launched = fx.launcher.launched.borrow();
     assert_eq!(
         launched.len(),
@@ -39,7 +40,7 @@ fn a_compaction_in_flight_suppresses_the_next_checkpoint() {
     let mark = crate::prompt::inbox::deposit::returned_ref(&child);
     let tip = fx.git.run_capture(&wt, &["rev-parse", "HEAD"]).unwrap();
     fx.git.run(&wt, &["update-ref", &mark, tip.trim()]).unwrap();
-    run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &wf, Version(2), &fx.deps()).unwrap();
     assert_eq!(
         fx.launcher.launched.borrow().len(),
         2,
@@ -78,7 +79,7 @@ fn a_worker_child_still_in_flight_suppresses_nothing() {
     let wf = workflow(
         "events: {}\ncompaction:\n  intermediate:\n    trigger: every_n_commits\n    n: 1\n",
     );
-    run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &wf, Version(2), &fx.deps()).unwrap();
     assert_eq!(
         fx.launcher.launched.borrow().len(),
         2,

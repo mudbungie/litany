@@ -46,6 +46,7 @@ const GATE_WORKFLOW: &str = "events:\n  \
 
 fn gate_cfg(role: &str, workflow: &str) -> WorkerConfig {
     WorkerConfig {
+        version: crate::config::version::Version(1),
         role: role.into(),
         workflow: Workflow::parse(workflow, Path::new("workflow.yaml")).unwrap(),
         ..worker_config()

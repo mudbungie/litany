@@ -41,10 +41,14 @@ use std::path::{Path, PathBuf};
 /// `child_result::landing`). What this ledger sweeps is the
 /// terminal-lifecycle executor, where neither can run — a landing is
 /// minted from a child's return, and a branch's own terminal has none.
+/// `Dispatch` sits here for the same reason: it executes at the
+/// self-firing seam (`run_step_hook`, bl-7192) and at a child's return,
+/// and a branch's own terminal forks nothing.
 const DEFERRED: &[&str] = &[
     "DeliverResult",
     "Dispatch",
     "LandCompaction",
+    "LandResponse",
     "StageProposal",
 ];
 
@@ -124,15 +128,15 @@ fn shipped_configs_declare_only_interpretable_vocabulary() {
             .unwrap_or_else(|e| panic!("{} does not parse: {e}", origin.display()));
 
         for (event, actions) in workflow.typed_events() {
-            events_swept.insert(event);
+            events_swept.insert(event.clone());
             assert!(
                 !actions.is_empty(),
                 "{}: {} is bound to nothing",
                 origin.display(),
-                event.as_str()
+                event.key()
             );
             for action in &actions {
-                match execute(action, event, Path::new("/wt"), "a-b", &git) {
+                match execute(action, &event, Path::new("/wt"), "a-b", &git) {
                     Ok(()) => {}
                     Err(Error::ActionUnsupported { .. }) => {
                         deferred.insert(variant(action));
@@ -140,7 +144,7 @@ fn shipped_configs_declare_only_interpretable_vocabulary() {
                     Err(other) => panic!(
                         "{}: {} bound {action:?}, which the interpreter answered with {other:?}",
                         origin.display(),
-                        event.as_str()
+                        event.key()
                     ),
                 }
             }
@@ -160,8 +164,11 @@ fn shipped_configs_declare_only_interpretable_vocabulary() {
         *git.0.borrow() >= 2,
         "no shipped executor ran — the sweep is vacuous"
     );
+    // `user_message` fires since bl-7192 (`docs/DESIGN_PROCEDURES.md`
+    // §3) and the titler binds it (§6 there): the sweep reaches the one
+    // self-firing event whose binding forks a procedure on every prompt.
     assert!(
         events_swept.contains(&Event::UserMessage),
-        "user_message is unbound in every shipped config"
+        "no shipped config binds user_message"
     );
 }

@@ -61,8 +61,8 @@
 
 use super::clock::{Clock, IdGen};
 use super::subagent::{SpawnRequest, spawn_subagent_branch};
-use super::{Error, PER_REPO_PROVIDERS_FILE, SOULS_DIR, WORKFLOW_FILE};
-use crate::config::{PerRepoProviders, Workflow};
+use super::{Error, PER_REPO_PROVIDERS_FILE, SOULS_DIR};
+use crate::config::PerRepoProviders;
 use crate::prompt::inbox::{self, Launcher};
 use crate::prompt::notice::notice;
 use crate::prompt::{budget, dispatch};
@@ -137,7 +137,8 @@ pub fn run(
     // (see [`run`]'s docs). Evaluated against the child's own prospective
     // branch name, so `max_depth` refuses the fork that would breach it
     // rather than letting the branch exist and decline later.
-    if let Some(ex) = budget::check(req.repo, &sub_branch, &budgets(req, &commit, git)?) {
+    let (workflow, version) = governing::governing(req, &commit, git)?;
+    if let Some(ex) = budget::check(req.repo, &sub_branch, &workflow.budgets) {
         return Err(Error::DispatchRefused {
             child: sub_branch,
             parent: req.parent_branch.to_string(),
@@ -210,6 +211,9 @@ pub fn run(
             pins: req.pins,
             grant: &grant,
             commit_subject: &commit_subject,
+            // A procedure child's subject is the dispatching branch's
+            // own dialog, so its fork keeps it (`procedure`, ARCH §2.2).
+            keeps_dialog: super::procedure::is_machinery(&workflow, version, req.role),
         },
         git,
     )?;
@@ -261,31 +265,7 @@ pub fn run_procedure(
     }
 }
 
-/// The `budgets:` block governing this dispatch, read from the workflow
-/// that governs the **dispatching branch**: the nearest workflow mark on
-/// its descent when one stands (§6 *The workflow mark* — the child's own
-/// descent walk answers identically, so gate and child agree), else the
-/// same frozen config commit the soul comes from (§2.2, §6) — the
-/// governing config of the ref the child forks off, which the child
-/// inherits through ancestry. Either way the ceiling this gate evaluates
-/// is the one the child's own later checks read: one answer, not two.
-fn budgets(
-    req: &ChildDispatchRequest<'_>,
-    commit: &str,
-    git: &dyn GitRunner,
-) -> Result<crate::config::Budgets, Error> {
-    let wf_commit =
-        crate::prompt::resolve::workflow_source::nearest_mark(req.repo, req.parent_branch, git)
-            .map_or_else(|| commit.to_string(), |(_, commit)| commit);
-    let raw =
-        workspace::show_control(req.repo, &wf_commit, WORKFLOW_FILE, git).map_err(|source| {
-            Error::ControlRead {
-                path: PathBuf::from(format!("{wf_commit}:{WORKFLOW_FILE}")),
-                source,
-            }
-        })?;
-    Ok(Workflow::parse(&raw, &PathBuf::from(format!("{wf_commit}:{WORKFLOW_FILE}")))?.budgets)
-}
+mod governing;
 
 #[cfg(test)]
 mod tests;

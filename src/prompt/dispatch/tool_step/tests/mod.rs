@@ -77,6 +77,7 @@ impl Resolution {
 
     fn of<'a>(&'a self, role: &'a str, grant: &'a [String]) -> Resolved<'a> {
         Resolved {
+            version: crate::config::version::Version(1),
             grant: crate::prompt::dispatch::Grant {
                 role,
                 tools: grant,

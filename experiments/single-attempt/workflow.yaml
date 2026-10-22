@@ -11,8 +11,16 @@
 # demonstrating the §9.3 "a new experiment is a config diff; no code
 # changes" path end to end.
 events:
+  # The conversation names itself (`docs/DESIGN_PROCEDURES.md` §6): each
+  # operator message forks a titler off the branch — a procedure child,
+  # out of band — and its one-line answer lands as the branch's `title`
+  # file, which the seat reads above the minted name. No transfer, no
+  # transcript entry, no token of it in the conversation's own context.
+  # Off switch: delete these two bindings.
   user_message:
-    - dispatch(worker)
+    - dispatch(titler)
+  titler_return:
+    - land_response(title)
   worker_return:
     - deliver_result
   worker_flush:

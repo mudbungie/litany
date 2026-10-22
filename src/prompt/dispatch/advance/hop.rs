@@ -10,8 +10,8 @@
 //! `stopped`-epitaph terminal rather than riding into a successor.
 
 use super::super::{
-    assembler, canonical, child_result, model_call, one_call, prefix, result_deposit, step_commit,
-    stop_signal, terminal, tool_step, tools, transcript,
+    child_result, compose, model_call, one_call, result_deposit, step_commit, stop_signal,
+    terminal, tool_step, transcript,
 };
 use crate::config::Event;
 use crate::prompt::inbox::Epitaph;
@@ -67,7 +67,16 @@ pub(super) fn step(
     }
 
     // §6 per-step hook: `pre_step` fires before the model call is issued.
-    workflow_actions::run_step_hook(&cfg.workflow, Event::PreStep, worktree, agent_id, deps.git)?;
+    workflow_actions::run_step_hook(
+        workspace,
+        agent_id,
+        worktree,
+        &cfg.workflow,
+        cfg.version,
+        &cfg.role,
+        Event::PreStep,
+        deps,
+    )?;
 
     // §2.8 / §2.3: goal and name are pinned worktree files, re-read per
     // hop — the system slot is composed from the tree, like every other
@@ -93,45 +102,25 @@ pub(super) fn step(
     // callable set the request no longer declares (bl-37cd).
     step_commit::refresh_descriptors(worktree, agent_id, &resolved.grant, deps.git)?;
     let commit_sha = step_commit::read_branch_tip(worktree, deps)?;
-    // §2.3 / §5: assemble the model-facing history from the tree — the
-    // §5.2 head/body under the role's manifest rules, then the
-    // transcript tail — one code path for running, retry, and replay.
-    let assembled = assembler::assemble(worktree, resolved.manifest)?;
-    // Everything this request declares (§3.3, §4.3, §2.7 — see [`tools`]):
-    // the role's elected tools, the compactor's injected pair, and the
-    // closure over the assembled history. A compactor inherits the
-    // dispatching branch's transcript (§2.3), so that last part is not an
-    // edge case for it — it is the standing case.
-    let tools = tools::compose(
-        worktree,
-        &resolved.grant,
-        &assembled.messages,
-        &tools::injected(resolved.grant.role, deps.tool_executor, workspace, agent_id),
-    )?;
-    let request = canonical::build_request(
-        resolved.model_id,
+    // One step's request from the read state (§2.3, §5; [`compose`]).
+    let composed = compose::request(
+        workspace,
         agent_id,
+        worktree,
+        step_seq,
         &system_with_goal,
-        assembled.messages,
-        tools,
-        resolved.max_output_tokens,
-        resolved.effort,
-        resolved.priority,
-    );
-    // §5.5: a subtraction from the declared surface is held until a
-    // miss is paid anyway — the previous step's record is the queue.
-    let request = prefix::hold(
-        prefix::previous(workspace, agent_id, step_seq)?.as_ref(),
-        request,
+        &resolved,
+        deps,
     )?;
     let step = one_call::Step {
         conv_repo: workspace,
         conv_id: agent_id,
         seq: step_seq,
         tip: commit_sha,
-        dropped_orphans: assembled.dropped_orphans,
+        dropped_orphans: composed.dropped_orphans,
     };
-    let Some(step_dir_rel_str) = one_call::issue(step, &request, &call, &resolved, deps)? else {
+    let Some(step_dir_rel_str) = one_call::issue(step, &composed.request, &call, &resolved, deps)?
+    else {
         return Ok(StepOutcome::Terminal(Epitaph::Stopped));
     };
 
@@ -147,7 +136,16 @@ pub(super) fn step(
 
     // §6 per-step hook: `post_step` fires after the model call returns and
     // its output is committed, before any tool executes.
-    workflow_actions::run_step_hook(&cfg.workflow, Event::PostStep, worktree, agent_id, deps.git)?;
+    workflow_actions::run_step_hook(
+        workspace,
+        agent_id,
+        worktree,
+        &cfg.workflow,
+        cfg.version,
+        &cfg.role,
+        Event::PostStep,
+        deps,
+    )?;
 
     // No `tool_use` block is terminal (§2.5): deposit a `final-response`
     // result, body iff the agent spoke (§2.6). A no-op for a root.
@@ -194,17 +192,27 @@ pub(super) fn step(
     // §6 per-step hook: `on_tool_return` fires once the step's tool calls
     // have resolved and committed (advance-native, this hop's tool window).
     workflow_actions::run_step_hook(
-        &cfg.workflow,
-        Event::OnToolReturn,
-        worktree,
+        workspace,
         agent_id,
-        deps.git,
+        worktree,
+        &cfg.workflow,
+        cfg.version,
+        &cfg.role,
+        Event::OnToolReturn,
+        deps,
     )?;
 
     // §2.7/§6 checkpoint: this step's commits landed, so the tip is C.
     // If the `compaction:` clock is due, run the `worker_flush` bindings
     // (dispatch a compactor off C). Config-only — a branch with no
     // `compaction:` block never fires, so this is a no-op for it.
-    child_result::run_flush(workspace, agent_id, worktree, &cfg.workflow, deps)?;
+    child_result::run_flush(
+        workspace,
+        agent_id,
+        worktree,
+        &cfg.workflow,
+        cfg.version,
+        deps,
+    )?;
     Ok(StepOutcome::ToolsRan)
 }

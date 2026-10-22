@@ -154,6 +154,25 @@ pub(super) fn returned_child_ep(
     epitaph: Epitaph,
     fx: &Fx,
 ) -> String {
+    // A `died` deposit mirrors the §8 sweep's: the child never spoke,
+    // so the result carries no body.
+    let response = (epitaph != Epitaph::Died).then_some("done");
+    returned_child_full(ws, parent, role, goal, work, epitaph, response, fx)
+}
+
+/// [`returned_child_ep`] with the terminal response chosen by the test —
+/// the verdict cases ([`verdicts`]), where the leading word is the subject.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn returned_child_full(
+    ws: &Path,
+    parent: &str,
+    role: &str,
+    goal: &str,
+    work: (&str, &str),
+    epitaph: Epitaph,
+    response: Option<&str>,
+    fx: &Fx,
+) -> String {
     let parent_wt = agent_worktree(ws, parent);
     let req = ChildDispatchRequest {
         repo: ws,
@@ -188,9 +207,6 @@ pub(super) fn returned_child_ep(
         .git
         .run_capture(&child_wt, &["rev-parse", "HEAD"])
         .unwrap();
-    // A `died` deposit mirrors the §8 sweep's: the child never spoke,
-    // so the result carries no body.
-    let response = (epitaph != Epitaph::Died).then_some("done");
     deposit_result(
         ws,
         parent,
@@ -210,8 +226,10 @@ pub(super) fn workflow(yaml: &str) -> Workflow {
 }
 
 mod cases;
+mod flush_basic;
 mod flush_clock;
 mod flush_inflight;
 mod flush_reviewer;
 mod gate;
 mod resolve_role;
+mod verdicts;

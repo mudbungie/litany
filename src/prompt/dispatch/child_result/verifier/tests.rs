@@ -25,7 +25,14 @@ impl GitRunner for BranchList {
 
 #[test]
 fn already_gated_tags_a_branch_list_failure_with_its_op() {
-    let err = already_gated(Path::new("/nowhere"), "p1", "r1", &BranchList(None)).unwrap_err();
+    let err = already_gated(
+        Path::new("/nowhere"),
+        "p1",
+        "r1",
+        VERIFIER_ROLE,
+        &BranchList(None),
+    )
+    .unwrap_err();
     assert!(
         matches!(
             err,
@@ -46,6 +53,7 @@ fn already_gated_skips_blank_branch_lines() {
         Path::new("/nowhere"),
         "p1",
         "r1",
+        VERIFIER_ROLE,
         &BranchList(Some("\n  \n")),
     )
     .unwrap();

@@ -132,7 +132,15 @@ roles:
         &dest.join(".no-pools"),
         "default",
         crate::template::authoring::Origin::Advance,
-        |dir| fs::write(dir.join("providers.yaml"), providers),
+        |dir| {
+            fs::write(dir.join("providers.yaml"), providers)?;
+            // The roles above omit the titler, so the bindings that fork
+            // and land it go too (ARCH §4.3; `fixture::workflow_without`).
+            fs::write(
+                dir.join("workflow.yaml"),
+                crate::workspace::fixture::workflow_without(&["titler"]),
+            )
+        },
         &crate::template::RealGit::new(),
     )
     .unwrap();

@@ -8,6 +8,7 @@
 //! - `deliver_result`
 //! - `land_compaction`
 //! - `stage_proposal`
+//! - `land_response(title)`
 //! - `mark_abandoned`
 //! - `notify_ui`
 //!
@@ -58,9 +59,37 @@ pub enum Action {
     /// the landing is
     /// [`crate::prompt::dispatch::child_result`]'s `proposal`.
     StageProposal,
+    /// Land a returning child's **terminal response** as one committed
+    /// file at the dispatcher's branch root — no work-product transfer,
+    /// no transcript entry (`docs/DESIGN_PROCEDURES.md` §4): the generic
+    /// landing, of which `land_compaction` and `stage_proposal` are the
+    /// two bespoke members. Epitaph-gated like them; the commit is the
+    /// record and git history is the file's log. The file is a flat
+    /// name (the grammar admits no `/`) and never one of the harness's
+    /// own control files ([`RESERVED`], refused at parse).
+    LandResponse {
+        file: String,
+    },
     MarkAbandoned,
     NotifyUi,
 }
+
+/// Branch-root names `land_response` may not target: the harness's own
+/// control files and directories (ARCH §2.2, §2.3). `name` is immutable
+/// by rule (§2.1) and the rest have their own one writer each; a landing
+/// over any of them would be a second writer of a fact with a home.
+const RESERVED: [&str; 10] = [
+    "goal.md",
+    "soul.md",
+    "name",
+    "facts.md",
+    "summary",
+    "messages",
+    "skills",
+    "descriptions",
+    "steps",
+    "tools",
+];
 
 /// Optional `mode:` argument on `dispatch`. Currently `intermediate` is the
 /// only named mode; the default (no `mode:`) means a normal terminal
@@ -84,6 +113,7 @@ impl Action {
                 no_args(name, &args).map(|_| Action::LandCompaction)
             }
             "stage_proposal" => no_args(name, &args).map(|_| Action::StageProposal),
+            "land_response" => parse_land_response(&args),
             "mark_abandoned" => no_args(name, &args).map(|_| Action::MarkAbandoned),
             "notify_ui" => no_args(name, &args).map(|_| Action::NotifyUi),
             "dispatch" => parse_dispatch(&args),
@@ -231,6 +261,18 @@ fn parse_mode(value: &str) -> Result<DispatchMode, String> {
         "intermediate" => Ok(DispatchMode::Intermediate),
         other => Err(format!("dispatch: unknown mode {other:?}")),
     }
+}
+
+fn parse_land_response(args: &[Arg]) -> Result<Action, String> {
+    let [Arg::Positional(file)] = args else {
+        return Err("land_response takes one positional file name".into());
+    };
+    if RESERVED.contains(&file.as_str()) {
+        return Err(format!(
+            "land_response: {file:?} is a harness control file at the branch root and has its own writer"
+        ));
+    }
+    Ok(Action::LandResponse { file: file.clone() })
 }
 
 fn parse_gate_return_on(args: &[Arg]) -> Result<Action, String> {

@@ -459,8 +459,9 @@ bl-9a65) and `litany skills` (§5, bl-ae06).
 
 **bl-e6ed — the checkpoint forks the reviewer.** `worker_flush` runs
 **every dispatch it binds**, off the one compaction point the clock
-already chose: `child_result::flush::execute_flush` matches any
-`dispatch(<role>)` in the list and `dispatch_at_point` forks it, so this
+already chose: the flush matches any `dispatch(<role>)` in the list and
+`procedure::dispatch` forks it (since bl-7192 the one fork door every
+self-firing event spends, `docs/DESIGN_PROCEDURES.md` §2), so this
 document's two bindings are two children of one commit and the basic
 agentic loop's one binding is unchanged — one child, byte for byte
 (`flush_clock.rs`). No second trigger, no second "since last"
@@ -495,7 +496,8 @@ the excluded set in the same edit that makes it dispatchable, or it recurs
 the same defect a third time.
 
 And its **dispatch commit**. The reviewer joins the compactor in
-`step_commit::inherited::DIALOG_KEEPERS` — ARCH §2.2's third principled
+the keeper rule (since bl-7192 `SpawnRequest::keeps_dialog`, derived as
+machinery under the governing workflow; `docs/DESIGN_PROCEDURES.md` §2) — ARCH §2.2's third principled
 keeper, the fork-back-in root being a path rather than a role — and
 `step_commit::reviewer_read::checkout` writes the followed config
 commit's `skills/**` into its tree with the same `git checkout <commit>

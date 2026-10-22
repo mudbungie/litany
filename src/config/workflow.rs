@@ -1,11 +1,14 @@
 //! `<conv-repo>/workflow.yaml` — event-to-action bindings per ARCH §6.
 //!
-//! Workflows are declarative: events are drawn from a closed set, actions
-//! are drawn from another closed set (defined in [`crate::config::action`]).
-//! Adding either is intentionally a code change.
+//! Workflows are declarative: events are the closed six plus one open
+//! axis, a returning child's ([`crate::config::event`]); actions are
+//! drawn from a closed set (defined in [`crate::config::action`]). Adding
+//! a closed event or an action is intentionally a code change; a return
+//! or verdict event is config.
 
 use crate::config::action::Action;
 use crate::config::error::LoadError;
+pub use crate::config::event::Event;
 use crate::config::tool_control::ToolControl;
 use crate::config::tool_output::ToolOutputBound;
 use schemars::JsonSchema;
@@ -157,39 +160,6 @@ impl Backoff {
     }
 }
 
-/// Closed set of workflow events. Names match the arch examples.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum Event {
-    UserMessage,
-    WorkerReturn,
-    VerifierApprove,
-    VerifierReject,
-    WorkerFlush,
-    CompactorReturn,
-    /// A reviewer child's return (`docs/DESIGN_LEARNING_LOOP.md` §3),
-    /// derived from the child's dispatch-commit role exactly as
-    /// [`Event::CompactorReturn`] is. Bound to `stage_proposal` in the
-    /// seeded `learning-loop.yaml`; no shipped config in the basic
-    /// agentic loop binds it, and an unbound event is the empty-inputs
-    /// no-op.
-    ReviewerReturn,
-    BranchStopped,
-    PreStep,
-    PostStep,
-    OnToolReturn,
-}
-
-impl Event {
-    /// The `workflow.yaml` key for this event (ARCH §6) — the stable name
-    /// used in diagnostics and by the runtime interpreter.
-    pub fn as_str(self) -> &'static str {
-        event_name(self)
-    }
-}
-
 impl Workflow {
     /// Parse and validate workflow YAML already in hand — the
     /// governing-config read path (ARCH §2.2: control is read from the
@@ -209,7 +179,7 @@ impl Workflow {
             for (i, raw) in actions.iter().enumerate() {
                 Action::parse(raw).map_err(|message| LoadError::Invalid {
                     path: path.to_path_buf(),
-                    key: format!("events.{}[{i}]", event_name(*event)),
+                    key: format!("events.{}[{i}]", event.key()),
                     message,
                 })?;
             }
@@ -234,9 +204,9 @@ impl Workflow {
     /// disk circumstance). An unbound event yields the empty list: the
     /// general path with empty inputs, not a bootstrap special case.
     /// Strings were validated at load, so parsing here cannot fail.
-    pub fn actions_for(&self, event: Event) -> Vec<Action> {
+    pub fn actions_for(&self, event: &Event) -> Vec<Action> {
         self.events
-            .get(&event)
+            .get(event)
             .map(|raw| {
                 raw.iter()
                     .map(|s| Action::parse(s).expect("validated at load"))
@@ -259,25 +229,9 @@ impl Workflow {
                     .iter()
                     .map(|raw| Action::parse(raw).expect("validated at load"))
                     .collect();
-                (*event, parsed)
+                (event.clone(), parsed)
             })
             .collect()
-    }
-}
-
-fn event_name(event: Event) -> &'static str {
-    match event {
-        Event::UserMessage => "user_message",
-        Event::WorkerReturn => "worker_return",
-        Event::VerifierApprove => "verifier_approve",
-        Event::VerifierReject => "verifier_reject",
-        Event::WorkerFlush => "worker_flush",
-        Event::CompactorReturn => "compactor_return",
-        Event::ReviewerReturn => "reviewer_return",
-        Event::BranchStopped => "branch_stopped",
-        Event::PreStep => "pre_step",
-        Event::PostStep => "post_step",
-        Event::OnToolReturn => "on_tool_return",
     }
 }
 

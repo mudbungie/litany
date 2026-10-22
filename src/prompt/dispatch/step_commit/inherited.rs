@@ -24,7 +24,7 @@
 //! tree. A child's opening context is its pinned goal, soul and pins
 //! plus what is deposited to it — never its dispatcher's dialog.
 //!
-//! **Three principled exceptions, one axis: whose conversation is it?**
+//! **The exceptions, one axis: whose conversation is it?**
 //!
 //! - **A fork-back-in root keeps the dialog — it *is* its
 //!   conversation.** `litany prompt --from <ref>` re-enters a recorded
@@ -32,21 +32,22 @@
 //!   very thing being resumed. That is why this prune is a part of the
 //!   child spawn, not of [`super::trim_to_context`] — the root's
 //!   dispatch commit must not run it.
-//! - **A compactor keeps the dialog — it is its *subject*.** Its goal
-//!   is to compact the dispatching branch's history, delivered by fork
-//!   inheritance (§2.7: "its worktree carries that branch's transcript
-//!   … and it is composed from that tree"); the summary chain must stay
-//!   visible or a superseding summary destroys signal, and spent
-//!   `skills/**` bodies must stay nominable for deletion. The exception
-//!   is keyed on the role — the same signal the toolset injection and
-//!   checkpoint exclusion already branch on (§2.7).
-//! - **A reviewer keeps the dialog — it is equally its *subject***
-//!   (ARCH §2.2 *Branch-scoped vs inherited*,
-//!   `docs/DESIGN_LEARNING_LOOP.md` §2). It is forked at the same
-//!   checkpoint, off the same compaction point, to inspect the very
-//!   span the compactor beside it is about to squash away: a reviewer
-//!   handed no dialog would review nothing. Same axis, same key, no
-//!   second mechanism — the role is the whole of the test.
+//! - **A procedure child keeps the dialog — it is its *subject*.** The
+//!   compactor's goal is to compact the dispatching branch's history,
+//!   delivered by fork inheritance (§2.7: "its worktree carries that
+//!   branch's transcript … and it is composed from that tree"); the
+//!   summary chain must stay visible or a superseding summary destroys
+//!   signal, and spent `skills/**` bodies must stay nominable for
+//!   deletion. The reviewer is forked at the same checkpoint to inspect
+//!   the very span the compactor beside it is about to squash away
+//!   (`docs/DESIGN_LEARNING_LOOP.md` §2), and a titler reads the
+//!   conversation it names (`docs/DESIGN_PROCEDURES.md` §6): a
+//!   procedure handed no dialog would act on nothing. The exception is
+//!   keyed on **machinery** — a role the governing workflow forks of its
+//!   own accord ([`crate::prompt::procedure::is_machinery`]), the same
+//!   derivation the checkpoint exclusion reads (§2.7), decided by the
+//!   caller that holds the workflow and passed down as `keeps_dialog`.
+//!   One axis, one derivation, no role list here to drift from it.
 //!
 //! Total like the trim's parts: a child forked off a config commit
 //! carries none of these paths, and `--ignore-unmatch` makes the
@@ -63,22 +64,14 @@ use std::path::Path;
 /// the dispatch commit itself, so they need no removal here.
 const DIALOG_PATHS: &[&str] = &[crate::prompt::dispatch::MESSAGES_DIR, "summary", "skills"];
 
-/// The child roles whose *subject* is the dispatching branch's own
-/// dialog, so their fork keeps it (module docs). The third keeper, a
-/// fork-back-in root, is not a role but a path: it never reaches here.
-const DIALOG_KEEPERS: [&str; 2] = [
-    crate::prompt::compactor::COMPACTOR_ROLE,
-    crate::prompt::reviewer::REVIEWER_ROLE,
-];
-
 /// Stage the removal of the fork point's inherited dialog — for every
-/// child role but the keepers, whose subject it is (module docs).
+/// child but one that `keeps_dialog`, whose subject it is (module docs).
 pub(crate) fn prune_inherited_dialog(
     worktree: &Path,
-    role: &str,
+    keeps_dialog: bool,
     git: &dyn GitRunner,
 ) -> Result<(), Error> {
-    if DIALOG_KEEPERS.contains(&role) {
+    if keeps_dialog {
         return Ok(());
     }
     let mut args: Vec<&str> = vec!["rm", "-r", "-q", "--ignore-unmatch", "--"];

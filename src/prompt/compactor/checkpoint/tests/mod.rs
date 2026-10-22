@@ -27,7 +27,7 @@ fn st(commits: u32, seconds: u64, flush: bool) -> CheckpointState {
         commits_since_checkpoint: commits,
         seconds_since_checkpoint: seconds,
         flush_requested: flush,
-        is_checkpoint_child: false,
+        is_machinery: false,
         compaction_in_flight: false,
         last_usage: None,
     }
@@ -89,7 +89,7 @@ fn a_checkpoint_child_is_never_compaction_eligible() {
     // once the exclusion was stated of the class rather than of the one
     // role, a reviewer from dispatching both (bl-08b4).
     let compactor = CheckpointState {
-        is_checkpoint_child: true,
+        is_machinery: true,
         ..st(9999, 9999, true)
     };
     for c in [
@@ -172,7 +172,7 @@ fn the_two_suppressors_answer_ahead_of_the_windows_decline() {
     };
     for excluded in [
         CheckpointState {
-            is_checkpoint_child: true,
+            is_machinery: true,
             last_usage: Some(blind.clone()),
             ..st(0, 0, false)
         },

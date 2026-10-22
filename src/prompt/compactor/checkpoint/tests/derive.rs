@@ -2,6 +2,8 @@
 //! [`origin`] lands, what it counts from there, and the `op` tag each
 //! git step carries when it fails.
 
+mod failures;
+
 use super::*;
 use crate::template::RealGit;
 use tempfile::TempDir;
@@ -46,7 +48,7 @@ fn state_counts_the_whole_branch_when_no_checkpoint_landed() {
     // load can straddle it.)
     let root_ct = now_of(wt);
     commit(wt, "step", "b.txt", "2");
-    let s = state(wt, "p1", root_ct + 7, false, &RealGit::new()).unwrap();
+    let s = state_of(wt, "p1", root_ct + 7, false, &RealGit::new()).unwrap();
     assert_eq!(s.commits_since_checkpoint, 2, "root + one step");
     assert_eq!(s.seconds_since_checkpoint, 7, "measured from the root");
     assert!(!s.flush_requested);
@@ -66,7 +68,7 @@ fn state_measures_from_the_last_compaction_base_or_retired_merge() {
     // right here) so the expected elapsed is exact, not racing the clock.
     let cmp_ct = now_of(wt);
     commit(wt, "step after", "b.txt", "2");
-    let s = state(wt, "p1", cmp_ct + 42, true, &RealGit::new()).unwrap();
+    let s = state_of(wt, "p1", cmp_ct + 42, true, &RealGit::new()).unwrap();
     assert_eq!(s.commits_since_checkpoint, 1, "only the post-landing step");
     // Elapsed is measured from the checkpoint commit, not the root.
     assert_eq!(s.seconds_since_checkpoint, 42);
@@ -79,7 +81,7 @@ fn state_saturates_when_now_precedes_the_checkpoint() {
     let wt = dir.path();
     init(wt);
     commit(wt, "root", "a.txt", "1");
-    let s = state(wt, "p1", 0, false, &RealGit::new()).unwrap();
+    let s = state_of(wt, "p1", 0, false, &RealGit::new()).unwrap();
     assert_eq!(s.seconds_since_checkpoint, 0, "no negative elapsed time");
 }
 
@@ -87,7 +89,7 @@ fn state_saturates_when_now_precedes_the_checkpoint() {
 fn state_surfaces_a_git_failure() {
     // A non-repo directory: the first rev-parse/log fails loudly.
     let dir = TempDir::new().unwrap();
-    let err = state(dir.path(), "p1", 0, false, &RealGit::new()).unwrap_err();
+    let err = state_of(dir.path(), "p1", 0, false, &RealGit::new()).unwrap_err();
     assert!(matches!(err, Error::Git { .. }), "{err:?}");
 }
 
@@ -110,7 +112,7 @@ fn state_measures_from_the_branchs_own_dispatch_commit_not_inherited_history() {
     }
     commit(wt, "dispatch: compactor [p1-c1]", "goal.md", "g");
     commit(wt, "step 001", "m/own.md", "x");
-    let s = state(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
+    let s = state_of(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
     assert_eq!(
         s.commits_since_checkpoint, 1,
         "only this branch's own commit, not the 26 it inherited"
@@ -138,7 +140,7 @@ fn state_measures_from_the_dispatch_commit_not_a_later_transcript_commit() {
     commit(wt, "step 001: dispatch [p1]", "goal.md", "g");
     commit(wt, "transcript 001: user [p1]", "t/001.md", "x");
     commit(wt, "transcript 002: assistant [p1]", "t/002.md", "x");
-    let s = state(wt, "p1", now_of(wt), false, &RealGit::new()).unwrap();
+    let s = state_of(wt, "p1", now_of(wt), false, &RealGit::new()).unwrap();
     assert_eq!(
         s.commits_since_checkpoint, 2,
         "the two transcript commits since dispatch, not 0"
@@ -154,7 +156,7 @@ fn state_measures_from_the_dispatch_commit_not_a_later_transcript_commit() {
         "s.md",
         "x",
     );
-    let child = state(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
+    let child = state_of(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
     assert_eq!(child.commits_since_checkpoint, 1);
 }
 
@@ -165,20 +167,17 @@ fn state_reads_the_branch_role_from_its_own_dispatch_commit() {
     init(wt);
     commit(wt, "root", "a.txt", "1");
     commit(wt, "dispatch: compactor [p1-c1]", "goal.md", "g");
-    let s = state(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
-    assert!(
-        s.is_checkpoint_child,
-        "role derived from the dispatch subject"
-    );
+    let s = state_of(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
+    assert!(s.is_machinery, "role derived from the dispatch subject");
 
     // A worker dispatch off the same shape is not machinery, and a
     // descendant's dispatch commit never claims this branch's role: the
     // pattern is anchored on the exact `[<agent-id>]` tail.
     commit(wt, "dispatch: worker [p1-c1-w9]", "x.md", "x");
-    let child = state(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
-    assert!(child.is_checkpoint_child);
-    let worker = state(wt, "p1-c1-w9", now_of(wt), false, &RealGit::new()).unwrap();
-    assert!(!worker.is_checkpoint_child);
+    let child = state_of(wt, "p1-c1", now_of(wt), false, &RealGit::new()).unwrap();
+    assert!(child.is_machinery);
+    let worker = state_of(wt, "p1-c1-w9", now_of(wt), false, &RealGit::new()).unwrap();
+    assert!(!worker.is_machinery);
 }
 
 #[test]
@@ -191,74 +190,9 @@ fn state_falls_back_to_the_root_when_a_branch_has_no_dispatch_commit() {
     init(wt);
     commit(wt, "root", "a.txt", "1");
     commit(wt, "step", "b.txt", "2");
-    let s = state(wt, "nobody", now_of(wt), false, &RealGit::new()).unwrap();
+    let s = state_of(wt, "nobody", now_of(wt), false, &RealGit::new()).unwrap();
     assert_eq!(s.commits_since_checkpoint, 2);
-    assert!(!s.is_checkpoint_child);
-}
-
-// ---- per-op git failures, via a stub -----------------------------------
-//
-// Real git can only fail wholesale (the test above); each later derivation
-// step's `op` tag needs a git that fails at exactly that step. The stub
-// answers every capture except the one whose args contain `fail_on`.
-
-struct FailOn(&'static str);
-
-impl GitRunner for FailOn {
-    fn run(&self, _dest: &Path, _args: &[&str]) -> std::io::Result<()> {
-        unreachable!("checkpoint derivation only captures")
-    }
-    fn run_capture(&self, _dest: &Path, args: &[&str]) -> std::io::Result<String> {
-        if args.iter().any(|a| a.contains(self.0)) {
-            return Err(std::io::Error::other("stub git failure"));
-        }
-        // Benign answers: no checkpoint landed (empty grep), one commit,
-        // a root sha, epoch second 100.
-        Ok(match args {
-            a if a.contains(&"--grep") => String::new(),
-            a if a.contains(&"--count") => "1".to_string(),
-            a if a.contains(&"--max-parents=0") => "r00t".to_string(),
-            _ => "100".to_string(),
-        })
-    }
-}
-
-fn op_of(err: Error) -> &'static str {
-    match err {
-        Error::Git { op, .. } => op,
-        other => panic!("expected Error::Git, got {other:?}"),
-    }
-}
-
-#[test]
-fn state_tags_a_commit_count_failure_with_its_op() {
-    let dir = TempDir::new().unwrap();
-    let err = state(dir.path(), "p1", 0, false, &FailOn("--count")).unwrap_err();
-    assert_eq!(op_of(err), "checkpoint rev-list count");
-}
-
-#[test]
-fn state_tags_a_commit_time_failure_with_its_op() {
-    let dir = TempDir::new().unwrap();
-    let err = state(dir.path(), "p1", 0, false, &FailOn("%ct")).unwrap_err();
-    assert_eq!(op_of(err), "checkpoint commit time");
-}
-
-#[test]
-fn state_tags_a_root_lookup_failure_with_its_op() {
-    let dir = TempDir::new().unwrap();
-    let err = state(dir.path(), "p1", 0, false, &FailOn("--max-parents=0")).unwrap_err();
-    assert_eq!(op_of(err), "checkpoint root rev-list");
-}
-
-#[test]
-fn state_tags_an_in_flight_enumeration_failure_with_its_op() {
-    // bl-b9f0: the in-flight read is the registry query (§8's enumeration
-    // seam, asked from the worktree), and a failure there is loud like
-    // every other step of the derivation rather than a silent `false`.
-    let dir = TempDir::new().unwrap();
-    let err = state(dir.path(), "p1", 0, false, &FailOn("for-each-ref")).unwrap_err();
-    assert_eq!(op_of(err), "checkpoint in-flight for-each-ref");
+    assert!(!s.is_machinery);
 }
 
 #[test]
@@ -276,7 +210,7 @@ fn state_carries_the_branchs_last_usage() {
         "messages/001-m.json",
         r#"{"content":[],"usage":{"input_tokens":40,"context_window":100}}"#,
     );
-    let s = state(wt, "p1", now_of(wt), false, &RealGit::new()).unwrap();
+    let s = state_of(wt, "p1", now_of(wt), false, &RealGit::new()).unwrap();
     assert_eq!(
         s.last_usage,
         Some(LastUsage {
@@ -285,4 +219,26 @@ fn state_carries_the_branchs_last_usage() {
             model: "m".into(),
         })
     );
+}
+
+/// [`state`] under the basic loop's unbound shape at the supported
+/// version: the compactor is machinery through the `worker_flush`
+/// baseline, and nothing else is.
+fn state_of(
+    worktree: &Path,
+    agent_id: &str,
+    now_unix: u64,
+    flush_requested: bool,
+    git: &dyn GitRunner,
+) -> Result<CheckpointState, Error> {
+    let wf = crate::config::Workflow::parse("events: {}\n", Path::new("w")).unwrap();
+    state(
+        worktree,
+        agent_id,
+        now_unix,
+        flush_requested,
+        &wf,
+        crate::config::version::Version(2),
+        git,
+    )
 }

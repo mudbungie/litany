@@ -754,6 +754,32 @@ What is re-derived is everything config-shaped: the role's soul, the
 agent's own facts — its goal, its name, its whole transcript and its work
 products — are untouched.
 
+## The conversation names itself: the `titler` role
+
+Each time you speak, the basic agentic loop forks a **titler** off the
+conversation — a procedure child on the compactor's model, with the
+conversation in its context and no tool in its hands — and its one line of
+at most six words lands as the branch's `title` file
+(`docs/DESIGN_PROCEDURES.md` §6). A seat reads it above the minted name:
+
+```
+git show agents/<root-id>:title
+```
+
+Nothing of it enters the conversation: the titler's branch exists, only
+its conclusion lands, and the landing is a commit rather than a transcript
+entry. The title follows the conversation — a later message that changes
+the subject changes the next title — and `git log` on the path is its
+history. Two bindings in `workflow.yaml` are the whole mechanism, and
+deleting them is the off switch:
+
+```yaml
+user_message:
+  - dispatch(titler)
+titler_return:
+  - land_response(title)
+```
+
 ## Plan before it acts: the `planner` role
 
 A plan mode — *produce a plan I accept before you act* — is a **role**

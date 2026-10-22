@@ -6,6 +6,7 @@
 
 use super::super::run_flush;
 use super::{Fx, workflow};
+use crate::config::version::Version;
 use crate::template::{GitRunner, RealGit};
 use crate::workspace::{agent_worktree, fixture};
 use std::path::Path;
@@ -24,6 +25,9 @@ fn manifest(name: &str, body: &str) -> String {
 /// the span a checkpoint fires on. Returns its worktree.
 fn branch_with_a_span(ws: &Path, parent: &str) -> std::path::PathBuf {
     let wt = fixture::spawn_root(ws, parent);
+    // The lineage binds what the clock below runs, so the fork's own
+    // reading of machinery (`child_dispatch::run`) and the test's agree.
+    fixture::amend_config(ws, &[("workflow.yaml", BOTH)]);
     let git = RealGit::new();
     std::fs::create_dir_all(wt.join("messages")).unwrap();
     std::fs::create_dir_all(wt.join("summary")).unwrap();
@@ -65,7 +69,7 @@ fn one_due_clock_forks_a_compactor_and_a_reviewer_off_one_point() {
         )],
     );
     let fx = Fx::new();
-    run_flush(&ws, parent, &wt, &workflow(BOTH), &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &workflow(BOTH), Version(2), &fx.deps()).unwrap();
 
     let launched = fx.launcher.launched.borrow().clone();
     assert_eq!(launched.len(), 2, "one clock, two forks: {launched:?}");
@@ -172,7 +176,7 @@ fn the_reviewers_read_is_the_config_commits_body_not_the_forked_copy() {
         )],
     );
     let fx = Fx::new();
-    run_flush(&ws, parent, &wt, &workflow(BOTH), &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &workflow(BOTH), Version(2), &fx.deps()).unwrap();
 
     let reviewer = agent_worktree(&ws, &fx.launcher.launched.borrow()[1]);
     assert_eq!(
@@ -191,7 +195,7 @@ fn the_reviewer_carries_the_facts_document_when_the_lineage_has_one() {
     let wt = branch_with_a_span(&ws, parent);
     fixture::amend_config(&ws, &[("facts.md", "the box has no network\n")]);
     let fx = Fx::new();
-    run_flush(&ws, parent, &wt, &workflow(BOTH), &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &workflow(BOTH), Version(2), &fx.deps()).unwrap();
 
     let reviewer = agent_worktree(&ws, &fx.launcher.launched.borrow()[1]);
     assert_eq!(
@@ -210,7 +214,7 @@ fn a_lineage_carrying_neither_class_checks_out_nothing() {
     let parent = "20260101-r5";
     let wt = branch_with_a_span(&ws, parent);
     let fx = Fx::new();
-    run_flush(&ws, parent, &wt, &workflow(BOTH), &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &workflow(BOTH), Version(2), &fx.deps()).unwrap();
 
     let reviewer = agent_worktree(&ws, &fx.launcher.launched.borrow()[1]);
     assert!(!reviewer.join("facts.md").exists());
@@ -222,24 +226,27 @@ fn a_lineage_carrying_neither_class_checks_out_nothing() {
 }
 
 #[test]
-fn a_checkpoint_dispatch_of_a_role_with_no_goal_is_declined() {
-    // The harness mints a checkpoint goal for the two roles the design
-    // gives it one for. A `worker_flush: dispatch(worker)` names a role
-    // the harness has nothing to instruct, so it is declined loudly
-    // rather than forking a child with nothing to do.
+fn a_checkpoint_dispatch_of_any_role_forks_it_with_the_generic_goal() {
+    // `docs/DESIGN_PROCEDURES.md` §2: a role the harness has no builder
+    // of its own for gets the generic goal, and — named at a self-firing
+    // event — is machinery, so it keeps the dialog it was forked over.
     let (_h, ws) = fixture::workspace();
     let parent = "20260101-r6";
     let wt = branch_with_a_span(&ws, parent);
     let fx = Fx::new();
-    let wf = workflow(
-        "events:\n  worker_flush:\n    - dispatch(worker)\ncompaction:\n  intermediate:\n    trigger: every_n_commits\n    n: 1\n",
-    );
-    let err = run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap_err();
+    const WORKER_FLUSH: &str = "events:\n  worker_flush:\n    - dispatch(worker)\ncompaction:\n  intermediate:\n    trigger: every_n_commits\n    n: 1\n";
+    fixture::amend_config(&ws, &[("workflow.yaml", WORKER_FLUSH)]);
+    let wf = workflow(WORKER_FLUSH);
+    run_flush(&ws, parent, &wt, &wf, Version(2), &fx.deps()).unwrap();
+    let launched = fx.launcher.launched.borrow().clone();
+    assert_eq!(launched.len(), 1, "{launched:?}");
+    let child = agent_worktree(&ws, &launched[0]);
+    let goal = std::fs::read_to_string(child.join("goal.md")).unwrap();
     assert!(
-        matches!(err, crate::prompt::Error::ActionUnsupported { ref event, .. } if event == &"worker_flush"),
-        "{err:?}"
+        goal.starts_with(&format!("You are the worker for branch `{parent}`.")),
+        "{goal}"
     );
-    assert!(fx.launcher.launched.borrow().is_empty());
+    assert!(child.join("messages/001-user.md").exists());
 }
 
 #[test]
@@ -262,7 +269,7 @@ fn a_reviewer_branch_dispatches_nothing_at_its_own_boundary() {
     );
     let fx = Fx::new();
     let wf = workflow(BOTH);
-    run_flush(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+    run_flush(&ws, parent, &wt, &wf, Version(2), &fx.deps()).unwrap();
     let minted = fx.launcher.launched.borrow().clone();
     assert_eq!(
         minted.len(),
@@ -281,7 +288,7 @@ fn a_reviewer_branch_dispatches_nothing_at_its_own_boundary() {
         RealGit::new()
             .run(&child_wt, &["commit", "-m", "step"])
             .unwrap();
-        run_flush(&ws, child, &child_wt, &wf, &fx.deps()).unwrap();
+        run_flush(&ws, child, &child_wt, &wf, Version(2), &fx.deps()).unwrap();
     }
     assert_eq!(
         fx.launcher.launched.borrow().len(),

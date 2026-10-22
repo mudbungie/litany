@@ -30,6 +30,7 @@ mod parent_revival;
 mod pin;
 mod pinned;
 mod prefix_ladder;
+mod procedures;
 mod reply_address;
 mod retarget_boundary;
 mod reviewer_proposal;

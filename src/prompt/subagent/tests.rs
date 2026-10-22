@@ -82,6 +82,7 @@ pub(super) fn req<'a>(
         // `dispatch::step_commit::descriptors::tests`.
         grant: &EMPTY_GRANT,
         commit_subject: "dispatch: worker [p1-ct-2-deadbeef]",
+        keeps_dialog: false,
     }
 }
 
@@ -105,23 +106,13 @@ fn writes_goal_and_soul_when_soul_present() {
     );
     assert_eq!(runs[0].1[4], sub_wt.to_string_lossy().to_string());
     assert_eq!(runs[0].1[5], "agents/p1");
-    // 1: control-file removal (total, --ignore-unmatch; §2.3 step 2)
+    // 1: the inherited-dialog prune — a child's opening context is
+    // never its dispatcher's conversation (§2.2, bl-5a36). It runs ahead
+    // of the trim so the trim's reviewer read lands bodies fresh rather
+    // than being asked to remove what it just staged.
     assert_eq!(runs[1].0, sub_wt);
-    assert_eq!(runs[1].1[..5], ["rm", "-r", "-q", "--ignore-unmatch", "--"]);
-    // 2-3: the facts cut — the lineage's durable memory is derived
-    // from the governing config commit at every fork (§5.5). The stub
-    // answers every command, so the existence probe reads as carried
-    // and the checkout follows.
-    assert_eq!(runs[2].1, vec!["cat-file", "-e", "c0ffee:facts.md"]);
-    assert_eq!(runs[3].1, vec!["checkout", "c0ffee", "--", "facts.md"]);
-    // 4: stage the settled name — the trim's sixth part (§2.3)
-    assert_eq!(runs[4].0, sub_wt);
-    assert_eq!(runs[4].1, vec!["add", "name"]);
-    // 5: the inherited-dialog prune — a child's opening context is
-    // never its dispatcher's conversation (§2.2, bl-5a36)
-    assert_eq!(runs[5].0, sub_wt);
     assert_eq!(
-        runs[5].1,
+        runs[1].1,
         vec![
             "rm",
             "-r",
@@ -133,6 +124,18 @@ fn writes_goal_and_soul_when_soul_present() {
             "skills"
         ]
     );
+    // 2: control-file removal (total, --ignore-unmatch; §2.3 step 2)
+    assert_eq!(runs[2].0, sub_wt);
+    assert_eq!(runs[2].1[..5], ["rm", "-r", "-q", "--ignore-unmatch", "--"]);
+    // 3-4: the facts cut — the lineage's durable memory is derived
+    // from the governing config commit at every fork (§5.5). The stub
+    // answers every command, so the existence probe reads as carried
+    // and the checkout follows.
+    assert_eq!(runs[3].1, vec!["cat-file", "-e", "c0ffee:facts.md"]);
+    assert_eq!(runs[4].1, vec!["checkout", "c0ffee", "--", "facts.md"]);
+    // 5: stage the settled name — the trim's sixth part (§2.3)
+    assert_eq!(runs[5].0, sub_wt);
+    assert_eq!(runs[5].1, vec!["add", "name"]);
     // 6: add goal.md soul.md (in sub worktree)
     assert_eq!(runs[6].0, sub_wt);
     assert_eq!(runs[6].1, vec!["add", "goal.md", "soul.md"]);

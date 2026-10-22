@@ -93,6 +93,7 @@ pub(super) fn deliver(
         if pending.is_empty() {
             return Ok(drain::Delivery {
                 delivered: 0,
+                operator_spoke: false,
                 left: Vec::new(),
             });
         }

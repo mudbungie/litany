@@ -33,18 +33,19 @@ pub mod cli;
 mod crash;
 mod held;
 mod hop;
+mod warrant;
 
 #[cfg(test)]
 mod tests;
 
-use super::{assembler, child_result, driver, terminal};
+use super::{assembler, boundary, child_result, driver, terminal};
 use crate::prompt::inbox::{self, ExecutorLock};
 use crate::prompt::notice::notice;
 use crate::prompt::resolve::WorkerConfig;
 use crate::prompt::{Deps, Error, retarget};
 use crate::workspace::hold;
-use brazen::{Content, Message, Role};
 use std::path::Path;
+use warrant::{Warrant, warrant};
 
 /// What one hop found and did — derived on the fly, nothing stored.
 #[derive(Debug)]
@@ -74,56 +75,6 @@ pub enum AdvanceOutcome {
     /// mark ([`crate::workspace::hold`]) plus the unpaired tail. A later
     /// drive of the same agent re-adjudicates ([`held`]).
     Held,
-}
-
-/// What the transcript tail warrants (§6 hop step 3).
-#[derive(Debug, PartialEq, Eq)]
-enum Warrant {
-    /// Tail ends user-side (delivered mail, committed tool results): a
-    /// model call is due.
-    ModelCallDue,
-    /// Tail ends assistant-side without `tool_use`, or is empty: nothing
-    /// is due (§2.11 pin 1).
-    NothingDue,
-    /// A `tool_use` unmatched by any committed `tool_result` — wherever
-    /// it sits: the one non-replayable state (§6), declined loudly.
-    Unpaired,
-}
-
-/// Derive warrant from the assembled wire history (§6). The §2.3
-/// pairing invariant is judged over the **whole alternation**, not the
-/// tail: a `tool_use` with no committed `tool_result` is [`Warrant::Unpaired`]
-/// even with delivered mail behind it — the tail's role cannot answer
-/// for it, because `driver::deliver` runs before this derivation, so a
-/// crash-orphaned window is routinely *buried* user-side by the time it
-/// is read (bl-15f0; sent anyway, the provider rejects the history
-/// forever). Only a fully paired history lets the tail speak: user- or
-/// tool-side means a model call is due (committed tool results compose
-/// tool-side, canonical `Role::Tool`, §2.3, and delivered mail
-/// user-side — the same observation), assistant-side or empty means
-/// nothing is due.
-fn warrant(messages: &[Message]) -> Warrant {
-    let mut unanswered = std::collections::HashSet::new();
-    for m in messages {
-        for b in &m.content {
-            match b {
-                Content::ToolUse { id, .. } => {
-                    unanswered.insert(id.as_str());
-                }
-                Content::ToolResult { tool_use_id, .. } => {
-                    unanswered.remove(tool_use_id.as_str());
-                }
-                _ => {}
-            }
-        }
-    }
-    if !unanswered.is_empty() {
-        return Warrant::Unpaired;
-    }
-    match messages.last() {
-        Some(m) if matches!(m.role, Role::User | Role::Tool) => Warrant::ModelCallDue,
-        _ => Warrant::NothingDue,
-    }
 }
 
 /// Report what consuming a retarget mark did (§2.2). `None` — no mark —
@@ -193,7 +144,7 @@ pub(in crate::prompt) fn run(
     // base for every voluntary release below (the two no-op exits and
     // the terminal arm alike).
     let delivery = driver::deliver(workspace, agent_id, deps.git)?;
-    let seen = delivery.left;
+    let seen = delivery.left.clone();
     let worktree = crate::workspace::agent_worktree(workspace, agent_id);
     if !worktree.exists() {
         // Torn down and no mail: quiescent, nothing due (§2.3 step 6).
@@ -214,14 +165,26 @@ pub(in crate::prompt) fn run(
 
     // §6 delivered-child-result circumstance: interpret any result message
     // the drain left in the inbox (deliver_result / land_compaction / a
-    // gate-hold, keyed on the returning child's role). This needs the
-    // workflow, so resolve once when a result is pending — a no-op hop has
-    // none and still resolves nothing (lazy resolution). The resolved
-    // config is reused by the step below rather than read twice.
+    // gate-hold, keyed on the returning child's role) — and the
+    // `user_message` circumstance: the drain delivered an operator
+    // message, under a config whose version fires the event
+    // (`docs/DESIGN_PROCEDURES.md` §3). Both need the workflow, so resolve
+    // once when either holds — a no-op hop has neither and still resolves
+    // nothing (lazy resolution). The resolved config is reused by the
+    // step below rather than read twice.
     let mut cfg = None;
-    if child_result::has_pending_result(workspace, agent_id)? {
+    if delivery.operator_spoke || child_result::has_pending_result(workspace, agent_id)? {
         let resolved = resolve()?;
-        child_result::interpret_pending(workspace, agent_id, &worktree, &resolved.workflow, deps)?;
+        boundary::circumstances(
+            workspace,
+            agent_id,
+            &worktree,
+            &delivery,
+            &resolved.workflow,
+            &resolved.role,
+            resolved.version,
+            deps,
+        )?;
         cfg = Some(resolved);
     }
 

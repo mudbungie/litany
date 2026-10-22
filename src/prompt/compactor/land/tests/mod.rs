@@ -7,6 +7,7 @@
 //! exercised end to end. The git-op error arms live in [`stub`].
 
 use super::*;
+use crate::config::version::Version;
 use crate::prompt::compactor::state;
 use crate::template::{GitRunner, RealGit};
 use tempfile::TempDir;
@@ -138,7 +139,7 @@ fn a_landing_squashes_the_span_and_replays_the_live_tail() {
     );
     assert_eq!(g().run_capture(wt, &["status", "--porcelain"]).unwrap(), "");
     // The checkpoint clock now measures from the base: one commit since.
-    let s = state(wt, "p1", 0, false, &g()).unwrap();
+    let s = state(wt, "p1", 0, false, &wf(), Version(2), &g()).unwrap();
     assert_eq!(s.commits_since_checkpoint, 1, "the replayed tail counts");
     // The squashed span stays recoverable from the compactor's own ref:
     // its dispatch commit still reaches the pre-squash history.
@@ -192,3 +193,8 @@ mod edges;
 mod extract;
 mod reclaim;
 mod stub;
+
+/// The basic loop's unbound shape for the clock's machinery derivation.
+fn wf() -> crate::config::Workflow {
+    crate::config::Workflow::parse("events: {}\n", std::path::Path::new("w")).unwrap()
+}

@@ -14,6 +14,7 @@ pub mod action;
 pub mod cross;
 pub mod effort;
 pub mod error;
+pub mod event;
 pub mod manifest;
 pub mod models;
 pub mod per_repo_providers;
@@ -26,11 +27,12 @@ pub mod workflow;
 pub use action::Action;
 pub use effort::Effort;
 pub use error::LoadError;
+pub use event::Event;
 pub use models::Models;
 pub use per_repo_providers::PerRepoProviders;
 pub use tool_control::ToolControl;
 pub use tool_output::ToolOutputBound;
-pub use workflow::{Budgets, CompactionConfig, CompactionTrigger, Event, RetryConfig, Workflow};
+pub use workflow::{Budgets, CompactionConfig, CompactionTrigger, RetryConfig, Workflow};
 
 use std::path::Path;
 

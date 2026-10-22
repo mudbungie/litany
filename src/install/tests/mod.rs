@@ -33,6 +33,12 @@ mod reviewer_role;
 /// reviewer, and is what plan mode is built out of (ARCH §6).
 mod planner_role;
 
+/// The shipped `titler` role — soul, row, manifest entry and the two
+/// bindings every shipped workflow carries (`docs/DESIGN_PROCEDURES.md`
+/// §6) — split out for the same reason. Declared **and bound**: the
+/// conversation names itself out of the box.
+mod titler_role;
+
 /// `LITANY_HOME`-style collapsed roots: config and data are one directory
 /// (ARCH §2.2) — the shape yog drives via `LITANY_HOME=<dir> litany prime`.
 fn collapsed(dir: &Path) -> Roots {

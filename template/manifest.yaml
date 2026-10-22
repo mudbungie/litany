@@ -70,3 +70,15 @@ roles:
       - skills/**
     budget_tokens: 50000
     overflow: truncate
+  # The titler's subject is the conversation as it stands: the transcript
+  # (always composed) and the summary chain for what compaction already
+  # carried forward — the compactor's shape, for the compactor's reason.
+  # Work products stay out; a title names the subject, not the files.
+  titler:
+    pinned:
+      - goal.md
+      - soul.md
+    order:
+      - summary/**
+    budget_tokens: 50000
+    overflow: truncate

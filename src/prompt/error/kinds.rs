@@ -209,7 +209,7 @@ pub enum Error {
          binding interpreter — shipped subset is the terminal ref marks); the action is \
          in the closed set but its executor is a tracked follow-on of bl-6a3b"
     )]
-    ActionUnsupported { action: String, event: &'static str },
+    ActionUnsupported { action: String, event: String },
     #[error("deposit initial user message: {0}")]
     Deposit(#[from] inbox::DepositError),
     /// A selected `summary/**` entry carries git conflict-marker lines

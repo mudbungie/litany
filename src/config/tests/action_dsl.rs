@@ -181,3 +181,42 @@ fn rejects_empty_kwarg_value() {
     let e = Action::parse("dispatch(worker, mode: )").unwrap_err();
     assert!(e.contains("empty value"), "got: {e}");
 }
+
+#[test]
+fn parses_land_response_with_one_flat_file_name() {
+    assert_eq!(
+        Action::parse("land_response(title)").unwrap(),
+        Action::LandResponse {
+            file: "title".into()
+        }
+    );
+    // One positional, nothing else.
+    assert!(Action::parse("land_response").is_err());
+    assert!(Action::parse("land_response(title, x)").is_err());
+    assert!(Action::parse("land_response(file: title)").is_err());
+    // The grammar admits no path separator: the target is a branch-root
+    // name, never a path into a harness directory.
+    assert!(Action::parse("land_response(summary/x.md)").is_err());
+}
+
+#[test]
+fn land_response_refuses_the_harness_control_files() {
+    // `docs/DESIGN_PROCEDURES.md` §4: a landing over a file that has its
+    // own writer — `name` is immutable by rule (ARCH §2.1) — is refused at
+    // parse, so a config carrying one fails at load.
+    for reserved in [
+        "goal.md",
+        "soul.md",
+        "name",
+        "facts.md",
+        "summary",
+        "messages",
+        "skills",
+        "descriptions",
+        "steps",
+        "tools",
+    ] {
+        let e = Action::parse(&format!("land_response({reserved})")).unwrap_err();
+        assert!(e.contains("control file"), "{reserved}: {e}");
+    }
+}

@@ -47,7 +47,7 @@ fn a_role_absent_from_providers_is_role_missing() {
         } => {
             assert_eq!(role, "ghost");
             assert_eq!(subject, "a child of agent \"p1\"");
-            assert_eq!(defined, "compactor, planner, reviewer, worker");
+            assert_eq!(defined, "compactor, planner, reviewer, titler, worker");
         }
         other => panic!("expected RoleMissing, got {other:?}"),
     }
@@ -57,7 +57,7 @@ fn a_role_absent_from_providers_is_role_missing() {
         err.to_string(),
         "role \"ghost\" is not defined in the providers.yaml that will govern a child \
          of agent \"p1\" \
-         — defined roles: compactor, planner, reviewer, worker"
+         — defined roles: compactor, planner, reviewer, titler, worker"
     );
 }
 
@@ -145,6 +145,6 @@ fn the_subject_is_the_callers_phrase_so_a_retarget_speaks_of_the_agent() {
     assert_eq!(
         err.to_string(),
         "role \"ghost\" is not defined in the providers.yaml that will govern agent \"a\" \
-         — defined roles: compactor, planner, reviewer, worker"
+         — defined roles: compactor, planner, reviewer, titler, worker"
     );
 }

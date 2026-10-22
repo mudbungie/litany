@@ -39,7 +39,7 @@ impl GitRunner for StubGit {
 #[test]
 fn a_worker_child_stages_the_removal_of_every_dialog_path() {
     let git = StubGit::default();
-    prune_inherited_dialog(Path::new("/wt"), crate::prompt::WORKER_ROLE, &git).unwrap();
+    prune_inherited_dialog(Path::new("/wt"), false, &git).unwrap();
     let runs = git.runs.borrow();
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].0, PathBuf::from("/wt"));
@@ -60,16 +60,13 @@ fn a_worker_child_stages_the_removal_of_every_dialog_path() {
 }
 
 #[test]
-fn a_compactor_keeps_its_subject_and_issues_no_git_op() {
+fn a_keeper_keeps_its_subject_and_issues_no_git_op() {
     // §2.7: the dispatching branch's transcript, summary chain and
-    // spent skill bodies are the compactor's input — the prune skips it.
+    // spent skill bodies are a procedure child's input — the prune
+    // skips it. Who keeps is the caller's derivation (machinery under
+    // the governing workflow); here the answer is handed in.
     let git = StubGit::default();
-    prune_inherited_dialog(
-        Path::new("/wt"),
-        crate::prompt::compactor::COMPACTOR_ROLE,
-        &git,
-    )
-    .unwrap();
+    prune_inherited_dialog(Path::new("/wt"), true, &git).unwrap();
     assert!(git.runs.borrow().is_empty());
 }
 
@@ -79,8 +76,7 @@ fn a_git_failure_surfaces_as_the_named_op() {
         fail: true,
         ..StubGit::default()
     };
-    let err =
-        prune_inherited_dialog(Path::new("/wt"), crate::prompt::WORKER_ROLE, &git).unwrap_err();
+    let err = prune_inherited_dialog(Path::new("/wt"), false, &git).unwrap_err();
     assert!(
         matches!(&err, Error::Git { op, .. } if *op == "rm inherited dialog"),
         "got {err:?}"

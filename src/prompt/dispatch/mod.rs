@@ -18,8 +18,10 @@
 
 pub mod advance;
 pub(in crate::prompt) mod assembler;
+mod boundary;
 mod canonical;
 mod child_result;
+mod compose;
 pub(crate) mod door;
 mod drain;
 pub mod driver;

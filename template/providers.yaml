@@ -75,3 +75,13 @@ roles:
     provider: anthropic
     model: claude-sonnet-5
     tools: [load_skill, read_file, search_history]
+  # The titler ships **declared and bound** (`docs/DESIGN_PROCEDURES.md`
+  # §6): the basic agentic loop forks one off the conversation each time
+  # the operator speaks, and its one-line answer lands as the branch's
+  # `title` file — the conversation naming itself, out of band, with no
+  # token of it in the conversation's own context. It reads and answers;
+  # it holds no tool, so it cannot act. Its model is the compactor's: a
+  # six-word title is not worth a worker's call per prompt.
+  titler:
+    provider: anthropic
+    model: claude-haiku-4-5

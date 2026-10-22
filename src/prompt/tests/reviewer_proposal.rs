@@ -87,6 +87,7 @@ fn scripted_reviewer(subject: &str) -> StubAdapter {
 /// that governs the hop's own bindings.
 fn cfg(role: &str, tools: &[&str], workflow: &str) -> WorkerConfig {
     WorkerConfig {
+        version: crate::config::version::Version(1),
         role: role.into(),
         tools: tools.iter().map(|t| (*t).to_string()).collect(),
         workflow: Workflow::parse(workflow, Path::new("workflow.yaml")).unwrap(),
@@ -107,7 +108,15 @@ fn a_reviewer_proposes_an_operator_accepts_and_the_next_election_sees_it() {
     let parent_wt = fixture::spawn_root(&ws, parent);
     fixture::amend_config(
         &ws,
-        &[("skills/notes/SKILL.md", manifest("the lesson").as_str())],
+        &[
+            ("skills/notes/SKILL.md", manifest("the lesson").as_str()),
+            // The lineage binds the reviewer the hop below forks, so the
+            // fork reads it as machinery and keeps the dialog it reviews.
+            (
+                "workflow.yaml",
+                "events:\n  worker_flush:\n    - dispatch(compactor)\n    - dispatch(reviewer)\n",
+            ),
+        ],
     );
 
     let git = RealGit::new();

@@ -98,13 +98,13 @@ pub struct CheckpointState {
     /// the agent may call"). Drives `on_flush`; the flush is the
     /// agent-elected trigger, distinct from the config-clock triggers.
     pub flush_requested: bool,
-    /// This branch is itself a **checkpoint child** — its role, derived
-    /// from its own dispatch commit ([`crate::prompt::role::derive`]), is
-    /// one the harness mints at a checkpoint
-    /// ([`crate::prompt::procedure::is_checkpoint_child`]). Machinery is
-    /// not a member of the compaction-eligible set at any commit count,
-    /// elapsed time, or elected flush (module docs, §2.7).
-    pub is_checkpoint_child: bool,
+    /// This branch is itself **machinery** — its role, derived from its
+    /// own dispatch commit ([`crate::prompt::role::derive`]), is one the
+    /// governing workflow forks of its own accord
+    /// ([`crate::prompt::procedure::is_machinery`]). Machinery is not a
+    /// member of the compaction-eligible set at any commit count, elapsed
+    /// time, or elected flush (module docs, §2.7).
+    pub is_machinery: bool,
     /// A compaction this branch dispatched has not come back — a
     /// compactor child of it carries no returned mark ([`inflight`]).
     /// The checkpoint it answers has already fired, so firing again
@@ -138,7 +138,7 @@ pub struct CheckpointState {
 /// Every other trigger's answer is total, and the two suppressors above
 /// answer ahead of all of them.
 pub fn due(cfg: Option<&CompactionConfig>, state: &CheckpointState) -> Result<bool, Error> {
-    if state.is_checkpoint_child || state.compaction_in_flight {
+    if state.is_machinery || state.compaction_in_flight {
         return Ok(false);
     }
     let Some(cfg) = cfg else {
@@ -163,7 +163,9 @@ pub fn due(cfg: Option<&CompactionConfig>, state: &CheckpointState) -> Result<bo
 /// checked out at `worktree` (§6). `now_unix` is the current wall-clock in
 /// Unix seconds, supplied by the caller so this stays a pure derivation
 /// over its inputs (§6 binding-shaped); `flush_requested` is the
-/// agent-elected input. The commit count and the checkpoint timestamp both
+/// agent-elected input; `workflow` at `version` is the governing
+/// workflow, the one home of which roles are machinery
+/// (`crate::prompt::procedure`). The commit count and the checkpoint timestamp both
 /// measure from [`origin`] — the branch's own founding commit or its last
 /// compaction base, whichever is newer — so an inherited history is never
 /// counted as this branch's own (module docs).
@@ -172,6 +174,8 @@ pub fn state(
     agent_id: &str,
     now_unix: u64,
     flush_requested: bool,
+    workflow: &crate::config::Workflow,
+    version: crate::config::version::Version,
     git: &dyn GitRunner,
 ) -> Result<CheckpointState, Error> {
     let last = origin(worktree, "HEAD", agent_id, git)?;
@@ -179,8 +183,8 @@ pub fn state(
         commits_since_checkpoint: commits_since(worktree, last.as_deref(), git)?,
         seconds_since_checkpoint: now_unix.saturating_sub(checkpoint_time(worktree, &last, git)?),
         flush_requested,
-        is_checkpoint_child: role::derive(worktree, "HEAD", agent_id, git)?
-            .is_some_and(|role| crate::prompt::procedure::is_checkpoint_child(&role)),
+        is_machinery: role::derive(worktree, "HEAD", agent_id, git)?
+            .is_some_and(|role| crate::prompt::procedure::is_machinery(workflow, version, &role)),
         compaction_in_flight: inflight::compaction_in_flight(worktree, agent_id, git)?,
         last_usage: usage::last(worktree)?,
     })

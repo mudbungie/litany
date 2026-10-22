@@ -7,6 +7,7 @@
 
 use super::Grant;
 use crate::config::manifest::RoleRules;
+use crate::config::version::Version;
 use crate::config::{Budgets, Effort, RetryConfig, Workflow};
 use std::ffi::OsString;
 
@@ -18,6 +19,10 @@ pub(in crate::prompt) struct Resolved<'a> {
     /// call ([`tool_step`]) *and* the grant selects the descriptors the
     /// dispatch commit derives from that commit (§3.3).
     pub(in crate::prompt) grant: Grant<'a>,
+    /// The config's schema version (ARCH §10) — a rule as well as a
+    /// guard: whether this config fires `user_message`
+    /// (`docs/DESIGN_PROCEDURES.md` §3).
+    pub(in crate::prompt) version: Version,
     /// The model id the role's assignment names (§4.3) — rides the
     /// canonical request verbatim; validity is brazen's fact (§4.2).
     pub(in crate::prompt) model_id: &'a str,

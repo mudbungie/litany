@@ -169,6 +169,7 @@ fn an_exhausted_child_deposits_without_reviving_the_parent() {
     deps.launcher = &rec;
     let mut capped = || {
         Ok(WorkerConfig {
+            version: crate::config::version::Version(1),
             workflow: Workflow::parse(
                 "events: {}\nbudgets:\n  max_depth: 0\n",
                 Path::new("workflow.yaml"),

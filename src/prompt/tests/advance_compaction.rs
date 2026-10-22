@@ -34,6 +34,7 @@ impl Clock for DescentClock {
 /// injection (§2.7).
 fn compactor_config() -> WorkerConfig {
     WorkerConfig {
+        version: crate::config::version::Version(1),
         role: "compactor".into(),
         // The shipped compactor row grants no tools (§4.3): its toolset
         // is the injected pair alone (§2.7).

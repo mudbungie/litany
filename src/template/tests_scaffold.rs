@@ -106,10 +106,10 @@ fn parse_origin(path: &str) -> PathBuf {
 }
 
 #[test]
-fn version_file_is_one() {
+fn version_file_is_the_supported_version() {
     let (_holder, ws) = scaffolded();
     let raw = show_control(&ws, "version");
-    assert_eq!(raw.trim(), "1");
+    assert_eq!(raw.trim(), version::SUPPORTED.to_string());
     // The parser agrees when handed the same content the runtime reads
     // out of the config commit — and accepts it, so the scaffolded
     // template is a version this harness supports (ARCH §10).

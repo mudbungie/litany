@@ -43,7 +43,7 @@ use std::path::{Path, PathBuf};
 
 /// The config's schema version (ARCH §10), read from the config commit
 /// (§2.2) like every other control file.
-const VERSION_FILE: &str = "version";
+pub(crate) const VERSION_FILE: &str = "version";
 
 /// Control file declaring the per-role context-assembly rules (ARCH
 /// §5.2), read from the config commit (§2.2).
@@ -63,6 +63,11 @@ pub(super) struct WorkerConfig {
     /// built-in compactor toolset is injected (§2.7, the step composes it
     /// for the `compactor` role alone).
     pub(super) role: String,
+    /// The config's schema version (ARCH §10), read first of the control
+    /// files and carried because a version is also a rule: which
+    /// lifecycle events a config of that vintage fires
+    /// ([`Version::fires_user_message`], `docs/DESIGN_PROCEDURES.md` §3).
+    pub(super) version: Version,
     /// The model id the role's `providers.yaml` assignment names (§4.3)
     /// — the single home of the pointer; it rides the canonical request
     /// verbatim, and its validity is brazen's fact, caught at the first
@@ -138,6 +143,7 @@ impl WorkerConfig {
                 tools: &self.tools,
                 config_commit: &self.config_commit,
             },
+            version: self.version,
             model_id: &self.model_id,
             provider_row: &self.provider_row,
             effort: self.effort,
@@ -177,7 +183,7 @@ pub(super) fn resolve_worker(
     // commit authored by a newer harness may carry shapes the parsers
     // below cannot read, so decline before interpreting any of them.
     let version_raw = read_control(workspace, &commit, VERSION_FILE, deps)?;
-    Version::parse(&version_raw, &control_origin(&commit, VERSION_FILE))?;
+    let version = Version::parse(&version_raw, &control_origin(&commit, VERSION_FILE))?;
 
     let global_path = deps.config_root.join(GLOBAL_MODELS_FILE);
     let providers_raw = read_control(workspace, &commit, PER_REPO_PROVIDERS_FILE, deps)?;
@@ -238,6 +244,7 @@ pub(super) fn resolve_worker(
 
     Ok(WorkerConfig {
         role,
+        version,
         model_id: assignment.model.clone(),
         provider_row: assignment.provider.clone(),
         effort: assignment.effort,
