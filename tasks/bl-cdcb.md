@@ -1,7 +1,8 @@
 +++
 title = "brazen pin → =0.0.19 (presets are catalog, routing table = named rows + credentialed presets; bare bz --login lists the sign-in catalog)"
 created = 1792729269
-updated = 1792729269
+updated = 1792729369
+claimant = "Gelded"
 priority = 1
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 tags = ["release"]
