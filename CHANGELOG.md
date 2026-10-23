@@ -29,6 +29,15 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+- Pin brazen `=0.0.19` (brazen bl-6feb): the adapter's built-in provider rows
+  are presets, and a run with no `--provider` reaches only the routing table —
+  rows named in the workspace config plus presets a credential resolves for.
+  litany always names the role's row, so nothing it sends changes; what does
+  change is the refusal a workspace with no routable row gets back from the
+  adapter: exit 78 "no provider resolved" where it was 77 "no credential for
+  provider". A local Ollama row is no longer in that table unasked — a
+  `[[provider]] name = "ollama"` line in the brazen config puts it there. [bl-cdcb]
+
 ## [0.0.13](https://github.com/mudbungie/litany/compare/litany-v0.0.12...litany-v0.0.13) - 2026-09-06
 
 - Make a tool call and its result one unit for every cut, and refuse to send an

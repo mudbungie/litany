@@ -47,11 +47,18 @@ impl CredStore for NullCredStore {
     }
 }
 
-/// Every provider row name brazen's pinned built-in table resolves, with
-/// no operator config in the fold (`XDG_CONFIG_HOME` points at a fresh,
-/// empty temp dir, so `read_config_file` finds nothing and the merge
-/// bottoms out on `defaults()` alone — the same floor every fresh install
-/// gets).
+/// Every KEYED provider row name brazen's pinned built-in table resolves,
+/// with no operator config in the fold (`XDG_CONFIG_HOME` points at a
+/// fresh, empty temp dir, so `read_config_file` finds nothing and the
+/// merge bottoms out on `defaults()` alone — the same floor every fresh
+/// install gets). Since brazen 0.0.19 (its bl-6feb) the listing is the
+/// ROUTING TABLE, not the whole built-in catalog: a preset is listed only
+/// once an act reaches it, and the provider-agnostic inline key
+/// (`BRAZEN_API_KEY`) is the one act that reaches every keyed preset at
+/// once — so with it set the answer is exactly the keyed catalog. A
+/// keyless (`ollama`, `claude-code`) or oauth2 preset would need naming;
+/// no template role is one, and a role that became one would fail here
+/// by design — the guard asks what a fresh install resolves BY KEY.
 fn brazen_builtin_provider_names() -> BTreeSet<String> {
     let config_home = tempfile::tempdir().unwrap();
     let mut env = BTreeMap::new();
@@ -61,6 +68,9 @@ fn brazen_builtin_provider_names() -> BTreeSet<String> {
     );
     // Structured output, so the listing is parsed rather than screen-scraped.
     env.insert("BRAZEN_OUTPUT".to_string(), "ndjson".to_string());
+    // The inline key puts every keyed preset in brazen's routing table
+    // (brazen config.md §3.2); the value is never sent anywhere.
+    env.insert("BRAZEN_API_KEY".to_string(), "notreal".to_string());
 
     let args = Args {
         argv: Vec::new(),
