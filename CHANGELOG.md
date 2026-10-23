@@ -29,6 +29,8 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.14](https://github.com/mudbungie/litany/compare/litany-v0.0.13...litany-v0.0.14) - 2026-10-22
+
 - Pin brazen `=0.0.19` (brazen bl-6feb): the adapter's built-in provider rows
   are presets, and a run with no `--provider` reaches only the routing table —
   rows named in the workspace config plus presets a credential resolves for.
