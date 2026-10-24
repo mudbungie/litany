@@ -185,9 +185,12 @@ fn a_conflicting_compaction_landing_is_declined_and_lands_nothing() {
 }
 
 #[test]
-fn a_verdict_action_without_an_executor_is_declined() {
-    // A verifier_approve bound to an action the verdict executor does not
-    // handle (a ref mark) is declined loudly, not silently no-oped.
+fn a_ref_mark_at_a_gating_verdict_marks_the_dispatcher_beside_the_drain() {
+    // `verifier_approve: [notify_ui, deliver_result]`: the verdict
+    // executor marks the dispatcher and the drain beside it releases the
+    // held result (`docs/DESIGN_PROCEDURES.md` §7). A verdict action it
+    // still has no meaning for (`deliver_result` at the unmet outcome) is
+    // declined loudly, not silently no-oped.
     let (_h, ws) = fixture::workspace();
     fixture::amend_config(&ws, &[("souls/verifier.md", "v")]);
     let parent = "20260101-g4";
@@ -198,9 +201,34 @@ fn a_verdict_action_without_an_executor_is_declined() {
     verifier_child(&ws, parent, &wtip, Some("APPROVE"), &fx);
 
     let wt = agent_worktree(&ws, parent);
-    // Under the gate it answers for: the verdict executor is the one
-    // that declines, not the ordinary child-result executor.
-    let wf = workflow(&format!("{GATE}  verifier_approve:\n    - notify_ui\n"));
+    let wf = workflow(&format!(
+        "{GATE}  verifier_approve:\n    - notify_ui\n    - deliver_result\n  verifier_reject:\n    - deliver_result\n"
+    ));
+    interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
+    assert!(
+        fx.git
+            .run(
+                &wt,
+                &[
+                    "show-ref",
+                    "--verify",
+                    "--quiet",
+                    &format!("refs/litany/notify/{parent}")
+                ]
+            )
+            .is_ok()
+    );
+    assert!(
+        !has_pending_result(&ws, parent).unwrap(),
+        "the drain released the held result"
+    );
+
+    let parent = "20260101-g6";
+    fixture::spawn_root(&ws, parent);
+    let worker = returned_child(&ws, parent, "worker", "do it", ("out.txt", "x\n"), &fx);
+    let wtip = worker_tip(&ws, &worker, &fx);
+    verifier_child(&ws, parent, &wtip, Some("REJECT"), &fx);
+    let wt = agent_worktree(&ws, parent);
     let err = interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap_err();
     assert!(
         matches!(err, crate::prompt::Error::ActionUnsupported { .. }),

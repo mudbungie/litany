@@ -12,7 +12,10 @@
 //!   ([`run_step_hook`]; `docs/DESIGN_PROCEDURES.md` §2–§3), the
 //!   circumstances a branch's own hop fires with no child returning.
 //!
-//! Two git-native **ref-mark** actions run at either seam, the same
+//! Two git-native **ref-mark** actions run at either seam — and at a
+//! child's return ([`crate::prompt::dispatch::child_result`]), where a
+//! verdict about the dispatcher's situation marks the dispatcher
+//! (`docs/DESIGN_PROCEDURES.md` §7) — the same
 //! pattern as the §2.6 `budget-exhausted` / `conflicted` marks and read
 //! (never pushed) by the frontend (§3.5): `mark_abandoned` writes
 //! `refs/litany/abandoned/<agent-id>` — a *non-derivable policy

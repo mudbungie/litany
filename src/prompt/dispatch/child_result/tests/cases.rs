@@ -4,8 +4,8 @@
 
 use super::super::{has_pending_result, interpret_pending};
 use super::{Fx, returned_child, returned_child_ep, steer, workflow};
+use crate::prompt::SystemClock;
 use crate::prompt::inbox::Epitaph;
-use crate::prompt::{Error, SystemClock};
 use crate::template::GitRunner;
 use crate::workspace::{agent_worktree, fixture};
 
@@ -161,22 +161,6 @@ fn an_explicit_worker_return_binding_is_honored() {
     let wf = workflow("events:\n  worker_return:\n    - deliver_result\n");
     interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap();
     assert!(wt.join(format!("messages/001-{child}.md")).exists());
-}
-
-#[test]
-fn an_unsupported_child_result_action_is_declined_loudly() {
-    let (_h, ws) = fixture::workspace();
-    let parent = "20260101-p4";
-    fixture::spawn_root(&ws, parent);
-    let fx = Fx::new();
-    returned_child(&ws, parent, "worker", "do it", ("out.txt", "x\n"), &fx);
-    let wt = agent_worktree(&ws, parent);
-    // A worker_return bound to an action with no child-result executor
-    // (a ref-mark action belongs to the branch's own terminal) is declined
-    // here, never silently no-oped.
-    let wf = workflow("events:\n  worker_return:\n    - notify_ui\n");
-    let err = interpret_pending(&ws, parent, &wt, &wf, &fx.deps()).unwrap_err();
-    assert!(matches!(err, Error::ActionUnsupported { .. }), "{err:?}");
 }
 
 #[test]

@@ -29,7 +29,9 @@
 
 use super::ChildResult;
 use crate::config::{Action, Event};
-use crate::prompt::{ChildDispatchRequest, Deps, Error, child_dispatch, procedure, role};
+use crate::prompt::{
+    ChildDispatchRequest, Deps, Error, child_dispatch, procedure, role, workflow_actions,
+};
 use crate::template::GitRunner;
 use std::path::Path;
 
@@ -87,7 +89,9 @@ pub(super) fn dispatch(
 
 /// Execute a gating child's verdict action (§6): met drains the held
 /// result; unmet re-dispatches the gated role with feedback and discards
-/// it. `gated` is the held result this child answers for.
+/// it; a ref mark marks the dispatcher and touches neither result
+/// (`docs/DESIGN_PROCEDURES.md` §7). `gated` is the held result this
+/// child answers for.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn execute(
     action: &Action,
@@ -138,6 +142,9 @@ pub(super) fn execute(
             )?;
             consume(gated)?;
             consume(cr)
+        }
+        (_, Action::MarkAbandoned | Action::NotifyUi) => {
+            workflow_actions::execute(action, event, worktree, agent_id, deps.git)
         }
         _ => Err(Error::ActionUnsupported {
             action: format!("{action:?}"),

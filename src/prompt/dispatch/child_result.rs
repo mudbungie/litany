@@ -34,7 +34,7 @@ pub(super) use flush::run_flush;
 
 use super::{drain, transcript, transfer};
 use crate::config::{Action, Event, Workflow};
-use crate::prompt::{Deps, Error, WORKER_ROLE, compactor, inbox, reviewer};
+use crate::prompt::{Deps, Error, WORKER_ROLE, compactor, inbox, reviewer, workflow_actions};
 use crate::template::GitRunner;
 use std::path::{Path, PathBuf};
 
@@ -208,8 +208,13 @@ fn child_actions(workflow: &Workflow, event: &Event, gated_role: Option<&str>) -
 /// return forks that role off the returning child's terminal ref
 /// ([`verifier::dispatch`] — the gate's opening, for any role);
 /// `gate_return_on` is the hold itself (a no-op leaving the result in the
-/// inbox); the landings and `deliver_result` consume or deliver. Other
-/// actions here are declined loudly.
+/// inbox); the landings and `deliver_result` consume or deliver; the two
+/// ref marks (`notify_ui`, `mark_abandoned`) **mark the dispatcher** — a
+/// verdict about this branch's situation (`guard_injected`) is what a
+/// mark is for (`docs/DESIGN_PROCEDURES.md` §7) — and touch the result
+/// not at all, exactly as the hold does: what consumes it is the landing
+/// or the delivery bound beside them. The match is exhaustive: every
+/// member of the closed set has a meaning at a child's return.
 ///
 /// **`land_compaction` is epitaph-gated** (§2.6, §2.7): only a
 /// compactor that ended on `final-response` completed a compaction pass,
@@ -250,10 +255,9 @@ fn execute_child(
         Action::LandCompaction | Action::StageProposal | Action::LandResponse { .. } => {
             deliver_result(worktree, agent_id, cr, deps.git)
         }
-        other => Err(Error::ActionUnsupported {
-            action: format!("{other:?}"),
-            event: event.key(),
-        }),
+        Action::MarkAbandoned | Action::NotifyUi => {
+            workflow_actions::execute(action, event, worktree, agent_id, deps.git)
+        }
     }
 }
 
