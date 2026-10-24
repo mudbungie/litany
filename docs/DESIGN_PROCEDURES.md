@@ -113,6 +113,12 @@ workflow. Two readers, one derivation (`Workflow::machinery()` replaces
   rule its own `post_step` forks a titler, which forks a titler. Stated
   once, of the set, rather than per role as bl-08b4 had to.
 
+**Every procedure fork records the binding that fired it** (bl-2854): the
+dispatch commit carries the trailer `Procedure: <event>` — the one fact
+on disk that tells a procedure child from a subagent a model asked for,
+which a seat reads to keep machinery out of its conversation list (yog
+bl-009a). The subject, and so the role derivation, does not move.
+
 The `budgets.max_depth` ceiling (ARCH §6) remains the backstop, as it is
 for every dispatch. **No in-flight suppressor** is added for hook
 dispatches: a procedure's cost is bounded by the cadence of the event that

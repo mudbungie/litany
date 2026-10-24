@@ -118,6 +118,7 @@ fn surfaces_io_failure_when_sub_worktree_is_a_file() {
         pins: crate::prompt::PinnedDocs::none(),
         grant: &EMPTY_GRANT,
         commit_subject: "x",
+        procedure: None,
         keeps_dialog: false,
     };
     let err = spawn_subagent_branch(&r, &git).unwrap_err();

@@ -84,6 +84,7 @@ fn a_workflow_triggered_dispatch_reports_a_refusal_and_does_not_fail_the_branch(
     let launcher = RecordingLauncher::ok();
     run_procedure(
         &req(&ws, "20260101-p1", &parent_wt, "g"),
+        &crate::config::Event::WorkerFlush,
         &g,
         &crate::prompt::SystemClock,
         &crate::prompt::NanoIdGen,
@@ -103,6 +104,7 @@ fn a_workflow_triggered_dispatch_forks_and_still_propagates_other_errors() {
     // Within budget: the procedure dispatch forks like any other.
     run_procedure(
         &req(&ws, "20260101-p1", &parent_wt, "g"),
+        &crate::config::Event::WorkerFlush,
         &g,
         &crate::prompt::SystemClock,
         &crate::prompt::NanoIdGen,
@@ -113,6 +115,7 @@ fn a_workflow_triggered_dispatch_forks_and_still_propagates_other_errors() {
     // A non-budget failure is still the branch's to handle.
     let err = run_procedure(
         &req(&ws, "20260101-p1", &parent_wt, "g"),
+        &crate::config::Event::WorkerFlush,
         &g,
         &crate::prompt::SystemClock,
         &crate::prompt::NanoIdGen,

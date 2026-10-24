@@ -82,6 +82,7 @@ pub(super) fn req<'a>(
         // `dispatch::step_commit::descriptors::tests`.
         grant: &EMPTY_GRANT,
         commit_subject: "dispatch: worker [p1-ct-2-deadbeef]",
+        procedure: None,
         keeps_dialog: false,
     }
 }

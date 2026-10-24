@@ -111,7 +111,7 @@ pub(crate) fn run_step_hook(
     for action in procedure::self_firing_actions(workflow, &event) {
         match &action {
             Action::Dispatch { role, .. } => {
-                procedure::dispatch(role, workspace, agent_id, worktree, None, deps)?;
+                procedure::dispatch(role, &event, workspace, agent_id, worktree, None, deps)?;
             }
             other => execute(other, &event, worktree, agent_id, deps.git)?,
         }

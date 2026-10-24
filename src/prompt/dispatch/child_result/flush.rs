@@ -75,7 +75,15 @@ pub(in crate::prompt::dispatch) fn run_flush(
                 event: Event::WorkerFlush.key(),
             });
         };
-        procedure::dispatch(role, workspace, agent_id, worktree, point.as_deref(), deps)?;
+        procedure::dispatch(
+            role,
+            &Event::WorkerFlush,
+            workspace,
+            agent_id,
+            worktree,
+            point.as_deref(),
+            deps,
+        )?;
     }
     Ok(())
 }

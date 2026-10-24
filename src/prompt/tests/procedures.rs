@@ -86,6 +86,57 @@ fn root_with_dialog(ws: &Path) -> std::path::PathBuf {
     wt
 }
 
+/// The `Procedure:` trailer on `agent`'s dispatch commit (bl-2854), or
+/// an empty string where the commit carries none.
+fn procedure_trailer(ws: &Path, agent: &str) -> String {
+    RealGit::new()
+        .run_capture(
+            &agent_worktree(ws, agent),
+            &[
+                "log",
+                "-n",
+                "1",
+                "--format=%(trailers:key=Procedure,valueonly)",
+                "HEAD",
+            ],
+        )
+        .unwrap()
+        .trim()
+        .to_string()
+}
+
+#[test]
+fn a_dispatch_a_model_asked_for_carries_no_procedure_trailer() {
+    // The trailer's absence is the other half of the fact: a subagent
+    // forked through the front door by a model or an operator is a
+    // conversation, and its dispatch commit says nothing about a binding.
+    let (_h, ws) = fixture::workspace();
+    let wt = root_with_dialog(&ws);
+    let parts = Parts::new(unreachable_adapter());
+    let deps = parts.deps();
+    let req = crate::prompt::ChildDispatchRequest {
+        repo: &ws,
+        parent_branch: PARENT,
+        parent_worktree: &wt,
+        role: "worker",
+        goal: "look into it",
+        name: None,
+        fork_point: None,
+        cwd: None,
+        pins: crate::prompt::PinnedDocs::none(),
+    };
+    let child = crate::prompt::child_dispatch::run(
+        &req,
+        deps.git,
+        deps.clock,
+        deps.id_gen,
+        deps.launcher,
+        deps.rng,
+    )
+    .unwrap();
+    assert_eq!(procedure_trailer(&ws, &child), "");
+}
+
 /// Whether the §6 `notify_ui` mark stands for `agent` in `wt`'s repo.
 fn notified(wt: &Path, agent: &str) -> bool {
     RealGit::new()
@@ -146,6 +197,9 @@ fn a_hook_forks_a_procedure_child_off_the_tip_with_the_generic_goal_and_the_dial
         child_wt.join("messages/001-user.md").exists(),
         "a procedure child keeps the inherited dialog (ARCH §2.2)"
     );
+    // The binding that fired the fork is the dispatch commit's one
+    // trailer (bl-2854): what tells a procedure child from a subagent.
+    assert_eq!(procedure_trailer(&ws, &launched[0]), "pre_step");
     // Off the tip: the child's dispatch commit is parented on the
     // parent's HEAD.
     let git = RealGit::new();

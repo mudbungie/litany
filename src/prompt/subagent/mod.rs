@@ -85,6 +85,14 @@ pub(crate) struct SpawnRequest<'a> {
     /// distinguishes the role at a glance — compactor uses
     /// `compaction: dispatch [...]`; worker uses `dispatch: worker [...]`.
     pub(crate) commit_subject: &'a str,
+    /// **The binding that fired this fork**, when a workflow binding did
+    /// (`docs/DESIGN_PROCEDURES.md` §2; bl-2854): the event's key, written
+    /// as the dispatch commit's one trailer, `Procedure: <event>`. `None`
+    /// for a child a model or an operator dispatched, whose commit carries
+    /// no trailer — so a reader of the tree tells a procedure child from a
+    /// subagent by the trailer's presence, and the subject grammar the
+    /// role derives from (`dispatch: <role> [<id>]`) does not move.
+    pub(crate) procedure: Option<&'a str>,
     /// Whether the fork keeps the dispatching branch's inherited dialog
     /// (ARCH §2.2 *Branch-scoped vs inherited*): true for a procedure
     /// child, whose subject that dialog is — machinery under the
@@ -121,7 +129,8 @@ pub(crate) struct SpawnRequest<'a> {
 ///    plus any caller-supplied pinned documents at their validated
 ///    destinations (§2.5, [`crate::prompt::pinned_doc`]).
 /// 4. `git add` the artifacts.
-/// 5. `git commit -m <commit_subject>` — the dispatch commit (§2.3
+/// 5. `git commit -m <commit_subject>` — plus the `Procedure:` trailer
+///    when a binding fired the fork — the dispatch commit (§2.3
 ///    step 2 / §2.10). Step 1 of the subagent's own step loop, when
 ///    one runs, takes no further pre-call commit; the dispatch commit
 ///    *is* its read state.
@@ -178,7 +187,12 @@ pub(crate) fn spawn_subagent_branch(
     git.run(req.sub_worktree, &add_args)
         .map_err(|source| Error::Git { op: "add", source })?;
 
-    git.run(req.sub_worktree, &["commit", "-m", req.commit_subject])
+    let trailer = req.procedure.map(|event| format!("Procedure: {event}"));
+    let mut commit_args = vec!["commit", "-m", req.commit_subject];
+    if let Some(trailer) = &trailer {
+        commit_args.extend(["-m", trailer.as_str()]);
+    }
+    git.run(req.sub_worktree, &commit_args)
         .map_err(|source| Error::Git {
             op: "commit",
             source,

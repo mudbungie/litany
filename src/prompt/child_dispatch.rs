@@ -62,7 +62,7 @@
 use super::clock::{Clock, IdGen};
 use super::subagent::{SpawnRequest, spawn_subagent_branch};
 use super::{Error, PER_REPO_PROVIDERS_FILE, SOULS_DIR};
-use crate::config::PerRepoProviders;
+use crate::config::{Event, PerRepoProviders};
 use crate::prompt::inbox::{self, Launcher};
 use crate::prompt::notice::notice;
 use crate::prompt::{budget, dispatch};
@@ -89,6 +89,22 @@ pub use request::ChildDispatchRequest;
 /// check is exact for a branch that does not yet exist.
 pub fn run(
     req: &ChildDispatchRequest<'_>,
+    git: &dyn GitRunner,
+    clock: &dyn Clock,
+    id_gen: &dyn IdGen,
+    launcher: &dyn Launcher,
+    rng: &dyn workspace::agent_name::mint::Rng,
+) -> Result<String, Error> {
+    fork(req, None, git, clock, id_gen, launcher, rng)
+}
+
+/// The one fork behind both doors: `procedure` is the key of the binding
+/// that fired it — written as the dispatch commit's `Procedure:` trailer
+/// (bl-2854) — or `None` for a model's or an operator's dispatch.
+#[allow(clippy::too_many_arguments)] // one fork, every fact it is minted from
+fn fork(
+    req: &ChildDispatchRequest<'_>,
+    procedure: Option<&str>,
     git: &dyn GitRunner,
     clock: &dyn Clock,
     id_gen: &dyn IdGen,
@@ -211,6 +227,7 @@ pub fn run(
             pins: req.pins,
             grant: &grant,
             commit_subject: &commit_subject,
+            procedure,
             // A procedure child's subject is the dispatching branch's
             // own dialog, so its fork keeps it (`procedure`, ARCH §2.2).
             keeps_dialog: super::procedure::is_machinery(&workflow, version, req.role),
@@ -247,16 +264,19 @@ pub fn run(
 /// compaction that does not land.
 ///
 /// Every other error still propagates: only the budget refusal is a
-/// non-event here.
+/// non-event here. `event` is the binding that fired the fork, recorded
+/// on the dispatch commit as its `Procedure:` trailer (bl-2854) — the
+/// one fact on disk that tells a procedure child from a subagent.
 pub fn run_procedure(
     req: &ChildDispatchRequest<'_>,
+    event: &Event,
     git: &dyn GitRunner,
     clock: &dyn Clock,
     id_gen: &dyn IdGen,
     launcher: &dyn Launcher,
     rng: &dyn workspace::agent_name::mint::Rng,
 ) -> Result<(), Error> {
-    match run(req, git, clock, id_gen, launcher, rng) {
+    match fork(req, Some(&event.key()), git, clock, id_gen, launcher, rng) {
         Err(refused @ Error::DispatchRefused { .. }) => {
             notice!("{refused}");
             Ok(())

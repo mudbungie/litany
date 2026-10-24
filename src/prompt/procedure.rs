@@ -123,6 +123,7 @@ pub(crate) fn goal(role: &str, worktree: &Path, agent_id: &str) -> Result<String
 /// What its return does is the returning role's business on a later hop.
 pub(crate) fn dispatch(
     role: &str,
+    event: &Event,
     workspace: &Path,
     agent_id: &str,
     worktree: &Path,
@@ -143,6 +144,7 @@ pub(crate) fn dispatch(
     };
     child_dispatch::run_procedure(
         &req,
+        event,
         deps.git,
         deps.clock,
         deps.id_gen,

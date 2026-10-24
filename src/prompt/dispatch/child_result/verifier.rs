@@ -51,6 +51,7 @@ pub(super) fn feedback_token(role: &str) -> String {
 /// derived hold). The returning result is left in the inbox by the caller.
 pub(super) fn dispatch(
     role: &str,
+    event: &Event,
     workspace: &Path,
     agent_id: &str,
     worktree: &Path,
@@ -79,6 +80,7 @@ pub(super) fn dispatch(
     };
     child_dispatch::run_procedure(
         &req,
+        event,
         deps.git,
         deps.clock,
         deps.id_gen,
@@ -134,6 +136,7 @@ pub(super) fn execute(
             };
             child_dispatch::run_procedure(
                 &req,
+                event,
                 deps.git,
                 deps.clock,
                 deps.id_gen,

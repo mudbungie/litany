@@ -239,7 +239,7 @@ fn execute_child(
 ) -> Result<(), Error> {
     match action {
         Action::Dispatch { role, .. } => {
-            verifier::dispatch(role, workspace, agent_id, worktree, cr, deps)
+            verifier::dispatch(role, event, workspace, agent_id, worktree, cr, deps)
         }
         Action::GateReturnOn { .. } => Ok(()),
         Action::DeliverResult => deliver_result(worktree, agent_id, cr, deps.git),
