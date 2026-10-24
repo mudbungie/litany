@@ -29,6 +29,19 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.15](https://github.com/mudbungie/litany/compare/litany-v0.0.14...litany-v0.0.15) - 2026-10-23
+
+- Run `notify_ui` and `mark_abandoned` at a child's return and at a gating
+  child's verdict, marking the dispatcher: the injection watcher's natural
+  landing (`guard_injected: [notify_ui, land_response(guard)]`) now executes
+  instead of being declined; a mark touches the result not at all, exactly as
+  the hold does (`docs/DESIGN_PROCEDURES.md` §7). [bl-ef78]
+- Record on every procedure child's dispatch commit the binding that fired
+  it: `run_procedure` writes the trailer `Procedure: <event>`, so a reader of
+  the tree tells a titler, compactor or verifier from a subagent a model asked
+  for; the subject grammar `dispatch: <role> [<id>]` does not move (ARCH §2.5).
+  [bl-2854]
+
 ## [0.0.14](https://github.com/mudbungie/litany/compare/litany-v0.0.13...litany-v0.0.14) - 2026-10-22
 
 - Pin brazen `=0.0.19` (brazen bl-6feb): the adapter's built-in provider rows
