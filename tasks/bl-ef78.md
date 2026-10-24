@@ -1,7 +1,8 @@
 +++
 title = "run notify_ui / mark_abandoned at a child's verdict event: the watcher's natural landing (DESIGN_PROCEDURES §7, left open by bl-f490)"
 created = 1792633753
-updated = 1792633753
+updated = 1792812440
+claimant = "Sheepdog"
 priority = 3
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
