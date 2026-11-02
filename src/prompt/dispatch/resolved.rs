@@ -54,6 +54,10 @@ pub(in crate::prompt) struct Resolved<'a> {
     /// workflow mark's, else `grant.config_commit`. Recorded in each
     /// step's `meta.json` as the step's policy provenance (bl-e4a0).
     pub(in crate::prompt) workflow_commit: &'a str,
+    /// The standing model mark the binding above came from (§4.3 *The
+    /// model mark*), `None` for every unmarked agent. Recorded in each
+    /// step's `meta.json` beside the two shas, for the same reason.
+    pub(in crate::prompt) model_mark: Option<&'a crate::workspace::model_mark::ModelMark>,
     /// The role's §5.2 context-assembly rules (`manifest.yaml`, §2.2);
     /// `None` (no entry for the role) assembles the transcript alone.
     pub(in crate::prompt) manifest: Option<&'a RoleRules>,

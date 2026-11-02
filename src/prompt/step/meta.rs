@@ -77,6 +77,16 @@ pub struct StepMeta {
     /// call names a row, so the harness always writes one.
     #[serde(default)]
     pub provider: Option<String>,
+    /// The **model mark** the step's binding was overlaid from (§4.3 *The
+    /// model mark*, bl-246f) — the blob's own four fields, so a reader
+    /// sees what the role would have run on from the config commit and
+    /// what it ran on instead. `None` is the standing case (no mark
+    /// stood), and equally what a record written before the field reads
+    /// as — the two coincide because an unmarked step and an unrecorded
+    /// one both ran the config commit's binding, which `provider` and
+    /// `request.json` already name.
+    #[serde(default)]
+    pub model_mark: Option<crate::workspace::model_mark::ModelMark>,
     /// The `tool_use` ids of the orphan `tool_result` blocks assembly
     /// dropped from this step's wire history (bl-2d93). Empty is the
     /// standing case; a record written before the field existed reads
@@ -98,6 +108,12 @@ mod tests {
             config_commit: Some("cfg1111111111111111111111111111111111111".into()),
             workflow_commit: Some("wf22222222222222222222222222222222222222".into()),
             provider: Some("anthropic".into()),
+            model_mark: Some(crate::workspace::model_mark::ModelMark {
+                provider: "anthropic".into(),
+                model: "claude-opus-4-1".into(),
+                effort: None,
+                priority: Some(true),
+            }),
             dropped_orphans: vec!["call_gone".into()],
             started_at: "2026-04-22T06:54:32Z".into(),
             ended_at: "2026-04-22T06:54:35Z".into(),
@@ -111,6 +127,7 @@ mod tests {
             "config_commit",
             "workflow_commit",
             "provider",
+            "model_mark",
             "dropped_orphans",
             "started_at",
             "ended_at",
@@ -134,6 +151,7 @@ mod tests {
         assert_eq!(back.config_commit, None);
         assert_eq!(back.workflow_commit, None);
         assert_eq!(back.provider, None);
+        assert_eq!(back.model_mark, None);
         assert!(back.dropped_orphans.is_empty());
     }
 }

@@ -57,6 +57,7 @@ verb_table! {
     Dispatch => dispatch,
     Retarget => retarget,
     Workflow => workflow,
+    Model => model,
     Stop => stop,
     Message => message,
     Proposal => proposal,

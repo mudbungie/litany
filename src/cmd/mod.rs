@@ -37,6 +37,7 @@ pub mod delete;
 pub mod dispatch;
 pub mod invoke;
 pub mod message;
+pub mod model;
 pub mod new;
 pub mod prelude;
 pub mod prime;
@@ -111,6 +112,13 @@ pub enum Command {
     /// — nearest mark on the agent's descent wins. `--clear` removes it,
     /// returning the agent to its followed config's workflow.
     Workflow(workflow::Args),
+    /// Pick the model one running agent runs on (ARCH §4.3 *The model
+    /// mark*): writes the standing mark `refs/litany/model/<agent>`
+    /// carrying a provider row, a model id and the optional effort and
+    /// priority knobs, overlaid on the role's `roles:` entry at every
+    /// step boundary — every other field keeps following the lineage.
+    /// `--clear` removes it; bare, it reads the binding in force.
+    Model(model::Args),
     /// Stop a conversation branch and every descendant (`<branch>-*`,
     /// §2.3) — one SIGTERM sweep over the id namespace. The cascade is
     /// the stop, not an option on it (ARCH §2.9, bl-3114).
@@ -203,6 +211,7 @@ impl Command {
             Command::Dispatch(a) => dispatch::run(a, fx),
             Command::Retarget(a) => retarget::run(a, fx),
             Command::Workflow(a) => workflow::run(a, fx),
+            Command::Model(a) => model::run(a, fx),
             Command::Stop(a) => stop::run(a, fx),
             Command::Message(a) => message::run(a, fx),
             Command::Proposal(a) => proposal::run(a, fx),

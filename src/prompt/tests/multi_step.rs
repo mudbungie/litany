@@ -142,30 +142,32 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     // stray-probe) + 2 (user-message delivery add+commit) + 1 (step 1
     // rev-parse) + 2 (step-1 model-output transcript entry add+commit)
     // + 1 (the tool window's unconditional hold-mark probe, §3.3 *Tool
-    // control*) + 2 (the tool transcript entry add+commit) + 12 (the step-2
+    // control*) + 2 (the tool transcript entry add+commit) + 13 (the step-2
     // boundary's own config resolution — bl-e580: the config question is
     // asked again here, because a `litany config` edit or a `litany
     // workflow` mark that landed during step 1 governs step 2, so the
     // lineage enumeration and containment merge-base run again (4), the
     // role is derived from the branch this time rather than defaulted for
-    // a fork (1), and `version`/`providers.yaml`, the workflow-mark
-    // probe, the mark's own §10 guard, `workflow.yaml`, `manifest.yaml`
-    // and the soul are read again (7 — `StubGit` answers every
-    // `rev-parse` with a sha, so the mark probe reads as a standing mark
-    // and pays a second `version` read a live unmarked agent does not))
+    // a fork (1), the model-mark probe runs — a `cat-file blob` the stub
+    // answers empty, so no mark stands (1, §4.3 *The model mark*) — and
+    // `version`/`providers.yaml`, the workflow-mark probe, the mark's own
+    // §10 guard, `workflow.yaml`, `manifest.yaml` and the soul are read
+    // again (7 — `StubGit` answers every `rev-parse` with a sha, so the
+    // workflow-mark probe reads as a standing mark and pays a second
+    // `version` read a live unmarked agent does not))
     // + 1 (step-2 drain stray-probe) + 6 (the step-2 descriptor refresh,
     // bl-37cd: the cut is re-derived against the commit that just
     // resolved, so it costs a `cat-file -e` schema probe and a skill
     // probe per granted tool (4), one `checkout` of what the grant
     // covers, and one `status` asking whether any of it moved — which
     // here it did not, so no commit follows) + 1 (step 2 rev-parse) + 2
-    // (step-2 model-output entry add+commit) = 54. The terminal result deposit
+    // (step-2 model-output entry add+commit) = 55. The terminal result deposit
     // adds none: the
     // last prompter is `user` (the on-ramp message), so the reply
     // addresses no inbox and neither the branch-tip read nor the returned
     // mark runs (§2.6). Merge-back is gone. The version guard runs no git.
     let runs = git.runs.borrow();
-    assert_eq!(runs.len(), 54);
+    assert_eq!(runs.len(), 55);
     assert_eq!(runs[20].1, vec!["add", "name"]);
     assert_eq!(runs[21].1, vec!["add", "goal.md", "soul.md"]);
     assert!(runs[22].1[2].contains("dispatch: worker"));
@@ -195,25 +197,30 @@ fn loop_runs_two_steps_when_first_completion_is_tool_use() {
     assert_eq!(runs[32].1[..2], ["for-each-ref", "--format=%(refname)"]);
     assert_eq!(runs[33].1[..2], ["merge-base", "agents/ct-1-deadbeef"]);
     assert_eq!(runs[36].1[0], "log");
+    // After `providers.yaml` the model-mark probe (§4.3 *The model
+    // mark*): a `cat-file blob` the stub answers empty, so no mark stands
+    // and the role's own binding governs step 2.
+    assert_eq!(runs[39].1[..2], ["cat-file", "blob"]);
+    assert!(runs[39].1[2].starts_with("refs/litany/model/"));
     assert_eq!(
-        runs[43].1[1],
+        runs[44].1[1],
         "cafecafecafecafecafecafecafecafecafecafe:souls/worker.md"
     );
     // Then its boundary drain (empty inbox → stray-probe only), the
     // branch-tip capture (advanced by step 1's transcript commits), and
     // its own model-output entry (004).
-    assert_eq!(runs[44].1, vec!["status", "--porcelain", "--", "messages"]);
+    assert_eq!(runs[45].1, vec!["status", "--porcelain", "--", "messages"]);
     // Then the boundary descriptor refresh (bl-37cd): the cut re-derived
     // against the commit step 2 just resolved, ending in the one
     // question that decides whether it commits — did anything move?
-    assert_eq!(runs[49].1[0], "checkout");
+    assert_eq!(runs[50].1[0], "checkout");
     assert_eq!(
-        runs[50].1,
+        runs[51].1,
         vec!["status", "--porcelain", "--", "descriptions"]
     );
-    assert_eq!(runs[51].1, vec!["rev-parse", "HEAD"]);
-    assert_eq!(runs[52].1, vec!["add", "messages/004-claude-sonnet-5.json"]);
-    assert!(runs[53].1[2].contains("transcript 004: claude-sonnet-5"));
+    assert_eq!(runs[52].1, vec!["rev-parse", "HEAD"]);
+    assert_eq!(runs[53].1, vec!["add", "messages/004-claude-sonnet-5.json"]);
+    assert!(runs[54].1[2].contains("transcript 004: claude-sonnet-5"));
     // The terminal result deposit is one structural no-op — the operator
     // prompted this agent, so its reply addresses no inbox (§2.6) — so
     // the entry commit is the last git op and no merge-back follows.

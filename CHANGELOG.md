@@ -29,6 +29,16 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+- Add `litany model <ws> <agent> [<provider> <model> [--effort L] [--priority] | --clear]`,
+  the per-agent model override: a standing mark `refs/litany/model/<agent>`
+  carrying a role-assignment blob that resolution overlays on the agent's
+  role entry at every step boundary — `tools`, `max_output_tokens`, soul,
+  manifest and workflow keep following the lineage, and the mark does not
+  descend to children. Bare, the verb reads the binding in force. Each
+  step's `meta.json` records the mark it ran under as `model_mark`. Closes
+  the operator report that a model pick made from one conversation moved
+  every conversation on the workspace (ARCH §4.3 *The model mark*). [bl-246f]
+
 ## [0.0.15](https://github.com/mudbungie/litany/compare/litany-v0.0.14...litany-v0.0.15) - 2026-10-23
 
 - Run `notify_ui` and `mark_abandoned` at a child's return and at a gating

@@ -1,6 +1,8 @@
 //! The argv surface and binding types: `Cli` round-trips for every verb
 //! (byte-for-byte parse parity, §3.4), the [`Error`] Display shape, the
-//! [`Outcome`] handoff mapping, and the [`prelude`] re-exports.
+//! [`Outcome`] handoff mapping, and the [`prelude`] re-exports. The two
+//! per-agent mark verbs' parses — `workflow` and `model`, one shape over
+//! two facts — are [`super::surface_marks`]'s, split at the per-file cap.
 
 use crate::cmd::{BUILTIN_TOOLS, Cli, Command, Error, Outcome, advance, prelude};
 use crate::prompt::dispatch::advance::cli::AdvanceHandoff;
@@ -98,28 +100,6 @@ fn message_scan_bundle_replay_advance_parse() {
     assert_eq!(
         (v.workspace, v.agent.as_str()),
         (PathBuf::from("/ws"), "ag")
-    );
-}
-
-#[test]
-fn workflow_parses_config_and_clear() {
-    let Command::Workflow(a) = parse(&["litany", "workflow", "/ws", "ag", "--config", "alt"])
-    else {
-        panic!()
-    };
-    assert_eq!(a.workspace, PathBuf::from("/ws"));
-    assert_eq!((a.agent.as_str(), a.config.as_deref()), ("ag", Some("alt")));
-    assert!(!a.clear);
-    let Command::Workflow(b) = parse(&["litany", "workflow", "/ws", "ag", "--clear"]) else {
-        panic!()
-    };
-    assert!(b.config.is_none() && b.clear);
-    // The two modes are exclusive: `--config` marks, `--clear` unmarks.
-    assert!(
-        Cli::try_parse_from([
-            "litany", "workflow", "/ws", "ag", "--config", "x", "--clear"
-        ])
-        .is_err()
     );
 }
 
@@ -279,6 +259,7 @@ fn preludes_are_named_per_verb_by_the_surface() {
         &["litany", "config", "/w"][..],
         &["litany", "retarget", "/w", "20260101-a1"][..],
         &["litany", "workflow", "/w", "20260101-a1"][..],
+        &["litany", "model", "/w", "20260101-a1"][..],
         &["litany", "stop", "/w", "20260101-a1"][..],
         &["litany", "message", "/w", "20260101-a1", "c"][..],
         &["litany", "scan", "/w"][..],

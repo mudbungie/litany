@@ -19,6 +19,7 @@
 //! consumes. `litany advance` resolves *lazily*: a no-op hop (lost
 //! acquire, nothing due) exits before any config is read (§6).
 
+mod model_source;
 mod source;
 pub(crate) mod workflow_source;
 
@@ -92,6 +93,13 @@ pub(super) struct WorkerConfig {
     pub(super) max_output_tokens: Option<u32>,
     /// The role's declared tool names (§4.3 `tools:`).
     pub(super) tools: Vec<String>,
+    /// The standing model mark the four binding fields above were
+    /// overlaid from (§4.3 *The model mark*), `None` for every unmarked
+    /// agent — the general path. Carried for the step record's
+    /// provenance (`meta.json` `model_mark`, bl-e4a0's reason): the mark
+    /// is a ref an operator rewrites or clears at will, so what *this*
+    /// step ran on is a fact only the step can keep.
+    pub(super) model_mark: Option<crate::workspace::model_mark::ModelMark>,
     /// The config commit every control file above was read from — the
     /// **followed** commit (§2.2, bl-403b): the governing lineage's
     /// current tip, or the fork commit while lineages diverge. Carried
@@ -155,6 +163,7 @@ impl WorkerConfig {
             budgets: self.workflow.budgets,
             workflow: &self.workflow,
             workflow_commit: &self.workflow_commit,
+            model_mark: self.model_mark.as_ref(),
             manifest: self.manifest.as_ref(),
             expect_handshake: self.expect_handshake,
         }
@@ -197,11 +206,11 @@ pub(super) fn resolve_worker(
     // provider row name goes to `bz --provider`, the model id rides the
     // canonical request verbatim. Id validity is brazen's fact, caught
     // at the first live model call (§4.2) — no global table mediates.
-    let assignment = cfg
-        .per_repo
-        .roles
-        .get(role.as_str())
-        .ok_or_else(|| Error::RoleMissing(role.clone()))?;
+    // A standing model mark overlays the agent's four binding fields
+    // (§4.3 *The model mark*, [`model_source`]); the rest is the entry's.
+    let binding =
+        model_source::resolve_binding(workspace, &source, &role, &cfg.per_repo, deps.git)?;
+    let assignment = &binding.assignment;
 
     // Adapter resolution (§4.2/§4.4), one order (most-specific first): the
     // optional `models.yaml` `adapter:` override, else the binding-injected
@@ -251,6 +260,7 @@ pub(super) fn resolve_worker(
         priority: assignment.priority,
         max_output_tokens: assignment.max_output_tokens,
         tools: assignment.tools.clone(),
+        model_mark: binding.mark,
         config_commit: commit,
         soul,
         binary,

@@ -901,6 +901,51 @@ Every refusal precedes the mark: an unknown workspace, agent or
 lineage, or a lineage head whose `version` or `workflow.yaml` does not
 parse, is refused before the ref is written.
 
+## Picking one agent's model: `litany model`
+
+A role's model binding — the `(provider row, model id)` pointer and its
+`effort` / `priority` knobs in `providers.yaml` `roles:` (ARCH §4.3) —
+lives on the followed config commit, so editing it through `litany
+config` moves **every** conversation on the workspace at once. That is
+the right reach when a provider row dies; it is the wrong reach when the
+question is *what should this conversation run on*. `litany model` is
+the per-agent answer (ARCH §4.3 *The model mark*):
+
+```
+litany model <workspace> <agent>                                   # READ: what it runs on
+litany model <workspace> <agent> openai gpt-5                      # this agent, this binding
+litany model <workspace> <agent> openai gpt-5 --effort high --priority
+litany model <workspace> <agent> --clear                           # back to the role's own
+```
+
+**Bare, it reads.** One line naming the binding the agent's next step
+will run on, its knobs when any are set, the role it resolves as, and
+whether a mark on the agent or the followed lineage's `roles:` entry
+answered:
+
+```
+20260101-r1 runs openai / gpt-5 (effort high, priority) as worker — marked on [20260101-r1]
+```
+
+It writes one **standing** ref, `refs/litany/model/<agent-id>`, whose
+blob carries the binding in the `roles:` entry's own YAML — and nothing
+else. From the agent's next step boundary on, resolution overlays those
+fields on the role's entry; `tools`, `max_output_tokens`, the soul, the
+manifest and `workflow.yaml` keep following the lineage, so a picked
+conversation still receives every other config edit. Unlike the
+workflow mark, the mark does **not** descend: a pick is about the one
+conversation in front of you, and a child's role has its own entry. It
+rides the agent across a `litany retarget`, and `--clear` deletes it,
+which deletes config, never code.
+
+Every refusal precedes the mark: an unknown workspace or agent, or a
+role the agent's followed config does not declare (a mark overlays a
+binding and cannot stand in for one). The row's existence and the id's
+validity are brazen's facts, caught at the first live model call exactly
+as a `providers.yaml` edit's would be. Each step's `meta.json` records
+the mark it ran under beside the two config shas, so what step N ran on
+survives a later re-mark or clear.
+
 ## The skill census: `litany skills`
 
 Skills live in two homes — the install pool `<data-root>/skills/<name>/`

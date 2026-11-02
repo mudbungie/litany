@@ -94,6 +94,7 @@ impl Resolution {
             budgets: self.workflow.budgets,
             workflow: &self.workflow,
             workflow_commit: "c0ffee",
+            model_mark: None,
             manifest: None,
             expect_handshake: false,
         }

@@ -92,6 +92,16 @@ Two mechanisms no longer mean one thing; each keeps one meaning:
 
 - **A step in flight** — one hop's resolution (structural, §6).
 - **The workflow mark** — a deliberate per-agent pin (bl-f928).
+- **The model mark** (bl-246f) — a deliberate per-agent override of the
+  role's model binding (`provider`, `model`, `effort`, `priority`; ARCH
+  §4.3 *The model mark*). It is the narrowest pin here: every other field
+  of the role, and every other control file, still follows the tip for the
+  marked agent. It exists because the §9.3 pick surface writes the lineage
+  and so reaches every conversation on the workspace, while the operator
+  picking a model for *one* conversation means exactly that one; a lineage
+  per conversation would have bought the scope by un-following everything
+  else, which is this document's inversion undone for the conversations an
+  operator touched most.
 - **Dispatch-time tree artifacts** — the `goal.md`/`soul.md`/`name`
   copies are the fork's. The wire soul already follows (the step composes
   it from resolution, never the tree copy). The `descriptions/**` cut no

@@ -282,6 +282,7 @@ pub mod current_config;
 pub mod cwd;
 mod guard;
 pub mod hold;
+pub mod model_mark;
 pub mod proposal;
 pub mod retarget;
 pub mod workflow_mark;

@@ -48,6 +48,7 @@ pub(super) fn worker_config() -> WorkerConfig {
         // tool a role does not grant is declined at execution, never run
         // (`dispatch/tool_step.rs::refusal`).
         tools: vec!["bash".into()],
+        model_mark: None,
         config_commit: super::stubs::STUB_SHA.into(),
         soul: "be helpful".into(),
         binary: "bz".into(),
