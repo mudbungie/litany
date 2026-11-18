@@ -1,0 +1,112 @@
+name: Ingest
+
+# A NEW BRAZEN REACHES LITANY WITH NO HAND (bl-5866).
+#
+# litany pins brazen exactly (`brazen = "=<pin>"` in Cargo.toml — ARCH §4.4),
+# so a brazen release is invisible here until the pin moves, and until this
+# file the pin moved when a person filed a ball and edited it. Hourly, and on a
+# dispatch:
+#
+#   1. `make ingest` — the pin, the README's spellings of it, Cargo.lock and
+#      the changelog bullet, promoted to the version the release PR will
+#      propose (`scripts/ingest/ingest` holds every reason). Nothing newer on
+#      crates.io is the same command leaving an empty diff: done, nothing
+#      written anywhere.
+#   2. The diff committed on a branch, and `ci.yml` dispatched on that branch.
+#      That workflow is the one definition of green (`make ci` is `make
+#      check`), and this file restates no step of it: a new adapter is proved
+#      by the gate every other change is proved by.
+#   3. On a pass, `main` fast-forwarded to the branch; the branch deleted
+#      either way (the run's log is the record, the branch was only its seat).
+#   4. The release re-judged. A push by the default `GITHUB_TOKEN` triggers no
+#      workflow, so `release-plz.yml` is dispatched — as its own
+#      `merge-release-pr` does after a merge. That run refreshes the release PR
+#      onto the new `main`, finds the changelog already naming the version it
+#      proposes, merges it, and the run THAT dispatches publishes. Where the
+#      repository holds `RELEASE_PLZ_TOKEN` the push is made with it instead,
+#      triggers the chain itself, and no dispatch is sent.
+#
+# WHAT A FAILED RUN MEANS. A red `ci.yml` on the branch means the new brazen
+# broke something real, and that IS a hand's: `main` is untouched, and every
+# later tick fails the same way until somebody reads it. The fast-forward
+# refuses when `main` moved while the gate ran; the next hour begins again
+# from the new `main`, which costs an hour and no hand.
+#
+# The shape is yog's `advisories.yml`, which lands a lockfile mend the same
+# way. Every action is pinned to a full commit SHA: this job writes to `main`.
+
+on:
+  schedule:
+    - cron: "41 * * * *"
+  workflow_dispatch:
+
+# No ambient scopes; the one job states what it writes.
+permissions: {}
+
+# One at a time: a tick that fires while the last one is still watching its
+# gate would push a second branch carrying the same move.
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'mudbungie'
+    permissions:
+      # The branch, its commit and the fast-forward of main.
+      contents: write
+      # Dispatching ci.yml and release-plz.yml.
+      actions: write
+    env:
+      # Present: pushes trigger workflows and no dispatch is needed. Absent:
+      # the default token pushes and release-plz.yml is dispatched (4).
+      PAT: ${{ secrets.RELEASE_PLZ_TOKEN }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          token: ${{ secrets.RELEASE_PLZ_TOKEN || github.token }}
+          # The whole history and its tags. The fast-forward in (3) is judged
+          # by git on THIS clone, and a shallow one cannot see main's tip in
+          # the branch's history; and the ingest reads the commits since the
+          # last release tag to name the next version.
+          fetch-depth: 0
+      # No toolchain step: rust-toolchain.toml is the pin's one home, and the
+      # runner's rustup installs it on the first cargo command (ci.yml).
+      - name: Move the pin to the newest brazen
+        run: make ingest
+      - name: Land it through the gate
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "nothing newer: nothing written"
+            exit 0
+          fi
+          pin=$(make --no-print-directory brazen-pin)
+          branch="ingest/brazen-$pin-$(date -u +%Y%m%d-%H%M)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -qam "brazen pin → =$pin, ingested from crates.io, with its changelog bullet promoted so the release follows"
+          git push -u origin "$branch"
+          # The branch was only the run's seat: gone whichever way this ends.
+          trap 'git push origin --delete "$branch" || true' EXIT
+          gh workflow run ci.yml --ref "$branch"
+          # A dispatch answers before its run exists; find the run by its branch.
+          run=""
+          for _ in $(seq 1 30); do
+            run=$(gh run list --workflow ci.yml --branch "$branch" --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            [ -n "$run" ] && break
+            sleep 5
+          done
+          [ -n "$run" ] || { echo "ci.yml never started on $branch" >&2; exit 1; }
+          gh run watch "$run" --exit-status
+          git push origin "$branch:main" || {
+            echo "main moved while the gate ran: nothing landed; the next run begins from the new main" >&2
+            exit 1
+          }
+          if [ -z "$PAT" ]; then
+            gh workflow run release-plz.yml --ref main
+          fi

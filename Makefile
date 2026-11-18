@@ -1,4 +1,4 @@
-.PHONY: all build release test test-install coverage lint line-cap leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan mac-artifact clean deploy-local deploy-selftest deploy-status
+.PHONY: all build release test test-install coverage lint line-cap leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan mac-artifact clean deploy-local deploy-selftest deploy-status ingest ingest-selftest
 
 # Install location for `make install`. Defaults to the XDG-ish user-local
 # convention; override for system-wide installs or packaging:
@@ -219,7 +219,7 @@ leak-scan:
 	@scripts/leak-scan.sh --self-test
 	@scripts/leak-scan.sh
 
-lint: line-cap deploy-selftest leak-scan
+lint: line-cap deploy-selftest ingest-selftest leak-scan
 	cargo clippy --all-targets -- -D warnings
 
 fmt:
@@ -419,6 +419,22 @@ promote-changelog:
 	test -n "$$prev" || { echo "no previous litany-era '## [x.y.z]($(COMPARE_URL)/...)' heading in CHANGELOG.md"; exit 1; }; \
 	sed -i 's|^## \[Unreleased\]$$|## [Unreleased]\n\n## [$(VERSION)]($(COMPARE_URL)/$(TAG_PREFIX)'"$$prev"'...$(TAG_PREFIX)$(VERSION)) - '"$$(date +%F)"'|' CHANGELOG.md
 	@echo "promoted [Unreleased] -> [$(VERSION)]"
+
+# Move the tree to the newest brazen crates.io serves (bl-5866): the pin's one
+# home, the README's spellings of it, Cargo.lock, and the changelog bullet
+# promoted to the version the release PR will propose. Nothing newer is the
+# same run leaving an empty diff. `.github/workflows/ingest.yml` runs it hourly
+# and lands a non-empty diff through `ci.yml`; `scripts/ingest/ingest` holds
+# the reasoning. COMPARE_URL and TAG_PREFIX travel from here so the script
+# restates neither.
+ingest:
+	@COMPARE_URL='$(COMPARE_URL)' TAG_PREFIX='$(TAG_PREFIX)' MAKE='$(MAKE)' scripts/ingest/ingest
+
+# Its regression half, a step of `lint` for the reason `deploy-selftest` is:
+# unattended code in no crate. It drives the real script AND this Makefile in a
+# scratch repository under fake `curl`/`cargo`, both directions.
+ingest-selftest:
+	@scripts/ingest/selftest.sh
 
 # The OCI image — the unit of install for a box that takes containers rather
 # than binaries. `Containerfile` is the whole of what it builds and states why

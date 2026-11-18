@@ -19,6 +19,11 @@ on:
   # release-plz.yml — the identity crates.io is configured to trust. See
   # release-plz.yml's header.
   workflow_call:
+  # A branch that buys a verdict without a pull request: ingest.yml pushes the
+  # moved brazen pin to one, dispatches this on it, and fast-forwards main only
+  # on a pass (bl-5866). A dispatch is the one event the default GITHUB_TOKEN
+  # may raise, which is why it is this and not the pull_request arm.
+  workflow_dispatch:
 
 jobs:
   ci:

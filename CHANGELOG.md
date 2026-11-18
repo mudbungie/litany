@@ -19,6 +19,10 @@ merges — and the release PR now WAITS for it, since `release-plz.yml`'s
 merge-release-pr job holds the merge until this file names the version that PR
 proposes.
 
+One bullet is written by no hand: a brazen pin move is `make ingest`'s, run
+hourly by `.github/workflows/ingest.yml`, which adds the bullet and runs the
+promotion itself (bl-5866).
+
 That "every delivery" is **enforced, not merely asked for**:
 `tests/changelog_completeness.rs` asserts that every `[bl-xxxx]` id on `main`
 since the last `v*` tag appears in this file. Three exemptions and no more:
@@ -28,6 +32,16 @@ its wording (bl-47b4). It runs under `make check`, so a missing bullet fails
 the next close rather than reaching a release.
 
 ## [Unreleased]
+
+- Ingest a brazen release unattended. `make ingest` moves the pin's one home,
+  the README's spellings of it and `Cargo.lock` to the newest non-yanked brazen
+  on crates.io, and writes the changelog bullet already promoted to the version
+  the release PR will propose; nothing newer is the same run leaving an empty
+  diff. `.github/workflows/ingest.yml` runs it hourly, proves a moved tree
+  through `ci.yml` on a branch, fast-forwards `main` and dispatches
+  `release-plz.yml`, whose release-PR job now also runs on a dispatch so that
+  landing is released without a further push. A pin bump is no longer a ball.
+  [bl-5866]
 
 ## [0.0.16](https://github.com/mudbungie/litany/compare/litany-v0.0.15...litany-v0.0.16) - 2026-11-17
 

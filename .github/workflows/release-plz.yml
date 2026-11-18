@@ -13,7 +13,8 @@ name: Release-plz
 #     still hard-gates on it via `needs:`. ci.yml has no push arm of its own,
 #     so per push to main CI runs exactly once — here (PRs still trigger
 #     ci.yml directly).
-#   * release-plz PR (every push to main) — opens/updates ONE "release PR" that
+#   * release-plz PR (every push to main, and every dispatch that is not a
+#     binaries backfill) — opens/updates ONE "release PR" that
 #     bumps the version in Cargo.toml/Cargo.lock, and nothing else: CHANGELOG.md
 #     is hand-maintained and release-plz never writes it (`changelog_update =
 #     false` in release-plz.toml — rationale there, bl-7558). It never
@@ -28,6 +29,11 @@ name: Release-plz
 #     CHANGELOG.md in the tagged tree is the record, which is the whole reason
 #     the merge waits on it. It does not wait on the ci job — it touches
 #     no artifact that CI protects.
+#
+#     **A brazen pin move is the one release no person promotes** (bl-5866):
+#     `ingest.yml` lands the pin with its bullet already promoted to the
+#     version this job will propose (`make ingest` derives the number the way
+#     release-plz.toml states it), then dispatches this workflow.
 #   * release (`needs: ci`, so only after CI in THIS run is green) — releases
 #     any version on main that is not out yet: tags it `litany-v<version>`
 #     (release-plz.toml's `git_tag_name` — the bare `v*` tags belong to the
@@ -162,9 +168,16 @@ name: Release-plz
 # does not vary by trigger, so the dispatched run re-runs the whole gate on the
 # merged tree before publishing anything.
 #
-# The dispatched run cannot re-enter this job: release-plz-pr is push-only, so
-# on a dispatch it is SKIPPED and every `needs:` of it skips with it. There is
-# no loop to bound because there is no second merge to make.
+# The dispatched run does re-enter this job, and finds nothing to merge.
+# release-plz-pr was push-only until bl-5866 and the skip was the recursion
+# stop; it now runs on a dispatch too, because `ingest.yml` lands on main with
+# GITHUB_TOKEN — a push that fires nothing — and its dispatch is the only
+# wake-up the release PR gets for that landing. The stop is what it always was
+# underneath: the run this job dispatches judges a main whose version is not
+# published yet, release-plz proposes nothing for it (the same state every
+# hand-merged release PR's push run met), so the open set is empty, nothing
+# merges, and "merged nothing; no dispatch" ends it. Were a pull request
+# proposed anyway, guard 6 holds it: nothing has promoted a changelog for it.
 #
 # ORDERING, AND THE TWO JOBS THIS ONE DELIBERATELY DOES NOT NAME. The
 # dependency on release-plz-release is not decoration: that job checks out the
@@ -288,13 +301,17 @@ jobs:
   release-plz-pr:
     name: release-plz PR
     runs-on: ubuntu-latest
-    # Only a direct push to main maintains the release PR (not a manual
-    # dispatch). Owner guard: never runs in a fork. Safe against fork-PR
+    # A push to main maintains the release PR, and so does a dispatch — the
+    # only wake-up a GITHUB_TOKEN landing on main can send (ingest.yml,
+    # bl-5866) — unless it names a tag to backfill, which is about an old
+    # release and no proposal. Owner guard: never runs in a fork. Safe against fork-PR
     # abuse because none of this workflow's triggers are reachable from a fork
     # PR — a fork PR fires `pull_request` (not requested here), never
     # `push`-to-main / `workflow_dispatch`, both of which need
     # write access to upstream.
-    if: github.repository_owner == 'mudbungie' && github.event_name == 'push'
+    if: >-
+      github.repository_owner == 'mudbungie' &&
+      (github.event_name == 'push' || github.event.inputs.binaries_tag == '')
     # Never run two release-PR updates at once — they would race on the branch.
     concurrency:
       group: release-plz-pr-${{ github.ref }}
@@ -438,10 +455,10 @@ jobs:
   merge-release-pr:
     name: merge the release PR
     runs-on: ubuntu-latest
-    # The gate, the ordering and the recursion stop, all in one list. The bare
-    # `needs` carries an implicit success(), so a red `ci`, a failed PR job or
-    # a failed release all skip this job; and `release-plz-pr` is push-only, so
-    # the run this job dispatches skips it and skips this with it. `ci` is
+    # The gate and the ordering, in one list. The bare `needs` carries an
+    # implicit success(), so a red `ci`, a failed PR job or a failed release
+    # all skip this job. The run this job dispatches reaches it again and
+    # merges nothing (the header's recursion paragraph). `ci` is
     # named although `release-plz-release` already needs it — the gate should
     # be readable here, not inferred through another job.
     needs: [ci, release-plz-pr, release-plz-release]
@@ -643,7 +660,7 @@ jobs:
   prune-release-branches:
     name: prune superseded release branches
     # `needs` with no `if` means: only after the release-PR job actually ran and
-    # succeeded. On workflow_dispatch that job is skipped, so this one is
+    # succeeded. On a binaries backfill that job is skipped, so this one is
     # too — pruning only ever follows a PR refresh.
     needs: release-plz-pr
     # release-plz pushes a NEW timestamped `release-plz-*` branch every time it

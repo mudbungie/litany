@@ -9,8 +9,8 @@ When creating a task, always create the following gates:
 ### The gate
 
 `make check` is the complete gate: `fmt-check → lint → coverage →
-test-install`, where `lint` is `line-cap → deploy-selftest → leak-scan →
-clippy -D warnings`. The pre-commit hook (`.githooks/pre-commit`) is the
+test-install`, where `lint` is `line-cap → deploy-selftest → ingest-selftest →
+leak-scan → clippy -D warnings`. The pre-commit hook (`.githooks/pre-commit`) is the
 mainline refusal plus `exec bl-gate "$@"`: the gate is `bl-gate` from userconf
 (`~/userconf/bin/bl-gate`, ops bl-1f80, `~/ops/remote-builds.md` "Phase 2"),
 the one copy every repo on this machine runs. This laptop does not compile in
@@ -22,6 +22,15 @@ the tree, 75 no verdict (commit refused), never `cargo test`. `bl-remote-run
 <target>` runs any make target on the builder when you want tests before
 committing. `.github/workflows/ci.yml` runs `make ci`; nobody restates a step
 the Makefile defines. Run `make install-hooks` once per clone.
+
+**The brazen pin is the workflow's, not a ball's** (bl-5866).
+`.github/workflows/ingest.yml` runs `make ingest` hourly: the newest non-yanked
+brazen on crates.io is written to the pin's one home (`Cargo.toml`), the
+README's spellings and `Cargo.lock`, with a changelog bullet promoted to the
+version the release PR will propose; the diff is gated by `ci.yml` on a branch,
+fast-forwarded onto `main`, and `release-plz.yml` is dispatched so the release
+follows. Do not file a ball to bump the pin. A red Ingest run is the one case
+that is a hand's: the new brazen failed the gate and `main` was left alone.
 
 **All tests must pass and coverage must be 100% before anything merges.** It
 does not matter who broke the test.

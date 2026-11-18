@@ -1,0 +1,109 @@
+#!/bin/sh
+# Move this tree to the newest brazen the registry serves (bl-5866) — the
+# whole of `make ingest`. Run hourly by `.github/workflows/ingest.yml`, which
+# proves a non-empty result through `ci.yml` and lands it; safe to run by hand
+# in a worktree. `scripts/ingest/selftest.sh` drives THIS file under fake
+# `curl`/`cargo` shims and is what `make ingest-selftest` runs.
+#
+# **Why.** Publishing litany is automatic and so is every box's install, but
+# the pin moved only when a person filed a ball and edited it (bl-143e,
+# bl-8daa, bl-cdcb, bl-5491). That was the one link a hand carried.
+#
+# **Every step states where the tree must END, so "nothing newer" is this same
+# path leaving an empty diff.** No step compares "have" against "want" and
+# skips: the pin is rewritten to the target, the lockfile is moved to the
+# target, the changelog is made to name the target — and when the tree is
+# already there each of those writes what was already written.
+#
+# **Nothing here is stored.** The target is the registry's answer, the current
+# pin is `Cargo.toml`'s `brazen = "=<pin>"` line (the pin's one home), and the
+# version the changelog is promoted to is derived below from `Cargo.toml` and
+# the commits since its tag. `COMPARE_URL` and `TAG_PREFIX` are the Makefile's
+# and arrive in the environment, which is why this is run as `make ingest`.
+set -eu
+
+: "${COMPARE_URL:?run this as \`make ingest\`}" "${TAG_PREFIX:?run this as \`make ingest\`}"
+CRATE=brazen
+INDEX_URL="https://index.crates.io/br/az/$CRATE"
+
+say() { printf 'ingest: %s\n' "$*"; }
+die() { say "$*" >&2; exit 1; }
+
+# The newest release the registry will serve — `scripts/deploy/litany-update`'s
+# reading, of the same index, by the same parameter expansion (its comments
+# hold the reasoning: fetch and parse are separate statements so a 503 is not
+# an empty index; `"vers"` occurs once per line). It is restated rather than
+# shared because that file ships alone to a box with no checkout. One line is
+# this file's own: a pre-release is not a release, and `sort -V` would rank
+# `1.0.0-rc1` above `1.0.0`.
+latest_live() {
+    _index=$(curl -fsS --max-time 60 "$INDEX_URL") \
+        || die 'cannot reach the registry index'
+    printf '%s\n' "$_index" | while IFS= read -r _line; do
+        case $_line in
+            *'"yanked":false'*) ;;
+            *) continue ;;
+        esac
+        _v=${_line#*'"vers":"'}
+        _v=${_v%%'"'*}
+        case $_v in ''|*[!0-9.]*) continue ;; esac
+        printf '%s\n' "$_v"
+    done | sort -V | tail -1
+}
+
+have=$(sed -n 's/^brazen = "=\([^"]*\)"$/\1/p' Cargo.toml)
+[ -n "$have" ] || die 'Cargo.toml has no `brazen = "=<version>"` line'
+live=$(latest_live)
+[ -n "$live" ] || die 'the registry index named no live version'
+# Never backwards. A yank of the pinned version makes the newest live one
+# OLDER than the pin, and a downgrade is a decision, not an ingest — so the
+# target is the greater of the two, and here that is the pin itself.
+want=$(printf '%s\n%s\n' "$have" "$live" | sort -V | tail -1)
+say "pinned $have, newest live $live -> $want"
+
+# The pin's one home, and the README's restatements of it. The README is the
+# crates.io landing page and must spell a copy-pasteable number, so it is a
+# reader that has to be re-spelled; these are the three shapes
+# `every_brazen_version_the_readme_spells_is_the_pin` holds equal to the pin,
+# and a `<pin>` placeholder has no digit to match.
+sed -i \
+    -e "s/\(brazen --version =\)[0-9][0-9.]*/\1$want/g" \
+    -e "s/\(brazen = \"=\)[0-9][0-9.]*/\1$want/g" \
+    -e "s/\((brazen \)[0-9][0-9.]*/\1$want/g" \
+    Cargo.toml README.md
+cargo update -p "$CRATE" --precise "$want"
+
+# The changelog names this pin, in a section the release hold will accept.
+# `release-plz.yml`'s merge-release-pr holds the release PR until CHANGELOG.md
+# carries a heading for the version that PR proposes, so a pin that lands
+# without one is a pin that never ships.
+bullet="- Pin brazen \`=$want\`"
+if ! grep -qF -- "$bullet" CHANGELOG.md; then
+    # The version release-plz will propose, derived the way it derives it
+    # (release-plz.toml): `[package] version` on main is the last release, the
+    # step is PATCH, and a standalone `[minor]` / `[major]` token in a commit
+    # since that release's tag raises it. No tag means main's version is not
+    # out yet — a release in flight — and the next tick re-judges.
+    last=$(awk '/^\[package\]/ { p = 1 }
+                p && /^version = / { gsub(/^version = "|"$/, ""); print; exit }' Cargo.toml)
+    window=$(git log --format=%B "$TAG_PREFIX$last..HEAD") \
+        || die "no tag $TAG_PREFIX$last: that release is still in flight"
+    level=patch
+    for _l in minor major; do
+        printf '%s\n' "$window" \
+            | grep -Eq "(^|[[:space:]])\[$_l\]([[:space:]]|\$)" && level=$_l
+    done
+    next=$(printf '%s\n' "$last" | awk -F. -v l="$level" '
+        l == "major" { printf "%d.0.0\n", $1 + 1; next }
+        l == "minor" { printf "%d.%d.0\n", $1, $2 + 1; next }
+                     { printf "%d.%d.%d\n", $1, $2, $3 + 1 }')
+
+    # A promotion to $next that has not released yet (it landed, the release
+    # PR has not merged) is un-stamped first: its bullets fall back under
+    # [Unreleased], which makes it the general case — whatever is waiting
+    # there ships with the pin, under one heading, stamped by the one target
+    # that writes headings.
+    sed -i "\\|^## \\[$next\\]($COMPARE_URL/|,+1d" CHANGELOG.md
+    sed -i "s|^## \\[Unreleased\\]\$|&\\n\\n$bullet, ingested unattended from crates.io (\`make ingest\`). What the release carries is brazen's own changelog.|" CHANGELOG.md
+    "${MAKE:-make}" --no-print-directory promote-changelog VERSION="$next"
+fi
