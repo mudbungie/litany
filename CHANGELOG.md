@@ -29,6 +29,15 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.16](https://github.com/mudbungie/litany/compare/litany-v0.0.15...litany-v0.0.16) - 2026-11-17
+
+- Pin brazen `=0.0.21` (brazen bl-0839): the adapter's provider rows gain
+  `header_commands`, a header whose value is the trimmed stdout of an operator
+  command run per request, with the same-named `beta_headers` entry as the
+  fallback. A brazen config carrying the key is a parse error to every earlier
+  pin, so a host that wants it needs this one. Nothing litany sends changes.
+  The pin also carries brazen's `rustix` 1.1.6 bump (RUSTSEC-2026-0486). [bl-5491]
+
 - Add `litany model <ws> <agent> [<provider> <model> [--effort L] [--priority] | --clear]`,
   the per-agent model override: a standing mark `refs/litany/model/<agent>`
   carrying a role-assignment blob that resolution overlays on the agent's
