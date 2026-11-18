@@ -28,6 +28,10 @@ permissions:
 jobs:
   tasks:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The alarm's one issue.
+      issues: write
     steps:
       # The scanner and its rule table, from the source ref.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -46,3 +50,19 @@ jobs:
       - name: Scan the task store
         working-directory: store
         run: "$GITHUB_WORKSPACE/scripts/leak-scan.sh"
+      # The alarm (scripts/alarm.sh, bl-2146): the first red run of a streak
+      # opens one issue that mentions the owner, later red runs add nothing,
+      # and the next green run closes it. `continue-on-error` on both, so the
+      # run's colour is always the work's own and never the alarm's.
+      - name: Raise the alarm, once per red streak
+        if: failure()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/alarm.sh red
+      - name: Stand the alarm down
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/alarm.sh green

@@ -2335,7 +2335,7 @@ first use — no manual `rustup` step. This is what keeps `fmt-check` and
 | `make test`           | `cargo test`, with the pinned `bz` first on `PATH` (below) |
 | `make test-install`   | `cargo test --test install` — the install contract end-to-end, uninstrumented (it is `cfg_attr(tarpaulin, ignore)`, so `coverage` skips it); ~45s warm, and it re-installs `bz` at the `brazen` pin |
 | `make coverage`       | `cargo tarpaulin --fail-under 100` (llvm engine), same pinned `PATH` (below); hard-gated on tarpaulin **0.35.2** exactly (`TARPAULIN_PIN` in the `Makefile` — its one home; any other version aborts with the `cargo install cargo-tarpaulin --version 0.35.2 --locked` fix-it line) |
-| `make lint`           | `line-cap` + `deploy-selftest` + `ingest-selftest` + `leak-scan` + `cargo clippy --all-targets -- -D warnings` |
+| `make lint`           | `line-cap` + `deploy-selftest` + `ingest-selftest` + `alarm-selftest` + `leak-scan` + `cargo clippy --all-targets -- -D warnings` |
 | `make line-cap`       | Every tracked code file is within 300 lines (docs, config, lockfile, `Makefile`, `LICENSE`, `.gitignore`, `.githooks/` exempt); a step of `lint` |
 | `make fmt`            | `cargo fmt`                                           |
 | `make fmt-check`      | `cargo fmt --check`                                   |
@@ -2348,7 +2348,7 @@ first use — no manual `rustup` step. This is what keeps `fmt-check` and
 | `make install-hooks`  | Point git at `.githooks/`                             |
 | `make install-bz`     | Install the provider adapter `bz` on your `PATH` at the version Cargo.toml pins (ARCH §4.4); a no-op when the `bz` there already matches. For *running* litany — the tests feed themselves (below) |
 | `make brazen-pin`     | Print that pinned version and nothing else — CI keys its `bz` cache on it so no workflow file names a version |
-| `make ingest`         | Move the tree to the newest non-yanked brazen on crates.io: the pin in `Cargo.toml`, this file's spellings of it, `Cargo.lock`, and a changelog bullet promoted to the next version. An empty diff when nothing is newer. `.github/workflows/ingest.yml` runs it hourly and lands the result through CI, so nobody bumps the pin by hand |
+| `make ingest`         | Move the tree to the newest non-yanked brazen on crates.io: the pin in `Cargo.toml`, this file's spellings of it, `Cargo.lock`, and a changelog bullet promoted to the next version. An empty diff when nothing is newer. `.github/workflows/ingest.yml` runs it hourly and lands the result through CI, so nobody bumps the pin by hand. A failed scheduled run opens one issue mentioning the owner (`scripts/alarm.sh`), once per red streak; the next green run closes it |
 | `make install` [`INSTALL_PREFIX=<p>` `LITANY_HOME=<h>`] | Release-build; drop `litany`/`agent-eval` into `$INSTALL_PREFIX/bin` (default: `~/.local/bin`); install the provider adapter `bz` via `make install-bz` at the version Cargo.toml pins (the ARCH §4.4 version pin — the number's one home); then invoke `litany prime` to found the harness root — config root (default `~/.config/litany`) with a default `models.yaml` and a `workflows/` templates dir holding `basic-agentic-loop.yaml`, data root (default `~/.local/share/litany`) with the `tools/`/`skills/` pools and the `workspaces/` tree — seed-if-absent (ARCH §2.2); `LITANY_HOME` collapses both |
 | `make uninstall` [`INSTALL_PREFIX=<p>` `LITANY_HOME=<h>`] | Remove the installed binaries; leaves the harness homes (config + data roots) in place |
 | `make image` [`CONTAINER_ENGINE=docker`] | Build the OCI image from `Containerfile`, tagged `litany:<Cargo.toml version>` and `litany:latest`, then run `image-scan` on it. Pushes nothing (see "As a container image") |
@@ -2455,7 +2455,7 @@ release, and unlike that one it is a step of `make image` rather than a habit.
 it. This laptop does not compile in a gate, and `cargo tarpaulin` /
 `cargo llvm-cov` are shimmed here and refuse to run. The gate's targets are
 **`make check`** — `fmt-check` + `lint` + `coverage` + `test-install`, where
-`lint` is `line-cap` → `deploy-selftest` → `ingest-selftest` → `leak-scan` → `clippy -D warnings`
+`lint` is `line-cap` → `deploy-selftest` → `ingest-selftest` → `alarm-selftest` → `leak-scan` → `clippy -D warnings`
 — and bl-gate has the noodlezoo builder run them. Three steps, no fourth:
 
 1. **`make leak-scan` locally** — cheap, and the one thing that must never

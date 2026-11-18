@@ -10,7 +10,7 @@ When creating a task, always create the following gates:
 
 `make check` is the complete gate: `fmt-check → lint → coverage →
 test-install`, where `lint` is `line-cap → deploy-selftest → ingest-selftest →
-leak-scan → clippy -D warnings`. The pre-commit hook (`.githooks/pre-commit`) is the
+alarm-selftest → leak-scan → clippy -D warnings`. The pre-commit hook (`.githooks/pre-commit`) is the
 mainline refusal plus `exec bl-gate "$@"`: the gate is `bl-gate` from userconf
 (`~/userconf/bin/bl-gate`, ops bl-1f80, `~/ops/remote-builds.md` "Phase 2"),
 the one copy every repo on this machine runs. This laptop does not compile in
@@ -31,6 +31,14 @@ version the release PR will propose; the diff is gated by `ci.yml` on a branch,
 fast-forwarded onto `main`, and `release-plz.yml` is dispatched so the release
 follows. Do not file a ball to bump the pin. A red Ingest run is the one case
 that is a hand's: the new brazen failed the gate and `main` was left alone.
+
+**A red scheduled run announces itself once** (bl-2146). Every workflow with a
+`schedule:` (`ingest.yml`, `store-scan.yml`) ends with `scripts/alarm.sh red`
+on failure and `scripts/alarm.sh green` on success. The first red run of a
+streak opens an issue titled `unattended run red: <workflow>` that mentions the
+repository owner; while it is open later red runs add nothing, and the next
+green run closes it. That open issue is the whole state. A new scheduled
+workflow gets the same two steps and `issues: write`.
 
 **All tests must pass and coverage must be 100% before anything merges.** It
 does not matter who broke the test.

@@ -33,6 +33,15 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.17](https://github.com/mudbungie/litany/compare/litany-v0.0.16...litany-v0.0.17) - 2026-11-17
+
+- Make a red unattended run reach somebody, once. Every scheduled workflow
+  (`ingest.yml`, `store-scan.yml`) ends with `scripts/alarm.sh`: the first red
+  run of a streak opens an issue titled `unattended run red: <workflow>` that
+  mentions the repository owner, later red runs add nothing while it is open,
+  and the next green run closes it. The open issue is the alarm's whole state.
+  [bl-2146]
+
 - Ingest a brazen release unattended. `make ingest` moves the pin's one home,
   the README's spellings of it and `Cargo.lock` to the newest non-yanked brazen
   on crates.io, and writes the changelog bullet already promoted to the version

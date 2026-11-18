@@ -1,4 +1,4 @@
-.PHONY: all build release test test-install coverage lint line-cap leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan mac-artifact clean deploy-local deploy-selftest deploy-status ingest ingest-selftest
+.PHONY: all build release test test-install coverage lint line-cap leak-scan fmt fmt-check check smoke schemas new-workspace eval install-hooks install install-bz brazen-pin install-verify uninstall ci promote-changelog image image-scan mac-artifact clean deploy-local deploy-selftest deploy-status ingest ingest-selftest alarm-selftest
 
 # Install location for `make install`. Defaults to the XDG-ish user-local
 # convention; override for system-wide installs or packaging:
@@ -219,7 +219,7 @@ leak-scan:
 	@scripts/leak-scan.sh --self-test
 	@scripts/leak-scan.sh
 
-lint: line-cap deploy-selftest ingest-selftest leak-scan
+lint: line-cap deploy-selftest ingest-selftest alarm-selftest leak-scan
 	cargo clippy --all-targets -- -D warnings
 
 fmt:
@@ -435,6 +435,11 @@ ingest:
 # scratch repository under fake `curl`/`cargo`, both directions.
 ingest-selftest:
 	@scripts/ingest/selftest.sh
+
+# The scheduled workflows' alarm (scripts/alarm.sh, bl-2146: one issue per red
+# streak, closed by the next green run), driven under a fake `gh` both ways.
+alarm-selftest:
+	@scripts/alarm-selftest.sh
 
 # The OCI image — the unit of install for a box that takes containers rather
 # than binaries. `Containerfile` is the whole of what it builds and states why

@@ -32,6 +32,10 @@ name: Ingest
 # refuses when `main` moved while the gate ran; the next hour begins again
 # from the new `main`, which costs an hour and no hand.
 #
+# AND A FAILED RUN REACHES SOMEBODY, ONCE. The last two steps are the alarm:
+# one issue per red streak, closed by the next green run — and a run that
+# found nothing newer is a green run.
+#
 # The shape is yog's `advisories.yml`, which lands a lockfile mend the same
 # way. Every action is pinned to a full commit SHA: this job writes to `main`.
 
@@ -58,6 +62,8 @@ jobs:
       contents: write
       # Dispatching ci.yml and release-plz.yml.
       actions: write
+      # The alarm's one issue.
+      issues: write
     env:
       # Present: pushes trigger workflows and no dispatch is needed. Absent:
       # the default token pushes and release-plz.yml is dispatched (4).
@@ -110,3 +116,19 @@ jobs:
           if [ -z "$PAT" ]; then
             gh workflow run release-plz.yml --ref main
           fi
+      # The alarm (scripts/alarm.sh, bl-2146): the first red run of a streak
+      # opens one issue that mentions the owner, later red runs add nothing,
+      # and the next green run closes it. `continue-on-error` on both, so the
+      # run's colour is always the work's own and never the alarm's.
+      - name: Raise the alarm, once per red streak
+        if: failure()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/alarm.sh red
+      - name: Stand the alarm down
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/alarm.sh green
