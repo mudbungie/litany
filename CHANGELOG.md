@@ -33,6 +33,10 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.18](https://github.com/mudbungie/litany/compare/litany-v0.0.17...litany-v0.0.18) - 2026-11-18
+
+- Pin brazen `=0.0.22`, ingested unattended from crates.io (`make ingest`). What the release carries is brazen's own changelog.
+
 ## [0.0.17](https://github.com/mudbungie/litany/compare/litany-v0.0.16...litany-v0.0.17) - 2026-11-17
 
 - Make a red unattended run reach somebody, once. Every scheduled workflow
