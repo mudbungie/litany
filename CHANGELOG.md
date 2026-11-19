@@ -40,6 +40,10 @@ the next close rather than reaching a release.
   before writing anything. Both print their line, land nothing, and the next
   hourly run retries. [bl-b9fb]
 
+## [0.0.19](https://github.com/mudbungie/litany/compare/litany-v0.0.18...litany-v0.0.19) - 2026-11-18
+
+- Pin brazen `=0.0.23`, ingested unattended from crates.io (`make ingest`). What the release carries is brazen's own changelog.
+
 ## [0.0.18](https://github.com/mudbungie/litany/compare/litany-v0.0.17...litany-v0.0.18) - 2026-11-18
 
 - Pin brazen `=0.0.22`, ingested unattended from crates.io (`make ingest`). What the release carries is brazen's own changelog.

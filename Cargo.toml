@@ -7,11 +7,11 @@ members = [".", "crates/agent-eval", "crates/litany-eval-agent"]
 # vocabulary off `response.json`, ARCH §9.3) inherit it via
 # `workspace = true`, so the pin cannot drift between them.
 [workspace.dependencies]
-brazen = "=0.0.22"
+brazen = "=0.0.23"
 
 [package]
 name = "litany"
-version = "0.0.18"
+version = "0.0.19"
 edition = "2024"
 description = "A git-backed agent harness"
 license = "MIT"
