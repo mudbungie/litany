@@ -1,7 +1,8 @@
 +++
 title = "the two self-healing Ingest exits are green: a refused fast-forward (main moved while the gate ran) and a release still in flight (no tag for main's version) print their line and end the run successfully with nothing landed"
 created = 1795071707
-updated = 1795071707
+updated = 1795071708
+claimant = "Knuckled-L"
 priority = 2
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
