@@ -33,6 +33,8 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.20](https://github.com/mudbungie/litany/compare/litany-v0.0.19...litany-v0.0.20) - 2026-11-18
+
 - Make Ingest's two self-healing endings green, so neither opens the alarm
   issue: a fast-forward refused because `main` moved while the gate ran (proved
   by fetching `main`, so any other push failure stays red), and a release still
