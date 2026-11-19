@@ -37,7 +37,9 @@ that is a hand's: the new brazen failed the gate and `main` was left alone.
 on failure and `scripts/alarm.sh green` on success. The first red run of a
 streak opens an issue titled `unattended run red: <workflow>` that mentions the
 repository owner; while it is open later red runs add nothing, and the next
-green run closes it. That open issue is the whole state. A new scheduled
+green run closes it. That open issue is the whole state. Ingest's two
+self-healing endings are green and open nothing (bl-b9fb): `main` moved while
+the gate ran, and a release still in flight (no tag yet for main's version). A new scheduled
 workflow gets the same two steps and `issues: write`.
 
 **All tests must pass and coverage must be 100% before anything merges.** It

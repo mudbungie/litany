@@ -26,6 +26,9 @@ export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid
 export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
 
 URL=https://github.com/mudbungie/litany/compare
+# The tag the world's release commit carries. One case moves it off the
+# manifest's version, which is what a release in flight looks like.
+tag=litany-v0.0.15
 fails=0
 cases=0
 
@@ -79,7 +82,7 @@ run_case() { # <label> <index-fn> <changelog-fn> <window-commit-subject> <checke
     git -C "$w" init -q -b main
     git -C "$w" add -A
     git -C "$w" commit -qm 'the last release'
-    git -C "$w" tag litany-v0.0.15
+    git -C "$w" tag "$tag"
     git -C "$w" commit -q --allow-empty -m "$4"
 
     # `curl` serves the fixture for the one URL and refuses any other with
@@ -154,6 +157,12 @@ moved_with_the_waiting() {
 }
 # The negative arm: a NON-event, asserted on the tree and not on the output.
 untouched() { [ "$code" = 0 ] && [ -z "$dirt" ]; }
+# The hold: green, nothing written, and it stopped BEFORE the registry and
+# cargo — a hold that had already rewritten the pin would land half a move.
+held_in_flight() {
+    untouched && [ -z "$log" ] \
+        && printf '%s\n' "$out" | grep -q 'no tag litany-v0.0.15: a release is still in flight'
+}
 refused_offline() {
     [ "$code" != 0 ] && [ -z "$dirt" ] && [ -z "$log" ] \
         && printf '%s\n' "$out" | grep -q 'cannot reach the registry index'
@@ -182,6 +191,12 @@ run_case 'a [minor] marker since the last tag -> promoted to the minor' \
     newer settled 'a bigger delivery [minor] [bl-3333]' moved_minor
 run_case 'registry unreachable -> refuses, tree untouched, cargo never run' \
     unreachable settled 'a delivery [bl-2222]' refused_offline
+# Main's version has no tag yet although a newer brazen is waiting: green,
+# and nothing moves until the tag exists.
+tag=litany-v0.0.14
+run_case 'release in flight (no tag for main'"'"'s version) -> holds green, tree untouched' \
+    newer settled 'chore: release v0.0.15' held_in_flight
+tag=litany-v0.0.15
 
 [ "$cases" -gt 0 ] \
     || { echo 'ingest-selftest: ran 0 cases — the harness is broken' >&2; exit 1; }

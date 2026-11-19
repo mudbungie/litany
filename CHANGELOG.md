@@ -33,6 +33,13 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+- Make Ingest's two self-healing endings green, so neither opens the alarm
+  issue: a fast-forward refused because `main` moved while the gate ran (proved
+  by fetching `main`, so any other push failure stays red), and a release still
+  in flight — no tag yet for main's version — which `make ingest` now judges
+  before writing anything. Both print their line, land nothing, and the next
+  hourly run retries. [bl-b9fb]
+
 ## [0.0.18](https://github.com/mudbungie/litany/compare/litany-v0.0.17...litany-v0.0.18) - 2026-11-18
 
 - Pin brazen `=0.0.22`, ingested unattended from crates.io (`make ingest`). What the release carries is brazen's own changelog.

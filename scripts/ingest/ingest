@@ -51,6 +51,20 @@ latest_live() {
     done | sort -V | tail -1
 }
 
+# A release in flight is a hold, not a failure (bl-b9fb), and it is judged
+# before anything is written so the hold leaves an empty diff. `[package]
+# version` on main names the last release only once that release is tagged;
+# between the release PR's merge and the tag, the version this file would
+# promote the changelog to cannot be derived. Nobody is needed — the tag
+# arrives in minutes and the next tick begins again — so the run ends green.
+last=$(awk '/^\[package\]/ { p = 1 }
+            p && /^version = / { gsub(/^version = "|"$/, ""); print; exit }' Cargo.toml)
+[ -n "$last" ] || die 'Cargo.toml has no [package] version'
+git rev-parse -q --verify "refs/tags/$TAG_PREFIX$last" >/dev/null || {
+    say "no tag $TAG_PREFIX$last: a release is still in flight; nothing written, the next run retries"
+    exit 0
+}
+
 have=$(sed -n 's/^brazen = "=\([^"]*\)"$/\1/p' Cargo.toml)
 [ -n "$have" ] || die 'Cargo.toml has no `brazen = "=<version>"` line'
 live=$(latest_live)
@@ -80,14 +94,11 @@ cargo update -p "$CRATE" --precise "$want"
 bullet="- Pin brazen \`=$want\`"
 if ! grep -qF -- "$bullet" CHANGELOG.md; then
     # The version release-plz will propose, derived the way it derives it
-    # (release-plz.toml): `[package] version` on main is the last release, the
-    # step is PATCH, and a standalone `[minor]` / `[major]` token in a commit
-    # since that release's tag raises it. No tag means main's version is not
-    # out yet — a release in flight — and the next tick re-judges.
-    last=$(awk '/^\[package\]/ { p = 1 }
-                p && /^version = / { gsub(/^version = "|"$/, ""); print; exit }' Cargo.toml)
+    # (release-plz.toml): `[package] version` on main is the last release
+    # ($last, tagged — the hold above), the step is PATCH, and a standalone
+    # `[minor]` / `[major]` token in a commit since that tag raises it.
     window=$(git log --format=%B "$TAG_PREFIX$last..HEAD") \
-        || die "no tag $TAG_PREFIX$last: that release is still in flight"
+        || die "cannot read the commits since $TAG_PREFIX$last"
     level=patch
     for _l in minor major; do
         printf '%s\n' "$window" \

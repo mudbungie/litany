@@ -28,9 +28,12 @@ name: Ingest
 #
 # WHAT A FAILED RUN MEANS. A red `ci.yml` on the branch means the new brazen
 # broke something real, and that IS a hand's: `main` is untouched, and every
-# later tick fails the same way until somebody reads it. The fast-forward
-# refuses when `main` moved while the gate ran; the next hour begins again
-# from the new `main`, which costs an hour and no hand.
+# later tick fails the same way until somebody reads it.
+#
+# AND TWO ENDINGS THAT LAND NOTHING ARE GREEN (bl-b9fb), because neither needs
+# a hand and the next hour retries: the fast-forward refused because `main`
+# moved while the gate ran, and `make ingest` holding because main's version
+# has no release tag yet (a release in flight). Each prints its line.
 #
 # AND A FAILED RUN REACHES SOMEBODY, ONCE. The last two steps are the alarm:
 # one issue per red streak, closed by the next green run — and a run that
@@ -110,8 +113,18 @@ jobs:
           [ -n "$run" ] || { echo "ci.yml never started on $branch" >&2; exit 1; }
           gh run watch "$run" --exit-status
           git push origin "$branch:main" || {
-            echo "main moved while the gate ran: nothing landed; the next run begins from the new main" >&2
-            exit 1
+            # Only the refused fast-forward is forgiven, and it is PROVED
+            # rather than assumed from a failed push: main, fetched now, is no
+            # longer in the branch's history. A push that failed for any other
+            # reason finds main still an ancestor and stays red, as does a
+            # fetch that cannot answer.
+            git fetch -q origin main
+            if git merge-base --is-ancestor FETCH_HEAD HEAD; then
+              echo "the push to main failed and main had not moved: that is not the forgiven case" >&2
+              exit 1
+            fi
+            echo "main moved while the gate ran: nothing landed; the next run begins from the new main"
+            exit 0
           }
           if [ -z "$PAT" ]; then
             gh workflow run release-plz.yml --ref main
