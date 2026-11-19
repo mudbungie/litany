@@ -38,7 +38,8 @@ the next close rather than reaching a release.
   by fetching `main`, so any other push failure stays red), and a release still
   in flight — no tag yet for main's version — which `make ingest` now judges
   before writing anything. Both print their line, land nothing, and the next
-  hourly run retries. [bl-b9fb]
+  hourly run retries. A refused push with `main` unmoved says it is a hand's.
+  [bl-b9fb] [bl-b26d]
 
 ## [0.0.19](https://github.com/mudbungie/litany/compare/litany-v0.0.18...litany-v0.0.19) - 2026-11-18
 

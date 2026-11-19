@@ -119,8 +119,8 @@ jobs:
             # reason finds main still an ancestor and stays red, as does a
             # fetch that cannot answer.
             git fetch -q origin main
-            if git merge-base --is-ancestor FETCH_HEAD HEAD; then
-              echo "the push to main failed and main had not moved: that is not the forgiven case" >&2
+            if git merge-base --is-ancestor FETCH_HEAD "$branch"; then
+              echo "the push to main was refused and main did not move: this is a hand's" >&2
               exit 1
             fi
             echo "main moved while the gate ran: nothing landed; the next run begins from the new main"
