@@ -1,7 +1,7 @@
 +++
 title = "Integrate scotoma: secret handles substituted at execution, values redacted from output and requests"
 created = 1794986620
-updated = 1795054183
+updated = 1795147509
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
 scotoma 0.0.1 is on crates.io (repo: ~/dev/scotoma; contract: its docs/DESIGN.md 'Integrating a harness'). Zero dependencies. API: Scotoma::open(home, actor), issue(name) -> uuid handle, substitute(&str) -> String, redact(&str) -> String, plus streaming substituter()/redactor(). Handles are read from scotoma's on-disk usage log, so they survive the per-tool subprocess and a hold resuming in a new process.
@@ -22,3 +22,7 @@ Open decisions for the operator:
 ---
 
 2026-11-18 operator direction: seam 4 is a GUARD, not a redaction — Scotoma::check(body) in one_call::issue; on Error::Leak do not send (landed on scotoma main, unpublished beyond 0.0.1). Seam 3 (redact tool output) stays, so one echoed secret does not fail every later request. Blocked on scotoma's locked vault (encrypted at rest, resident process, grants): the library will become a client of a resident process and issue/substitute will need a grant token; see scotoma docs/DESIGN.md 'Next: the locked vault'. Do not build against the 0.0.1 API.
+
+---
+
+2026-11-19: scotoma's locked vault is on its main (unpublished; crates.io still has 0.0.1). API now: Scotoma::open(home, actor) is a CLIENT of the resident process the user starts with 'scotoma unlock'; .with_grant(token) (token from Scotoma::grant(duration, names), approved at the unlock terminal; CLI env SCOTOMA_GRANT). issue/substitute/run need the grant; redact/check do not. Preferred seam for bash: Scotoma::run(argv, out, err) — the resident process executes in the caller's cwd/env, the value never reaches litany, output returns with the handle back in place. substitute()+redact() remain for a harness that must spawn itself. Contract: scotoma docs/DESIGN.md 'Integrating a harness'. Remote thrall: run the resident process on the executing machine.
