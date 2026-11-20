@@ -33,6 +33,10 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.21](https://github.com/mudbungie/litany/compare/litany-v0.0.20...litany-v0.0.21) - 2026-11-20
+
+- Pin brazen `=0.0.24`, ingested unattended from crates.io (`make ingest`). What the release carries is brazen's own changelog.
+
 ## [0.0.20](https://github.com/mudbungie/litany/compare/litany-v0.0.19...litany-v0.0.20) - 2026-11-18
 
 - Make Ingest's two self-healing endings green, so neither opens the alarm
