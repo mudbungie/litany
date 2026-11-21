@@ -1,7 +1,7 @@
 +++
 title = "Integrate scotoma: secret handles substituted at execution, values redacted from output and requests"
 created = 1794986620
-updated = 1795147509
+updated = 1795235188
 root_commit = "12899370c9ec7a5ed7f8e26d3d4fb914ea6c3310"
 +++
 scotoma 0.0.1 is on crates.io (repo: ~/dev/scotoma; contract: its docs/DESIGN.md 'Integrating a harness'). Zero dependencies. API: Scotoma::open(home, actor), issue(name) -> uuid handle, substitute(&str) -> String, redact(&str) -> String, plus streaming substituter()/redactor(). Handles are read from scotoma's on-disk usage log, so they survive the per-tool subprocess and a hold resuming in a new process.
@@ -26,3 +26,7 @@ Open decisions for the operator:
 ---
 
 2026-11-19: scotoma's locked vault is on its main (unpublished; crates.io still has 0.0.1). API now: Scotoma::open(home, actor) is a CLIENT of the resident process the user starts with 'scotoma unlock'; .with_grant(token) (token from Scotoma::grant(duration, names), approved at the unlock terminal; CLI env SCOTOMA_GRANT). issue/substitute/run need the grant; redact/check do not. Preferred seam for bash: Scotoma::run(argv, out, err) — the resident process executes in the caller's cwd/env, the value never reaches litany, output returns with the handle back in place. substitute()+redact() remain for a harness that must spawn itself. Contract: scotoma docs/DESIGN.md 'Integrating a harness'. Remote thrall: run the resident process on the executing machine.
+
+---
+
+scotoma main 7621c80 changes the integration surface: no handles (model writes [scotoma:NAME]; Scotoma::names lists them); Scotoma::grant(limits, names, reason) per agent, name fixed at approval; approver = holder of the approver token looping Scotoma::pending/decide (auto-approval is such a loop); Scotoma::run(command, input, out, err) relays stdin and is cancelled by dropping the connection; redact/guard also catch percent-encoded and base64 forms.
