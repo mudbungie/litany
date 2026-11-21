@@ -33,6 +33,10 @@ the next close rather than reaching a release.
 
 ## [Unreleased]
 
+## [0.0.22](https://github.com/mudbungie/litany/compare/litany-v0.0.21...litany-v0.0.22) - 2026-11-21
+
+- Pin brazen `=0.0.25`, ingested unattended from crates.io (`make ingest`). What the release carries is brazen's own changelog.
+
 ## [0.0.21](https://github.com/mudbungie/litany/compare/litany-v0.0.20...litany-v0.0.21) - 2026-11-20
 
 - Pin brazen `=0.0.24`, ingested unattended from crates.io (`make ingest`). What the release carries is brazen's own changelog.
